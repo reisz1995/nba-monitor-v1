@@ -1,0 +1,5 @@
+{
+  "name": "Nba monitor v1",
+  "description": "Uma plataforma interativa e minimalista para acompanhar e simular a classificação da NBA em tempo real.",
+  "requestFramePermissions": []
+}
