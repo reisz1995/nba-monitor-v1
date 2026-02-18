@@ -26,14 +26,22 @@ Utiliza modelos **Gemini 3-Pro** e **3-Flash** para:
 - **Ajuste Médico**: Aplicação automática de penalidades no placar projetado (Ex: -3.0 pts por jogador chave fora).
 - **Fator Casa/Fora**: Ponderação estatística para times mandantes.
 
-### 4. Tips Dashboard (Painel de Especialista)
+### 4. Vault History (Arquivo Técnico)
+- **Histórico de Performance**: Registro persistente de todas as análises feitas pela IA no Supabase.
+- **Validação de Resultados**: Sistema de marcação manual para coletar "Greens" e "Reds", permitindo calcular a taxa de assertividade (Win Rate) real.
+- **Layout de Densidade**: Tabela de alta densidade informativa com logos brutalistas e acesso rápido a detalhes.
+
+### 5. ESPN Live Scoreboard
+- **Placares em Tempo Real**: Painel dedicado que sincroniza diretamente com a API da ESPN para mostrar jogos ao vivo, placares finais e horários da rodada.
+- **Destaque Visual**: Sistema de sinalização para jogos "LIVE" com micro-animações e tipografia mono.
+
+### 6. Tips Dashboard (Painel de Especialista)
 - **Tabela de Notas**: Sistema de Power Ranking manual/IA para categorizar franquias (Elite, Candidatos, Reconstrução).
 - **Gerador de Cards**: Painel para criação de palpites com exportação direta para imagem (PNG) para compartilhamento em redes sociais.
 - **Importação de IA**: Capacidade de puxar as predições geradas pela IA diretamente para o painel de edição.
 
-### 5. Tracking de Desfalques e Stats
-- **Injury Report**: Monitoramento de lesões com status (OUT, Day-to-Day) e motivo.
-- **Top Players Stats**: Acompanhamento dos líderes de pontos, rebotes e assistências da rodada.
+### 7. Tracking de Desfalques e Stats
+- **Relatório Unificado**: Monitoramento de lesões (OUT, Day-to-Day) e líderes de estatísticas (PTS, REB, AST) integrados ao fluxo principal do Monitor.
 
 ---
 
