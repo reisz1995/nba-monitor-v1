@@ -1,6 +1,5 @@
 
 import React, { useMemo, useRef, useCallback } from 'react';
-import { symbols } from '../constants';
 import { toPng } from 'html-to-image';
 import { Team, PlayerStat, PalpiteData, UnavailablePlayer, PredictionIA } from '../types';
 import { useTipsDashboardLogic } from '../hooks/useTipsDashboardLogic';
