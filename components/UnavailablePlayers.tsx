@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { Team } from '../types';
+import { Team, UnavailablePlayer } from '../types';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 
 interface UnavailablePlayersProps {
-  players: any[];
+  players: UnavailablePlayer[];
   loading: boolean;
   teams: Team[];
   onRefresh: () => void;
@@ -36,7 +37,7 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
     });
   }, [uniquePlayers, searchQuery]);
 
-  const getPlayerData = (p: any) => {
+  const getPlayerData = (p: UnavailablePlayer) => {
     const rawStatus = (p.injury_status || p.gravidade || 'moderada').toUpperCase();
 
     // Normalização para cores
@@ -77,6 +78,7 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
       onRefresh();
     } catch (err: any) {
       console.error(err);
+      toast.error("Erro ao simular desfalques.");
     } finally {
       setSeeding(false);
     }
@@ -146,8 +148,8 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-xs font-black text-slate-100 truncate group-hover:text-rose-400 transition-colors uppercase italic tracking-tighter">{d.nome}</h3>
                         <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-sm border uppercase tracking-wider shrink-0 ${d.statusType === 'out'
-                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/40'
-                            : 'bg-amber-500/10 text-amber-500 border-amber-500/40'
+                          ? 'bg-rose-500/10 text-rose-500 border-rose-500/40'
+                          : 'bg-amber-500/10 text-amber-500 border-amber-500/40'
                           }`}>
                           {d.statusLabel}
                         </span>

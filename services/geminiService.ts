@@ -1,9 +1,9 @@
-
 import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Chat } from "@google/genai";
-import { Team, Insight, MatchupAnalysis, Source, PlayerStat } from "../types";
+import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer } from "../types";
 import { supabase } from "../lib/supabase";
+import { toast } from "sonner";
 
-export const formatStandingsForAI = (data: any[]): string => {
+export const formatStandingsForAI = (data: Partial<ESPNData>[]): string => {
   if (!data || data.length === 0) return "Sem dados de classificação.";
   let output = "TIME|V|D|%|PTS+|PTS-|SEQ\n";
   output += data.map(t => {
@@ -19,7 +19,7 @@ export const formatStandingsForAI = (data: any[]): string => {
   return output;
 };
 
-export const formatPlayerStatsForAI = (players: any[]): string => {
+export const formatPlayerStatsForAI = (players: PlayerStat[]): string => {
   if (!players || players.length === 0) return "Sem dados de jogadores.";
   let output = "JOGADOR|TIME|POS|PTS|REB|AST\n";
   output += players.map(p => {
@@ -34,7 +34,7 @@ export const formatPlayerStatsForAI = (players: any[]): string => {
   return output;
 };
 
-export const formatInjuriesForAI = (injuries: any[]): string => {
+export const formatInjuriesForAI = (injuries: UnavailablePlayer[]): string => {
   if (!injuries || injuries.length === 0) return "Nenhum desfalque registrado.";
   let output = "JOGADOR|TIME|MOTIVO|STATUS|RETORNO\n";
   output += injuries.map(i => {
@@ -137,10 +137,11 @@ export const saveMatchupAnalysis = async (teamA: Team | number, teamB: Team | nu
     if (error) throw error;
   } catch (err) {
     console.error("Erro ao salvar histórico de análise no Supabase:", err);
+    toast.error("Erro ao salvar histórico no banco de dados.");
   }
 };
 
-export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: any[] = []): Promise<MatchupAnalysis> => {
+export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = []): Promise<MatchupAnalysis> => {
   const [dbStats, dbInjuries, dbStandings] = await Promise.all([
     supabase.from('nba_jogadores_stats').select('*').in('time', [teamA.name, teamB.name]),
     supabase.from('nba_injured_players').select('*').in('team_name', [teamA.name, teamB.name]),
@@ -199,8 +200,12 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     analysis.sources = extractSources(response);
     return analysis;
   } catch (error: any) {
-    if (error.status === 403) throw new Error("PERMISSION_DENIED");
+    if (error.status === 403) {
+      toast.error("Erro de permissão no Gemini AI.");
+      throw new Error("PERMISSION_DENIED");
+    }
     console.error("Erro na análise da IA:", error);
+    toast.error("Erro ao processar análise da IA.");
     throw error;
   }
 };
@@ -240,7 +245,8 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
     if (insights.length > 0 && sources.length > 0) insights[0].sources = sources;
     return insights;
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao analisar classificação:", error);
+    toast.error("Erro ao gerar insights da NBA.");
     return [];
   }
 };
