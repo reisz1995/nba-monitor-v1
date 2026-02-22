@@ -48,18 +48,18 @@ const PowerRankingSection: React.FC<PowerRankingSectionProps> = ({
                 </tr>
                 {items.map((item) => (
                     <tr key={item.name} className="border-b border-slate-800/40 hover:bg-red-600/[0.03] transition-all group">
-                        <td className="px-8 py-4 flex items-center gap-4">
-                            <div className="w-10 h-10 bg-slate-900 border border-slate-800 rounded flex items-center justify-center p-1.5 group-hover:border-red-600/30 transition-colors">
+                        <td className="px-6 py-2 flex items-center gap-4">
+                            <div className="w-8 h-8 bg-slate-900 border border-slate-800 rounded flex items-center justify-center p-1 group-hover:border-red-600/30 transition-colors">
                                 <img src={getTeamLogo(item.name)} className="w-full h-full object-contain grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all" alt="" />
                             </div>
-                            <span className="text-slate-100 font-mono font-bold text-sm uppercase tracking-tight">{item.name}</span>
+                            <span className="text-slate-100 font-mono font-bold text-xs uppercase tracking-tight">{item.name}</span>
                         </td>
-                        <td className="px-8 py-3 text-center">
+                        <td className="px-6 py-1.5 text-center">
                             <input
                                 type="text"
                                 value={item.score}
                                 onChange={(e) => onScoreChange(item.name, e.target.value)}
-                                className="bg-slate-950 text-red-500 font-mono font-black text-center text-lg w-24 px-2 py-1.5 border-2 border-slate-800 focus:border-red-600 rounded-none outline-none transition-all shadow-[4px_4px_0px_0px_rgba(220,38,38,0.1)] focus:shadow-[4px_4px_0px_0px_rgba(220,38,38,0.3)]"
+                                className="bg-slate-950 text-red-500 font-mono font-black text-center text-base w-20 px-2 py-1 border-2 border-slate-800 focus:border-red-600 rounded-none outline-none transition-all shadow-[2px_2px_0px_0px_rgba(220,38,38,0.1)] focus:shadow-[2px_2px_0px_0px_rgba(220,38,38,0.3)]"
                                 placeholder="-"
                             />
                         </td>
@@ -97,13 +97,13 @@ const PowerRankingSection: React.FC<PowerRankingSectionProps> = ({
                 </div>
             </div>
 
-            <div className="bg-slate-950 border-2 border-slate-800 overflow-hidden shadow-[20px_20px_0px_0px_rgba(0,0,0,0.5)] relative">
+            <div className="bg-slate-950 border-2 border-slate-800 overflow-hidden shadow-[20px_20px_0px_0px_rgba(0,0,0,0.5)] relative max-w-4xl mx-auto">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-3xl -z-10 animate-pulse" />
-                <table className="w-full text-left border-collapse min-w-[500px]">
+                <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-900 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] border-b-2 border-slate-800">
-                            <th className="px-10 py-5">Franquia / Organization</th>
-                            <th className="px-10 py-5 text-center w-48">AI Power Rating</th>
+                            <th className="px-6 py-3">Franquia / Organization</th>
+                            <th className="px-6 py-3 text-center w-40">AI Rating</th>
                         </tr>
                     </thead>
                     <tbody>

@@ -113,16 +113,16 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
                 <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                         <tr className="bg-slate-900 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b-2 border-slate-800">
-                            <th className="px-6 py-5 border-r border-slate-800/50">MATCHUP: HOME</th>
-                            <th className="px-6 py-5 border-r border-slate-800/50">MATCHUP: AWAY</th>
-                            <th className="px-6 py-5 border-r border-slate-800/50 bg-slate-950/40 text-emerald-500/80">CORE_PICK</th>
-                            <th className="px-4 py-5 border-r border-slate-800/50 text-center text-amber-500/80">OVER_L</th>
-                            <th className="px-4 py-5 border-r border-slate-800/50 text-center text-rose-500/80">UNDER_L</th>
-                            <th className="px-4 py-5 border-r border-slate-800/50 text-center">T_POINTS</th>
-                            <th className="px-6 py-5 border-r border-slate-800/50 text-center text-red-500/80">CONF_IDX</th>
-                            <th className="px-4 py-5 border-r border-slate-800/50 text-center">N_C</th>
-                            <th className="px-4 py-5 border-r border-slate-800/50 text-center">N_F</th>
-                            <th className="px-3 py-5 text-center">ACT</th>
+                            <th className="px-3 py-3 border-r border-slate-800/50 w-[18%]">MATCHUP: HOME</th>
+                            <th className="px-3 py-3 border-r border-slate-800/50 w-[18%]">MATCHUP: AWAY</th>
+                            <th className="px-3 py-3 border-r border-slate-800/50 bg-slate-950/40 text-emerald-500/80 w-[15%]">CORE_PICK</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center text-amber-500/80 w-[8%]">OVER_L</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center text-rose-500/80 w-[8%]">UNDER_L</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center w-[10%]">T_POINTS</th>
+                            <th className="px-3 py-3 border-r border-slate-800/50 text-center text-red-500/80 w-[10%]">CONF_IDX</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center w-[5%]">N_C</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center w-[5%]">N_F</th>
+                            <th className="px-2 py-3 text-center w-[3%]">ACT</th>
                         </tr>
                     </thead>
                     <tbody>

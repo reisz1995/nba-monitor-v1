@@ -31,6 +31,12 @@ export interface PlayerStat {
   assistencias: number;
   min?: string;
   created_at?: string;
+  player_name?: string;
+  team_name?: string;
+  position?: string;
+  pts?: number;
+  reb?: number;
+  ast?: number;
 }
 
 export interface PalpiteData {
@@ -69,6 +75,8 @@ export interface UnavailablePlayer {
   injury_status?: string;
   retorno_previsto?: string;
   gravidade?: string;
+  injury_description?: string;
+  retorno?: string;
 }
 
 export interface PredictionIA {
