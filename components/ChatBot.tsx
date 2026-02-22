@@ -68,11 +68,10 @@ const ChatBot: React.FC = () => {
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-950/40">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${
-                  msg.role === 'user' 
-                    ? 'bg-indigo-600 text-white rounded-tr-none' 
+                <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${msg.role === 'user'
+                    ? 'bg-indigo-600 text-white rounded-tr-none'
                     : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none shadow-lg'
-                }`}>
+                  }`}>
                   <div className="whitespace-pre-wrap">{msg.text}</div>
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-white/10 flex flex-wrap gap-1">
@@ -99,15 +98,15 @@ const ChatBot: React.FC = () => {
 
           <div className="p-4 border-t border-slate-800 bg-slate-900">
             <div className="flex gap-2">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Pergunte sobre times, lesões ou stats..."
                 className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
               />
-              <button 
+              <button
                 onClick={handleSend}
                 disabled={loading}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-xl transition-all active:scale-95 disabled:opacity-50"
@@ -118,7 +117,7 @@ const ChatBot: React.FC = () => {
           </div>
         </div>
       ) : (
-        <button 
+        <button
           onClick={() => setIsOpen(true)}
           className="w-14 h-14 bg-indigo-600 hover:bg-indigo-500 rounded-full shadow-2xl flex items-center justify-center text-white transition-all hover:scale-110 active:scale-90 group relative"
         >
