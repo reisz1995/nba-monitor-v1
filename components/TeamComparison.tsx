@@ -35,7 +35,7 @@ const StatBar: React.FC<{ label: string; valA: number; valB: number; isPercent?:
   );
 };
 
-const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boolean }> = ({ name, status, isOut }) => (
+const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boolean; weight?: number }> = ({ name, status, isOut, weight }) => (
   <div className={`flex items-center justify-between p-2.5 rounded-lg border transition-all w-full ${isOut
     ? 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.05)]'
     : status
@@ -45,12 +45,19 @@ const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boolean }> =
     <span className={`text-[10px] md:text-xs font-black uppercase italic tracking-tighter truncate ${isOut ? 'text-rose-400' : 'text-slate-200'}`}>
       {name}
     </span>
-    {status && (
-      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${isOut ? 'bg-rose-500/20 text-rose-500' : 'bg-amber-500/20 text-amber-500'
-        }`}>
-        {status}
-      </span>
-    )}
+    <div className="flex items-center gap-2">
+      {weight !== undefined && (
+        <span title="Handicap de Estrela" className="text-[10px] font-black text-indigo-400 italic bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+          HW: {weight.toFixed(1)}
+        </span>
+      )}
+      {status && (
+        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${isOut ? 'bg-rose-500/20 text-rose-500' : 'bg-amber-500/20 text-amber-500'
+          }`}>
+          {status}
+        </span>
+      )}
+    </div>
   </div>
 );
 
@@ -86,6 +93,21 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   const injuriesA = useMemo(() => getInjuriesForTeam(teamA.name), [getInjuriesForTeam, teamA.name]);
   const injuriesB = useMemo(() => getInjuriesForTeam(teamB.name), [getInjuriesForTeam, teamB.name]);
 
+  const getPlayerWeight = (pts: number) => Math.floor((pts || 0) / 3);
+
+  const getKeyPlayers = useCallback((teamName: string) => {
+    return playerStats
+      .filter(p => {
+        const pTime = (p.time || '').toLowerCase();
+        return pTime.includes(teamName.toLowerCase()) || teamName.toLowerCase().includes(pTime);
+      })
+      .sort((a, b) => b.pontos - a.pontos)
+      .slice(0, 4);
+  }, [playerStats]);
+
+  const keyPlayersA = useMemo(() => getKeyPlayers(teamA.name), [getKeyPlayers, teamA.name]);
+  const keyPlayersB = useMemo(() => getKeyPlayers(teamB.name), [getKeyPlayers, teamB.name]);
+
   const bettingLines = useMemo(() => {
     const atkA = Number(teamA.stats?.media_pontos_ataque || teamA.espnData?.pts || 0);
     const atkB = Number(teamB.stats?.media_pontos_ataque || teamB.espnData?.pts || 0);
@@ -96,15 +118,23 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
     const aprA = totalA > 0 ? (teamA.wins / totalA) * 100 : (Number(teamA.stats?.aproveitamento || 0) * 100);
     const aprB = totalB > 0 ? (teamB.wins / totalB) * 100 : (Number(teamB.stats?.aproveitamento || 0) * 100);
 
-    // Cálculo de Penalidades (Matemática de Lesões)
+    // Cálculo de Penalidades (Handicap de Estrela)
     let penaltyA = 0;
-    injuriesA.forEach(p => {
-      penaltyA += p.isOut ? 3.0 : 1.5;
+    keyPlayersA.forEach(star => {
+      const injury = injuriesA.find(inj => inj.nome.toLowerCase() === star.nome.toLowerCase());
+      if (injury) {
+        const weight = getPlayerWeight(star.pontos);
+        penaltyA += injury.isOut ? weight : (weight / 2);
+      }
     });
 
     let penaltyB = 0;
-    injuriesB.forEach(p => {
-      penaltyB += p.isOut ? 3.0 : 1.5;
+    keyPlayersB.forEach(star => {
+      const injury = injuriesB.find(inj => inj.nome.toLowerCase() === star.nome.toLowerCase());
+      if (injury) {
+        const weight = getPlayerWeight(star.pontos);
+        penaltyB += injury.isOut ? weight : (weight / 2);
+      }
     });
 
     // Projeção Base Cruzada (Fator Casa +2.5 para TeamA)
@@ -132,7 +162,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
       spread: spread > 0 ? `+${spread.toFixed(1)}` : spread.toFixed(1),
       favorite: spread < 0 ? teamA.name : teamB.name
     };
-  }, [teamA, teamB, injuriesA, injuriesB]);
+  }, [teamA, teamB, injuriesA, injuriesB, keyPlayersA, keyPlayersB]);
 
   useEffect(() => {
     if (!!initialAnalysis) return;
@@ -153,19 +183,6 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
     };
     fetchAnalysis();
   }, [teamA.id, teamB.id, !!initialAnalysis]);
-
-  const getKeyPlayers = (teamName: string) => {
-    return playerStats
-      .filter(p => {
-        const pTime = (p.time || '').toLowerCase();
-        return pTime.includes(teamName.toLowerCase()) || teamName.toLowerCase().includes(pTime);
-      })
-      .sort((a, b) => b.pontos - a.pontos)
-      .slice(0, 4);
-  };
-
-  const keyPlayersA = useMemo(() => getKeyPlayers(teamA.name), [playerStats, teamA.name]);
-  const keyPlayersB = useMemo(() => getKeyPlayers(teamB.name), [playerStats, teamB.name]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-6 bg-slate-950/98 backdrop-blur-2xl animate-in fade-in duration-300">
@@ -340,23 +357,33 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-2">{teamA.name}</span>
-                  {keyPlayersA.map((p, i) => (
-                    <PlayerCard
-                      key={`a-${i}`}
-                      name={p.nome}
-                      isOut={injuriesA.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase())?.isOut}
-                    />
-                  ))}
+                  {keyPlayersA.map((p, i) => {
+                    const inj = injuriesA.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase());
+                    return (
+                      <PlayerCard
+                        key={`a-${i}`}
+                        name={p.nome}
+                        isOut={inj?.isOut}
+                        status={inj?.status}
+                        weight={getPlayerWeight(p.pontos)}
+                      />
+                    );
+                  })}
                 </div>
                 <div className="space-y-2">
                   <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-2 text-right">{teamB.name}</span>
-                  {keyPlayersB.map((p, i) => (
-                    <PlayerCard
-                      key={`b-${i}`}
-                      name={p.nome}
-                      isOut={injuriesB.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase())?.isOut}
-                    />
-                  ))}
+                  {keyPlayersB.map((p, i) => {
+                    const inj = injuriesB.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase());
+                    return (
+                      <PlayerCard
+                        key={`b-${i}`}
+                        name={p.nome}
+                        isOut={inj?.isOut}
+                        status={inj?.status}
+                        weight={getPlayerWeight(p.pontos)}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -364,7 +391,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
         </div>
 
         <div className="px-8 py-3 bg-slate-950/80 border-t border-slate-800/40 flex justify-between items-center">
-          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">Ajuste de -3.0 pts p/ OUT • v3.0</span>
+          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">Ajuste Médico Baseado no Handicap de Estrela (HW) • v4.0</span>
           {savedToCloud && (
             <div className="flex items-center gap-1.5">
               <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" /></svg>

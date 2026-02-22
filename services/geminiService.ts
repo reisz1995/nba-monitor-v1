@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Chat } from "@google/genai";
+import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer } from "../types";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
@@ -251,21 +251,3 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
   }
 };
 
-export const startChatSession = (): Chat => {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
-  return ai.chats.create({
-    model: 'gemini-3-flash-preview',
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      tools: [{ googleSearch: {} }]
-    },
-  });
-};
-
-export const sendChatMessage = async (chat: Chat, message: string) => {
-  const response: GenerateContentResponse = await chat.sendMessage({ message });
-  return {
-    text: response.text || "",
-    sources: extractSources(response)
-  };
-};

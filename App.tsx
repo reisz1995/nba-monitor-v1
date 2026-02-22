@@ -8,7 +8,7 @@ import Scoreboard from './components/Scoreboard';
 import UnavailablePlayers from './components/UnavailablePlayers';
 import MatchupHistory from './components/MatchupHistory';
 import TipsDashboard from './components/TipsDashboard';
-import ChatBot from './components/ChatBot';
+
 import { useNBAData } from './hooks/useNBAData';
 import { Toaster } from 'sonner';
 
@@ -173,7 +173,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <ChatBot />
+
 
       {comparisonTeams && (
         <TeamComparison

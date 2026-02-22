@@ -19,7 +19,6 @@ A aplicação funciona como um centro de comando para analistas e apostadores de
 Utiliza modelos **Gemini 3-Pro** e **3-Flash** para:
 - **Insights Estratégicos**: Geração automática de análises sobre tendências de mercado (Over/Under, Handicaps).
 - **Matchup Analysis**: Comparativo profundo entre dois times considerando "Regras de Ouro" (ex: Cansaço em Back-to-Back, Defesa Ruim, Impacto de Estrelas Fora).
-- **ChatBot Analítico**: O "Estatístico Chefe" disponível para tirar dúvidas sobre dados históricos e lesões.
 
 ### 3. Simulador de Confrontos (Team Comparison)
 - **Placar Projetado**: Algoritmo que calcula a pontuação provável baseada em médias ofensivas e defensivas cruzadas.
