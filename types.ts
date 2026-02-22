@@ -9,7 +9,7 @@ export interface Team {
   wins: number;
   losses: number;
   conference: 'East' | 'West';
-  ai_score?: number; 
+  ai_score?: number;
   stats?: {
     media_pontos_ataque: number;
     media_pontos_defesa: number;
@@ -18,7 +18,7 @@ export interface Team {
     ai_score?: number;
   };
   espnData?: ESPNData;
-  tanking?: boolean; // Adicionado para suporte ao TeamComparison
+  tanking?: boolean;
 }
 
 export interface PlayerStat {
@@ -59,12 +59,32 @@ export interface NotaData {
 }
 
 export interface UnavailablePlayer {
+  id?: number;
+  nome?: string;
+  player_name?: string;
+  time?: string;
+  team_name?: string;
+  franquia?: string;
+  motivo?: string;
+  injury_status?: string;
+  retorno_previsto?: string;
+  gravidade?: string;
+}
+
+export interface PredictionIA {
   id: number;
-  nome: string;
-  time: string;
-  motivo: string;
-  retorno_previsto: string;
-  gravidade: 'leve' | 'moderada' | 'grave';
+  date: string;
+  home_team: string;
+  away_team: string;
+  main_pick?: string;
+  over_line?: string;
+  under_line?: string;
+  confidence?: number;
+  prediction?: {
+    total_score?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
 }
 
 export interface Source {

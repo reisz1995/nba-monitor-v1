@@ -42,3 +42,63 @@ export const parseStreakToRecord = (streakStr: string): GameResult[] | null => {
 
     return null;
 };
+
+/**
+ * Retorna a data formatada como DD/MM/YYYY.
+ */
+export const getFormattedDate = (date: Date): string => {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+};
+
+/**
+ * Calcula o peso do jogador baseado nos pontos.
+ */
+export const getPlayerWeight = (pts: number): number => Math.floor((pts || 0) / 3);
+
+/**
+ * Encontra um time na lista pelo nome (busca flexível).
+ */
+export const findTeamByName = (name: string, teams: any[]): any | null => {
+    if (!name) return null;
+    const clean = name.toLowerCase().trim();
+    return teams.find(t =>
+        t.name.toLowerCase() === clean ||
+        t.name.toLowerCase().includes(clean) ||
+        clean.includes(t.name.toLowerCase())
+    );
+};
+
+/**
+ * Verifica se um time jogou ontem ou jogará amanhã (Back-to-Back).
+ */
+export const checkB2B = (teamName: string, dateStr: string, dbPredictions: any[]) => {
+    if (!dbPredictions || !teamName) return { yesterday: false, tomorrow: false };
+
+    const [d, m, y] = dateStr.split('/');
+    const current = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+
+    const yesterday = new Date(current);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().split('T')[0];
+
+    const tomorrow = new Date(current);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tStr = tomorrow.toISOString().split('T')[0];
+
+    const playedYesterday = dbPredictions.some(p =>
+        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
+            p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
+        p.date === yStr
+    );
+
+    const playsTomorrow = dbPredictions.some(p =>
+        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
+            p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
+        p.date === tStr
+    );
+
+    return { yesterday: playedYesterday, tomorrow: playsTomorrow };
+};
