@@ -28,6 +28,8 @@ interface Game {
     }>;
 }
 
+import { supabase } from '../lib/supabase';
+
 const EspnScoreboard: React.FC = () => {
     const [games, setGames] = useState<Game[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,11 +37,17 @@ const EspnScoreboard: React.FC = () => {
     const fetchScores = async () => {
         try {
             setLoading(true);
-            const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard');
-            const data = await res.json();
-            setGames(data.events || []);
+            // Fetch from Supabase instead of direct ESPN API
+            const { data, error } = await supabase
+                .from('live_scoreboard')
+                .select('games_data')
+                .eq('id', 1)
+                .single();
+
+            if (error) throw error;
+            setGames(data?.games_data || []);
         } catch (error) {
-            console.error('Erro ao buscar placares ESPN:', error);
+            console.error('Erro ao buscar placares do Banco:', error);
         } finally {
             setLoading(false);
         }
@@ -47,8 +55,29 @@ const EspnScoreboard: React.FC = () => {
 
     useEffect(() => {
         fetchScores();
-        const interval = setInterval(fetchScores, 60000); // 1 min update
-        return () => clearInterval(interval);
+
+        // Subscribe to real-time changes
+        const channel = supabase
+            .channel('live_scores')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'live_scoreboard',
+                    filter: 'id=eq.1'
+                },
+                (payload) => {
+                    if (payload.new && payload.new.games_data) {
+                        setGames(payload.new.games_data);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     return (
