@@ -66,7 +66,9 @@ export const useNBAData = () => {
             time: d.time || d.nome || d.equipe,
             vitorias: Number(d.vitorias ?? 0),
             derrotas: Number(d.derrotas ?? 0),
-            aproveitamento: Number(d.aproveitamento || 0),
+            aproveitamento: Number(d.pct_vit || d.pc_vit || d.aproveitamento || 0),
+            media_pontos_ataque: Number(d.pts || d.media_pontos_ataque || 0),
+            media_pontos_defesa: Number(d.pts_contra || d.media_pontos_defesa || 0),
             ultimos_5: String(d.ultimos_5 || '')
         } as ESPNData));
     }, [espnDataRaw]);

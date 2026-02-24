@@ -109,14 +109,14 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   const keyPlayersB = useMemo(() => getKeyPlayers(teamB.name), [getKeyPlayers, teamB.name]);
 
   const bettingLines = useMemo(() => {
-    const atkA = Number(teamA.stats?.media_pontos_ataque || teamA.espnData?.pts || 0);
-    const atkB = Number(teamB.stats?.media_pontos_ataque || teamB.espnData?.pts || 0);
-    const defA = Number(teamA.stats?.media_pontos_defesa || teamA.espnData?.pts_contra || 0);
-    const defB = Number(teamB.stats?.media_pontos_defesa || teamB.espnData?.pts_contra || 0);
+    const atkA = Number(teamA.espnData?.pts || teamA.stats?.media_pontos_ataque || 0);
+    const atkB = Number(teamB.espnData?.pts || teamB.stats?.media_pontos_ataque || 0);
+    const defA = Number(teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 0);
+    const defB = Number(teamB.espnData?.pts_contra || teamB.stats?.media_pontos_defesa || 0);
     const totalA = teamA.wins + teamA.losses;
     const totalB = teamB.wins + teamB.losses;
-    const aprA = totalA > 0 ? (teamA.wins / totalA) * 100 : (Number(teamA.stats?.aproveitamento || 0) * 100);
-    const aprB = totalB > 0 ? (teamB.wins / totalB) * 100 : (Number(teamB.stats?.aproveitamento || 0) * 100);
+    const aprA = Number(teamA.espnData?.pct_vit || teamA.espnData?.pc_vit || teamA.stats?.aproveitamento || (totalA > 0 ? teamA.wins / totalA : 0)) * 100;
+    const aprB = Number(teamB.espnData?.pct_vit || teamB.espnData?.pc_vit || teamB.stats?.aproveitamento || (totalB > 0 ? teamB.wins / totalB : 0)) * 100;
 
     // Cálculo de Penalidades (Handicap de Estrela)
     let penaltyA = 0;
