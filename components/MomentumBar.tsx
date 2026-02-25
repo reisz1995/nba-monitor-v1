@@ -12,7 +12,7 @@ const MomentumBar: React.FC<MomentumBarProps> = ({ record, className = "", showL
   const lastFive = record || [];
   let streakCount = 0;
   const lastResult = lastFive[lastFive.length - 1];
-  
+
   for (let i = lastFive.length - 1; i >= 0; i--) {
     if (lastFive[i] === lastResult) streakCount++;
     else break;
@@ -43,25 +43,24 @@ const MomentumBar: React.FC<MomentumBarProps> = ({ record, className = "", showL
   }
 
   return (
-    <div className={`flex flex-col gap-1 shrink-0 ${className}`}>
+    <div className={`flex flex-col gap-1 shrink-0 ${className} font-['Space_Mono']`}>
       {showLabel && (
-        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 text-center">
+        <span className="text-[7px] font-bold text-slate-500 uppercase tracking-tighter mb-1 text-center">
           {label}
         </span>
       )}
       {/* Mini Mapa de Resultados */}
-      <div className="flex gap-0.5 h-1 w-full bg-slate-800/50 rounded-full overflow-hidden">
+      <div className="flex gap-0.5 h-1.5 w-full bg-black border border-slate-800">
         {lastFive.map((r, i) => (
-          <div 
-            key={i} 
-            className={`flex-1 ${r === 'V' ? 'bg-emerald-500/40' : 'bg-rose-500/40'}`}
+          <div
+            key={i}
+            className={`flex-1 ${r === 'V' ? 'bg-emerald-500' : 'bg-rose-500'}`}
           />
         ))}
       </div>
       {/* Barra de Intensidade Principal */}
-      <div 
-        className={`h-1.5 w-full rounded-full transition-all duration-700 ${intensityColor}`}
-        style={glowStyle}
+      <div
+        className={`h-2 w-full transition-all duration-700 border border-black ${intensityColor}`}
       />
     </div>
   );

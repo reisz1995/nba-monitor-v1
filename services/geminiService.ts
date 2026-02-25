@@ -79,11 +79,15 @@ DIRETRIZES ESTRATÉGICAS (REGRAS DE OURO):
 5. FILTRO DE HANDICAP: Nunca sugira Handicap +5.5 (é considerado sem valor). Prefira Handicaps mais agressivos como +10 ou conservadores como -5.
 6. POTENCIAL DE PONTUAÇÃO: Verifique se ambos os times possuem estrelas com capacidade para somar +110 pts cada no jogo.
 7. FATOR CANSAÇO: Se o favorito vem de jogos seguidos (back-to-back), o risco de zebra é alto; considere que o cansaço pode quebrar o favoritismo.
-8. JOGOS DIFÍCEIS: Em jogos de dificuldade intermediária ou alta, a recomendação padrão deve ser always Handicap+.
+8. JOGOS DIFÍCEIS: Encare o "Placar Projetado Hub" (Expected Points) como a verdade matemática absoluta trazida para você.
+9. PROFUNDIDADE DE ELENCO E DESFALQUES (NOVA):
+   - Times "Elite" (Nota 4.5 a 5.0): Possuem esquemas táticos robustos e banco de reservas forte. Se tiverem desfalques (mesmo de estrelas), o impacto negativo é MENOR. Eles continuam competitivos.
+   - Times "Regulares/Fracos" (Nota abaixo de 3.0): São extremamente dependentes de seus titulares. Um desfalque importante causa um impacto DRÁSTICO nas chances de vitória e na produção de pontos.
 
-DIRETRIZES TÉCNICAS (v3.0):
+DIRETRIZES TÉCNICAS (v5.0):
 - MODO ESTRATÉGICO: Sua análise deve ser "Direct-to-the-Point".
-- FORMATO FATOR DECISIVO: Use o formato "Impacto (Jogador/Causa) & Contexto" (ex: "Estrela Fora (Mobley) & Jogo Equilibrado").
+- DADOS MASTIGADOS: Use os Expected Points injetados para sua base de análise. Não recalcule. Use sua 'detailedAnalysis' apenas para justificar o impacto do Defensive Rating sobre o Pace.
+- PROFUNDIDADE: Considere o Power Ranking (ai_score) injetado para avaliar quão bem o time absorve desfalques.
 - APLIQUE MARGEM DE SEGURANÇA em previsões: Over (-15%) / Under (+20%).`;
 
 export const nbaTools: FunctionDeclaration[] = [
@@ -142,15 +146,31 @@ export const saveMatchupAnalysis = async (teamA: Team | number, teamB: Team | nu
 };
 
 export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = []): Promise<MatchupAnalysis> => {
-  const [dbStats, dbInjuries, dbStandings] = await Promise.all([
+  const [dbStats, dbInjuries, dbStandings, dbNotas] = await Promise.all([
     supabase.from('nba_jogadores_stats').select('*').in('time', [teamA.name, teamB.name]),
     supabase.from('nba_injured_players').select('*').in('team_name', [teamA.name, teamB.name]),
-    supabase.from('classificacao_nba').select('*').in('time', [teamA.name, teamB.name])
+    supabase.from('classificacao_nba').select('*').in('time', [teamA.name, teamB.name]),
+    supabase.from('tabela_notas').select('*').in('franquia', [teamA.name, teamB.name])
   ]);
+
+  const notaA = Number(dbNotas.data?.find(n => n.franquia === teamA.name)?.nota_ia || teamA.ai_score || 0);
+  const notaB = Number(dbNotas.data?.find(n => n.franquia === teamB.name)?.nota_ia || teamB.ai_score || 0);
 
   const compactStats = formatPlayerStatsForAI((dbStats.data || playerStats).slice(0, 15));
   const compactInjuries = formatInjuriesForAI(dbInjuries.data || injuries);
   const compactStandings = formatStandingsForAI(dbStandings.data || []);
+
+  // Algoritmo de Eficiência Cruzada (Determinação Absoluta)
+  const statsA = dbStandings.data?.find(s => s.time === teamA.name) || {};
+  const statsB = dbStandings.data?.find(s => s.time === teamB.name) || {};
+
+  const atkA = Number(statsA.media_pontos_ataque || statsA.pts_ataque || 0);
+  const defA = Number(statsA.media_pontos_defesa || statsA.pts_defesa || 0);
+  const atkB = Number(statsB.media_pontos_ataque || statsB.pts_ataque || 0);
+  const defB = Number(statsB.media_pontos_defesa || statsB.pts_defesa || 0);
+
+  const expectedPointsA = atkA > 0 && defB > 0 ? ((atkA + defB) / 2).toFixed(1) : "N/D";
+  const expectedPointsB = atkB > 0 && defA > 0 ? ((atkB + defA) / 2).toFixed(1) : "N/D";
 
   const schema = {
     type: Type.OBJECT,
@@ -158,7 +178,7 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
       winner: { type: Type.STRING, description: "Vencedor sugerido ou Handicap (Lembre: prefira +10 ou -5, evite +5.5)" },
       confidence: { type: Type.NUMBER, description: "Confiança de 0 a 100" },
       keyFactor: { type: Type.STRING, description: "Justificativa curta baseada nas Regras de Ouro (ex: Defesa Ruim, Estrela Fora)" },
-      detailedAnalysis: { type: Type.STRING, description: "Análise estratégica completa considerando cansaço e potencial de +110 pts" }
+      detailedAnalysis: { type: Type.STRING, description: "Análise estratégica completa focada no impacto do Defensive Rating sobre o Pace." }
     },
     required: ["winner", "confidence", "keyFactor", "detailedAnalysis"]
   };
@@ -172,6 +192,14 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
 
   const prompt = `Analise NBA Confronto: ${teamA.name} vs ${teamB.name}.
   
+  📊 POWER RANKING / NÍVEL DA EQUIPE (Escala de 2.0 a 5.0):
+  - ${teamA.name}: ${notaA.toFixed(1)}/5.0
+  - ${teamB.name}: ${notaB.toFixed(1)}/5.0
+
+  ALGORITMO DE EFICIÊNCIA CRUZADA (VERDADE MATEMÁTICA):
+  - Pontuação Esperada ${teamA.name}: ${expectedPointsA}
+  - Pontuação Esperada ${teamB.name}: ${expectedPointsB}
+
   CLASSIFICAÇÃO E MOMENTUM:
   ${compactStandings}
 
@@ -184,9 +212,11 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   APLIQUE AS REGRAS DE OURO:
   - Avalie se as defesas são ruins para projetar Over.
   - Verifique se estrelas como LeBron, Luka, Jokic, etc., estão fora.
+  - USE O POWER RANKING para avaliar a Profundidade de Elenco:
+    * Se o time tem Nota > 4.5 e tem desfalques, o impacto é minimizado.
+    * Se o time tem Nota < 3.0 e tem desfalques, o impacto é drástico.
   - Analise se o favorito jogou na noite anterior (Back-to-back).
-  - Em caso de equilíbrio, sugira Handicap+.
-  - Verifique se ambos podem passar de 110 pontos.`;
+  - Verifique se o Defensive Rating de um time pode comprimir ou expandir o Pace projetado de ${expectedPointsA} e ${expectedPointsB}.`;
 
   try {
     const response = await ai.models.generateContent({

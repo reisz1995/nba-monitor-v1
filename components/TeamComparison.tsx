@@ -21,39 +21,42 @@ const StatBar: React.FC<{ label: string; valA: number; valB: number; isPercent?:
   const displayB = isPercent ? `${valB.toFixed(1)}%` : valB.toFixed(1);
 
   return (
-    <div className="flex flex-col gap-2 w-full">
+    <div className="flex flex-col gap-2 w-full font-['Space_Mono']">
       <div className="flex justify-between items-end px-1">
-        <span className="text-indigo-400 font-black text-lg italic">{displayA}</span>
-        <span className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em]">{label}</span>
-        <span className="text-slate-300 font-black text-lg italic">{displayB}</span>
+        <span className="text-white font-bold text-lg">{displayA}</span>
+        <span className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">{label}</span>
+        <span className="text-slate-300 font-bold text-lg">{displayB}</span>
       </div>
-      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex">
-        <div style={{ width: `${pctA}%` }} className="h-full bg-indigo-500 transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(99,102,241,0.6)]"></div>
-        <div className="h-full flex-1 bg-slate-700"></div>
+      <div className="h-4 w-full bg-black border-2 border-slate-800 p-0.5 flex relative">
+        <div style={{ width: `${pctA}%` }} className="h-full bg-indigo-500 transition-all duration-1000 ease-out"></div>
+        <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
+          <div className="h-full w-px bg-slate-800"></div>
+          <div className="h-full w-px bg-slate-800"></div>
+          <div className="h-full w-px bg-slate-800"></div>
+        </div>
       </div>
     </div>
   );
 };
 
 const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boolean; weight?: number }> = ({ name, status, isOut, weight }) => (
-  <div className={`flex items-center justify-between p-2.5 rounded-lg border transition-all w-full ${isOut
-    ? 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.05)]'
+  <div className={`flex items-center justify-between p-2 border-2 transition-all w-full font-['Space_Mono'] shadow-[4px_4px_0px_#000] ${isOut
+    ? 'bg-rose-500/10 border-rose-500 text-rose-500'
     : status
-      ? 'bg-amber-500/10 border-amber-500/30'
-      : 'bg-slate-900/40 border-slate-800'
+      ? 'bg-amber-500/10 border-amber-500 text-amber-500'
+      : 'bg-black border-slate-800 text-slate-200'
     }`}>
-    <span className={`text-[10px] md:text-xs font-black uppercase italic tracking-tighter truncate ${isOut ? 'text-rose-400' : 'text-slate-200'}`}>
+    <span className="text-[10px] md:text-xs font-bold uppercase truncate">
       {name}
     </span>
     <div className="flex items-center gap-2">
       {weight !== undefined && (
-        <span title="Handicap de Estrela" className="text-[10px] font-black text-indigo-400 italic bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+        <span title="Handicap de Estrela" className="text-[10px] font-bold border border-current px-1 py-0.5">
           HW: {weight.toFixed(1)}
         </span>
       )}
       {status && (
-        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${isOut ? 'bg-rose-500/20 text-rose-500' : 'bg-amber-500/20 text-amber-500'
-          }`}>
+        <span className="text-[8px] font-bold px-1 py-0.5 border border-current uppercase">
           {status}
         </span>
       )}
@@ -65,6 +68,23 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   const [analysis, setAnalysis] = useState<MatchupAnalysis | null>(initialAnalysis || null);
   const [loading, setLoading] = useState(!initialAnalysis);
   const [savedToCloud, setSavedToCloud] = useState(!!initialAnalysis);
+  const [notas, setNotas] = useState<{ a: number, b: number }>({ a: teamA.ai_score || 0, b: teamB.ai_score || 0 });
+
+  useEffect(() => {
+    const fetchTeamNotas = async () => {
+      try {
+        const { data } = await supabase.from('tabela_notas').select('*').in('franquia', [teamA.name, teamB.name]);
+        if (data) {
+          const nA = data.find(n => n.franquia === teamA.name)?.nota_ia || teamA.ai_score || 0;
+          const nB = data.find(n => n.franquia === teamB.name)?.nota_ia || teamB.ai_score || 0;
+          setNotas({ a: Number(nA), b: Number(nB) });
+        }
+      } catch (e) {
+        console.error("Erro ao buscar notas:", e);
+      }
+    };
+    fetchTeamNotas();
+  }, [teamA.name, teamB.name, teamA.ai_score, teamB.ai_score]);
 
   const getInjuriesForTeam = useCallback((teamName: string) => {
     const teamPlayers = (unavailablePlayers || []).filter(p => {
@@ -137,8 +157,8 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
       }
     });
 
-    // Projeção Base Cruzada (Fator Casa +2.5 para TeamA)
-    let projA = (atkA > 0 && defB > 0) ? ((atkA + defB) / 2) + 2.5 : 0;
+    // Algoritmo de Eficiência Cruzada (RIGID RULE)
+    let projA = (atkA > 0 && defB > 0) ? ((atkA + defB) / 2) : 0;
     let projB = (atkB > 0 && defA > 0) ? ((atkB + defA) / 2) : 0;
 
     // Aplicação das Penalidades Médicas
@@ -185,136 +205,151 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   }, [teamA.id, teamB.id, !!initialAnalysis]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-6 bg-slate-950/98 backdrop-blur-2xl animate-in fade-in duration-300">
-      <div className="bg-[#0b0f1a] border border-slate-800/60 w-full max-w-6xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
+      <div className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
 
-        <div className="px-8 py-5 border-b border-slate-800/40 flex justify-between items-center bg-slate-900/20">
+        <div className="px-8 py-4 border-b-4 border-white flex justify-between items-center bg-white text-black">
           <div className="flex items-center gap-3">
-            <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(99,102,241,0.8)]"></div>
-            <h2 className="text-[11px] md:text-xs font-black text-indigo-400 uppercase tracking-[0.4em]">
-              Algoritmo de Eficiência Cruzada v3.0
+            <div className="w-4 h-4 bg-black animate-ping"></div>
+            <h2 className="text-xs font-bold uppercase tracking-widest">
+              ALGORITMO DE EFICIÊNCIA CRUZADA v5.0 // ROSTER_DEPTH_AWARE
             </h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800/50 rounded-full transition-all group">
-            <svg className="w-5 h-5 text-slate-500 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+          <button onClick={onClose} className="border-2 border-black p-1 hover:bg-black hover:text-white transition-colors">
+            <span className="font-bold text-xl px-2">X</span>
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 space-y-12">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-16">
 
-          <div className="flex flex-col items-center justify-center gap-4 bg-indigo-600/5 border border-indigo-500/20 rounded-[3.5rem] p-8 md:p-12 relative overflow-hidden shadow-inner">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-indigo-600 px-8 py-2 rounded-b-2xl shadow-lg z-10">
-              <span className="text-[10px] font-black text-white uppercase tracking-[0.4em]">Placar Projetado Hub</span>
+          <div className="flex flex-col items-center justify-center gap-8 bg-black border-4 border-white p-12 relative shadow-[8px_8px_0px_#333]">
+            <div className="absolute top-0 left-8 -translate-y-1/2 bg-white text-black px-4 py-1 border-2 border-black font-bold text-[10px]">
+              EXPECTED_POINTS_MATRIX
             </div>
 
-            <div className="flex items-center justify-center gap-12 md:gap-32 w-full relative z-0">
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex flex-col items-center">
-                  <img src={teamA.logo} className="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-2xl mb-2" alt="" />
-                  <MomentumBar record={teamA.record} className="w-20" showLabel />
+            <div className="flex flex-wrap items-center justify-center gap-16 md:gap-32 w-full relative z-0">
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex flex-col items-center border-2 border-white p-4 shadow-[8px_8px_0px_#222] bg-zinc-900">
+                  <img src={teamA.logo} className="w-24 h-24 object-contain mb-4" alt="" />
+                  <div className="flex items-center gap-2">
+                    <MomentumBar record={teamA.record} className="w-24" showLabel />
+                    <div className="bg-black border border-white px-2 py-1 flex flex-col items-center">
+                      <span className="text-[6px] text-slate-500 font-bold uppercase">SCORE_IA</span>
+                      <span className="text-xs font-black text-white">{notas.a.toFixed(1)}</span>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-6xl md:text-9xl font-black text-white italic tracking-tighter">
-                  {bettingLines.projectedA.toFixed(1)}
-                </span>
-                <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest mt-2 border-t border-slate-800 pt-1">CASA</span>
+                <div className="text-center mt-4">
+                  <span className="text-7xl md:text-9xl font-bold text-white leading-none">
+                    {bettingLines.projectedA.toFixed(1)}
+                  </span>
+                  <p className="text-[10px] font-bold text-indigo-400 mt-2">({teamA.espnData?.pts || 0} + {teamB.espnData?.pts_contra || 0}) / 2</p>
+                </div>
               </div>
 
-              <div className="flex flex-col items-center">
-                <div className="text-slate-800 font-black text-4xl md:text-6xl italic animate-pulse opacity-50">VS</div>
-              </div>
+              <div className="text-white font-bold text-6xl opacity-20 hidden md:block select-none">X</div>
 
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex flex-col items-center">
-                  <img src={teamB.logo} className="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-2xl mb-2" alt="" />
-                  <MomentumBar record={teamB.record} className="w-20" showLabel />
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex flex-col items-center border-2 border-white p-4 shadow-[8px_8px_0px_#222] bg-zinc-900">
+                  <img src={teamB.logo} className="w-24 h-24 object-contain mb-4" alt="" />
+                  <div className="flex items-center gap-2">
+                    <MomentumBar record={teamB.record} className="w-24" showLabel />
+                    <div className="bg-black border border-white px-2 py-1 flex flex-col items-center">
+                      <span className="text-[6px] text-slate-500 font-bold uppercase">SCORE_IA</span>
+                      <span className="text-xs font-black text-slate-400">{notas.b.toFixed(1)}</span>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-6xl md:text-9xl font-black text-slate-300 italic tracking-tighter">
-                  {bettingLines.projectedB.toFixed(1)}
-                </span>
-                <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest mt-2 border-t border-slate-800 pt-1">VISITANTE</span>
+                <div className="text-center mt-4">
+                  <span className="text-7xl md:text-9xl font-bold text-slate-400 leading-none">
+                    {bettingLines.projectedB.toFixed(1)}
+                  </span>
+                  <p className="text-[10px] font-bold text-indigo-400 mt-2">({teamB.espnData?.pts || 0} + {teamA.espnData?.pts_contra || 0}) / 2</p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-8 flex flex-col md:flex-row items-center gap-4 md:gap-12">
-              <div className="flex flex-col items-center bg-black/40 px-8 py-4 rounded-3xl border border-white/5 shadow-xl">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Linha O/U</span>
-                <span className="text-3xl font-black text-indigo-400 italic tracking-tighter">{bettingLines.totalProjected.toFixed(1)}</span>
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">
+              <div className="flex flex-col bg-white text-black p-6 border-4 border-zinc-800 shadow-[8px_8px_0px_#000]">
+                <span className="text-[10px] font-bold uppercase mb-2">PONTUAÇÃO TOTAL_ESTIMADA</span>
+                <span className="text-4xl font-bold italic">{bettingLines.totalProjected.toFixed(1)}</span>
               </div>
-              <div className="flex flex-col items-center bg-black/40 px-8 py-4 rounded-3xl border border-white/5 shadow-xl">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Handicap Justo</span>
-                <span className="text-xl font-black text-white italic tracking-tighter uppercase">
+              <div className="flex flex-col bg-zinc-900 text-white p-6 border-4 border-white shadow-[8px_8px_0px_#000]">
+                <span className="text-[10px] font-bold uppercase mb-2">HANDICAP_ALGORÍTMICO</span>
+                <span className="text-2xl font-bold uppercase">
                   {bettingLines.favorite} <span className={Number(bettingLines.spread) > 0 ? "text-rose-500" : "text-emerald-500"}>{bettingLines.spread}</span>
                 </span>
               </div>
             </div>
 
-            {/* ALERTA DE IMPACTO MÉDICO */}
             {(bettingLines.penaltyA > 0 || bettingLines.penaltyB > 0) && (
-              <div className="mt-8 w-full max-w-2xl bg-rose-500/10 border border-rose-500/30 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
-                <span className="text-[10px] font-black text-rose-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-                  Ajuste Médico Aplicado:
+              <div className="mt-8 w-full max-w-3xl bg-rose-950 border-4 border-rose-500 p-6 shadow-[8px_8px_0px_#000]">
+                <span className="text-[10px] font-bold text-rose-500 uppercase flex items-center gap-2 mb-4">
+                  [!] IMPACTO_MÉDICO_ESTRAÍDO
                 </span>
-                <div className="flex items-center gap-6">
+                <div className="grid grid-cols-2 gap-8 text-rose-500 font-bold">
                   {bettingLines.penaltyA > 0 && (
-                    <span className="text-[11px] font-black text-rose-300 italic">{teamA.name}: -{bettingLines.penaltyA.toFixed(1)} PTS</span>
+                    <div className="border-l-2 border-rose-500 pl-4">
+                      <span className="block text-[8px] opacity-60">{teamA.name}</span>
+                      <span>-{bettingLines.penaltyA.toFixed(1)} PTS</span>
+                    </div>
                   )}
                   {bettingLines.penaltyB > 0 && (
-                    <span className="text-[11px] font-black text-rose-300 italic">{teamB.name}: -{bettingLines.penaltyB.toFixed(1)} PTS</span>
+                    <div className="border-l-2 border-rose-500 pl-4">
+                      <span className="block text-[8px] opacity-60">{teamB.name}</span>
+                      <span>-{bettingLines.penaltyB.toFixed(1)} PTS</span>
+                    </div>
                   )}
                 </div>
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-            <div className="lg:col-span-5 bg-slate-900/40 border border-slate-800/60 rounded-[2rem] p-8 flex flex-col gap-8 shadow-2xl">
-              <div className="text-center border-b border-slate-800 pb-4">
-                <h4 className="text-indigo-400 font-black text-xs uppercase tracking-[0.4em]">Performance de Referência</h4>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-5 bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
+              <div className="mb-8 border-b-2 border-white pb-4">
+                <h4 className="text-white font-bold text-xs uppercase underline">STATS_EXTRACTOR</h4>
               </div>
 
-              <div className="space-y-8">
-                <StatBar label="PTS (Ataque)" valA={bettingLines.ataqueA} valB={bettingLines.ataqueB} />
-                <StatBar label="PTS Contra (Defesa)" valA={bettingLines.defesaA} valB={bettingLines.defesaB} />
-                <StatBar label="Aproveitamento" valA={bettingLines.aproveitamentoA} valB={bettingLines.aproveitamentoB} isPercent />
+              <div className="space-y-12">
+                <StatBar label="OFF_EFFICIENCY (PTS)" valA={bettingLines.ataqueA} valB={bettingLines.ataqueB} />
+                <StatBar label="DEF_EFFICIENCY (PTS_ALLOWED)" valA={bettingLines.defesaA} valB={bettingLines.defesaB} />
+                <StatBar label="WIN_PCT (%)" valA={bettingLines.aproveitamentoA} valB={bettingLines.aproveitamentoB} isPercent />
               </div>
             </div>
 
-            <div className="lg:col-span-7 bg-gradient-to-br from-indigo-500/[0.03] to-slate-900 border border-indigo-500/10 rounded-[2rem] p-6 lg:p-10 flex flex-col relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-[60px]"></div>
-
+            <div className="lg:col-span-7 bg-white text-black border-4 border-black p-8 shadow-[12px_12px_0px_#333]">
               <div className="flex items-center justify-between mb-8">
-                <h4 className="text-indigo-400 font-black text-[11px] uppercase tracking-[0.3em]">Análise IA Estratégica</h4>
+                <h4 className="font-bold text-xs uppercase underline">ESTATÍSTICO_CHEFE_REPORT</h4>
                 {analysis && (
-                  <div className="bg-indigo-600 px-4 py-2 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.3)]">
-                    <span className="text-[10px] font-black text-white">{analysis.confidence}% CERTEZA</span>
+                  <div className="bg-black text-white px-4 py-1 border-2 border-black font-bold text-[10px]">
+                    CONFIDENCE: {analysis.confidence}%
                   </div>
                 )}
               </div>
 
               {loading ? (
-                <div className="flex-1 flex flex-col justify-center items-center space-y-6 py-20">
-                  <div className="w-12 h-12 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-                  <p className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Sincronizando IA...</p>
+                <div className="py-20 flex flex-col items-center justify-center gap-4">
+                  <div className="w-12 h-12 border-4 border-black border-t-white bg-black animate-spin"></div>
+                  <p className="font-bold text-[10px] uppercase">ANALYSING_DATA_MATRICES...</p>
                 </div>
               ) : analysis ? (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-emerald-400 font-black text-xs uppercase italic tracking-widest">Favorito IA:</span>
-                    <span className="text-white font-black text-3xl md:text-5xl uppercase italic tracking-tighter underline decoration-indigo-500 decoration-4 underline-offset-8">
+                <div className="space-y-8">
+                  <div className="border-l-8 border-black pl-6">
+                    <span className="block text-[10px] font-bold opacity-60 mb-2">TARGET_OUTCOME:</span>
+                    <span className="text-4xl md:text-6xl font-black uppercase italic leading-none">
                       {analysis.winner}
                     </span>
                   </div>
 
-                  <div className="p-6 bg-black/40 rounded-2xl border border-white/5 relative">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Fator Decisivo:</p>
-                    <p className="text-indigo-100 text-sm md:text-lg font-bold leading-relaxed italic">"{analysis.keyFactor}"</p>
+                  <div className="bg-zinc-100 p-6 border-2 border-dashed border-black">
+                    <p className="text-[10px] font-bold opacity-60 mb-2">KEY_FACTOR_INJECTION:</p>
+                    <p className="text-xl font-bold uppercase italic leading-tight">"{analysis.keyFactor}"</p>
                   </div>
 
-                  <div className="space-y-3">
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Resumo Analítico:</p>
-                    <p className="text-slate-400 text-xs md:text-sm leading-relaxed font-medium">
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-bold opacity-60">DETAILED_STRATEGIC_LOG:</p>
+                    <p className="text-sm border-2 border-black p-4 bg-zinc-50 font-medium leading-relaxed">
                       {analysis.detailedAnalysis}
                     </p>
                   </div>
@@ -324,39 +359,39 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-slate-900/40 p-6 rounded-[2rem] border border-slate-800/60">
-              <div className="flex items-center gap-2 mb-6">
-                <h4 className="text-rose-500 font-black text-[10px] uppercase tracking-[0.2em]">Plantão Médico</h4>
-                <div className="flex-1 h-px bg-rose-500/20"></div>
+            <div className="bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
+              <div className="flex items-center gap-4 mb-8">
+                <h4 className="text-rose-500 font-bold text-xs uppercase underline">MEDICAL_LOGS</h4>
+                <div className="flex-1 h-1 bg-rose-500/20"></div>
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-2">{teamA.name}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white">{teamA.name}</span>
                   {injuriesA.length > 0 ? (
                     injuriesA.map((p, i) => <PlayerCard key={i} name={p.nome} status={p.status} isOut={p.isOut} />)
                   ) : (
-                    <div className="py-4 text-center text-[9px] font-bold text-slate-700 uppercase italic border border-dashed border-slate-800 rounded-lg">Completo</div>
+                    <div className="p-4 border-2 border-dashed border-zinc-800 text-[10px] font-bold text-zinc-600 text-center">NO_INJURIES</div>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-2 text-right">{teamB.name}</span>
+                <div className="space-y-4">
+                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white block text-right ml-auto w-fit">{teamB.name}</span>
                   {injuriesB.length > 0 ? (
                     injuriesB.map((p, i) => <PlayerCard key={i} name={p.nome} status={p.status} isOut={p.isOut} />)
                   ) : (
-                    <div className="py-4 text-center text-[9px] font-bold text-slate-700 uppercase italic border border-dashed border-slate-800 rounded-lg">Completo</div>
+                    <div className="p-4 border-2 border-dashed border-zinc-800 text-[10px] font-bold text-zinc-600 text-center">NO_INJURIES</div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-900/40 p-6 rounded-[2rem] border border-slate-800/60">
-              <div className="flex items-center gap-2 mb-6">
-                <h4 className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.2em]">Principais Estrelas</h4>
-                <div className="flex-1 h-px bg-indigo-500/20"></div>
+            <div className="bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
+              <div className="flex items-center gap-4 mb-8">
+                <h4 className="text-white font-bold text-xs uppercase underline">HIGH_VAL_ENTITIES</h4>
+                <div className="flex-1 h-1 bg-white/20"></div>
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-2">{teamA.name}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white">{teamA.name}</span>
                   {keyPlayersA.map((p, i) => {
                     const inj = injuriesA.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase());
                     return (
@@ -370,8 +405,8 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                     );
                   })}
                 </div>
-                <div className="space-y-2">
-                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-2 text-right">{teamB.name}</span>
+                <div className="space-y-4">
+                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white block text-right ml-auto w-fit">{teamB.name}</span>
                   {keyPlayersB.map((p, i) => {
                     const inj = injuriesB.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase());
                     return (
@@ -390,12 +425,12 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
           </div>
         </div>
 
-        <div className="px-8 py-3 bg-slate-950/80 border-t border-slate-800/40 flex justify-between items-center">
-          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">Ajuste Médico Baseado no Handicap de Estrela (HW) • v4.0</span>
+        <div className="px-8 py-4 bg-zinc-900 border-t-4 border-white flex justify-between items-center text-white">
+          <span className="text-[10px] font-bold uppercase tracking-widest">[ v5.0 // ALGO_CROSS_REF_DETERMINISTIC ]</span>
           {savedToCloud && (
-            <div className="flex items-center gap-1.5">
-              <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" /></svg>
-              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Registrado em matchup_analyses</span>
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-emerald-500 animate-pulse"></div>
+              <span className="text-[10px] font-bold uppercase shadow-sm">DATA_SYNC_LOCKED</span>
             </div>
           )}
         </div>
