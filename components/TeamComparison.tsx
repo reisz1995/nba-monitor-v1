@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer } from '../types';
+import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult } from '../types';
 import { compareTeams, saveMatchupAnalysis } from '../services/geminiService';
 import { toast } from 'sonner';
+import { supabase } from '../lib/supabase';
 import MomentumBar from './MomentumBar';
 
 interface TeamComparisonProps {
@@ -61,6 +62,29 @@ const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boolean; wei
         </span>
       )}
     </div>
+  </div>
+);
+
+const AdvantageItem: React.FC<{ label: string; valA: string | number; valB: string | number; winner: 'a' | 'b' | 'none'; sub?: string }> = ({ label, valA, valB, winner, sub }) => (
+  <div className="flex flex-col border-r-4 border-white last:border-r-0 px-6 py-4 flex-1 min-w-[150px] bg-black hover:bg-zinc-900 transition-colors group relative overflow-hidden">
+    <div className="absolute top-0 left-0 w-full h-1 bg-zinc-800 group-hover:bg-indigo-500 transition-colors"></div>
+    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-tighter mb-6 group-hover:text-zinc-300">{label}</span>
+    <div className="flex justify-between items-end mb-4">
+      <div className="flex flex-col">
+        <span className={`text-2xl font-black leading-none ${winner === 'a' ? 'text-white' : 'text-zinc-700'}`}>{valA}</span>
+        <span className="text-[6px] font-bold text-zinc-600 mt-1 uppercase">TEAM_A</span>
+      </div>
+      <div className="h-8 w-px bg-zinc-800 mb-1"></div>
+      <div className="flex flex-col items-end">
+        <span className={`text-2xl font-black leading-none ${winner === 'b' ? 'text-white' : 'text-zinc-700'}`}>{valB}</span>
+        <span className="text-[6px] font-bold text-zinc-600 mt-1 uppercase">TEAM_B</span>
+      </div>
+    </div>
+    {sub && (
+      <div className="mt-auto pt-4 border-t border-zinc-900">
+        <span className="text-[7px] font-bold text-indigo-500 uppercase leading-none block italic">{sub}</span>
+      </div>
+    )}
   </div>
 );
 
@@ -138,22 +162,40 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
     const aprA = Number(teamA.espnData?.pct_vit || teamA.espnData?.pc_vit || teamA.stats?.aproveitamento || (totalA > 0 ? teamA.wins / totalA : 0)) * 100;
     const aprB = Number(teamB.espnData?.pct_vit || teamB.espnData?.pc_vit || teamB.stats?.aproveitamento || (totalB > 0 ? teamB.wins / totalB : 0)) * 100;
 
-    // Cálculo de Penalidades (Handicap de Estrela)
+    const allPlayersA = playerStats.filter(p => {
+      const pTime = (p.time || p.team_name || '').toLowerCase();
+      const tName = teamA.name.toLowerCase();
+      return pTime.includes(tName) || tName.includes(pTime);
+    });
+
+    const allPlayersB = playerStats.filter(p => {
+      const pTime = (p.time || p.team_name || '').toLowerCase();
+      const tName = teamB.name.toLowerCase();
+      return pTime.includes(tName) || tName.includes(pTime);
+    });
+
+    // Cálculo de HW (Handicap de Estrela) - ALL ROSTER
+    let activeHWA = 0;
     let penaltyA = 0;
-    keyPlayersA.forEach(star => {
-      const injury = injuriesA.find(inj => inj.nome.toLowerCase() === star.nome.toLowerCase());
+    allPlayersA.forEach(player => {
+      const weight = getPlayerWeight(player.pontos || player.pts || 0);
+      const injury = injuriesA.find(inj => inj.nome.toLowerCase() === (player.nome || player.player_name || '').toLowerCase());
       if (injury) {
-        const weight = getPlayerWeight(star.pontos);
         penaltyA += injury.isOut ? weight : (weight / 2);
+      } else {
+        activeHWA += weight;
       }
     });
 
+    let activeHWB = 0;
     let penaltyB = 0;
-    keyPlayersB.forEach(star => {
-      const injury = injuriesB.find(inj => inj.nome.toLowerCase() === star.nome.toLowerCase());
+    allPlayersB.forEach(player => {
+      const weight = getPlayerWeight(player.pontos || player.pts || 0);
+      const injury = injuriesB.find(inj => inj.nome.toLowerCase() === (player.nome || player.player_name || '').toLowerCase());
       if (injury) {
-        const weight = getPlayerWeight(star.pontos);
         penaltyB += injury.isOut ? weight : (weight / 2);
+      } else {
+        activeHWB += weight;
       }
     });
 
@@ -179,10 +221,53 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
       totalProjected: projA + projB,
       penaltyA,
       penaltyB,
+      activeHWA,
+      activeHWB,
       spread: spread > 0 ? `+${spread.toFixed(1)}` : spread.toFixed(1),
       favorite: spread < 0 ? teamA.name : teamB.name
     };
-  }, [teamA, teamB, injuriesA, injuriesB, keyPlayersA, keyPlayersB]);
+  }, [teamA, teamB, injuriesA, injuriesB, playerStats]);
+
+  const advantageMatrix = useMemo(() => {
+    // 1. Momentum: Peso exponencial 2^n para os últimos 5 jogos
+    const calcMomentum = (record: GameResult[]) => {
+      const rec = [...(record || [])].slice(-5);
+      return rec.reduce((acc, res, i) => {
+        const weight = Math.pow(2, i + 1);
+        return acc + (res === 'V' ? weight : -weight);
+      }, 0);
+    };
+
+    const momA = calcMomentum(teamA.record);
+    const momB = calcMomentum(teamB.record);
+
+    return {
+      momentum: {
+        a: momA,
+        b: momB,
+        winner: momA > momB ? 'a' as const : momB > momA ? 'b' as const : 'none' as const,
+        label: `W_EXP: ${momA} vs ${momB}`
+      },
+      ataque: {
+        a: bettingLines.ataqueA,
+        b: bettingLines.ataqueB,
+        winner: bettingLines.ataqueA > bettingLines.ataqueB ? 'a' as const : 'b' as const,
+        label: `PACE_MAX: ${Math.max(bettingLines.ataqueA, bettingLines.ataqueB)}`
+      },
+      defesa: {
+        a: bettingLines.defesaA,
+        b: bettingLines.defesaB,
+        winner: bettingLines.defesaA < bettingLines.defesaB ? 'a' as const : 'b' as const, // Menor é melhor
+        label: `DEF_RATING_LOW`
+      },
+      hw: {
+        a: bettingLines.activeHWA,
+        b: bettingLines.activeHWB,
+        winner: bettingLines.activeHWA > bettingLines.activeHWB ? 'a' as const : 'b' as const,
+        label: `STAR_POWER_ACTIVE`
+      }
+    };
+  }, [teamA.record, teamB.record, bettingLines]);
 
   useEffect(() => {
     if (!!initialAnalysis) return;
@@ -305,10 +390,47 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="bg-black border-4 border-white overflow-hidden shadow-[12px_12px_0px_#000]">
+            <div className="bg-white text-black px-6 py-2 border-b-4 border-white flex justify-between items-center">
+              <span className="text-[10px] font-black uppercase tracking-widest">STATS_EXTRACTOR // ADVANTAGE_MATRIX_DETERMINISTIC</span>
+              <span className="text-[8px] font-bold opacity-60">CLIENT_SIDE_HYDRATION: READY</span>
+            </div>
+            <div className="flex flex-wrap md:flex-nowrap border-b-4 border-white">
+              <AdvantageItem
+                label="MOMENTUM_EXP"
+                valA={advantageMatrix.momentum.a}
+                valB={advantageMatrix.momentum.b}
+                winner={advantageMatrix.momentum.winner}
+                sub="EXP_WEIGHTED_WIN_STREAK"
+              />
+              <AdvantageItem
+                label="OFF_EFFICIENCY"
+                valA={advantageMatrix.ataque.a.toFixed(1)}
+                valB={advantageMatrix.ataque.b.toFixed(1)}
+                winner={advantageMatrix.ataque.winner}
+                sub="PACE_ADJUSTED_OFFENSE"
+              />
+              <AdvantageItem
+                label="DEF_EFFICIENCY"
+                valA={advantageMatrix.defesa.a.toFixed(1)}
+                valB={advantageMatrix.defesa.b.toFixed(1)}
+                winner={advantageMatrix.defesa.winner}
+                sub="PPG_ALLOWED_MATRIZ"
+              />
+              <AdvantageItem
+                label="HW_ACTIVE_POWER"
+                valA={advantageMatrix.hw.a.toFixed(1)}
+                valB={advantageMatrix.hw.b.toFixed(1)}
+                winner={advantageMatrix.hw.winner}
+                sub="TOTAL_STAR_WEIGHT_ACTIVE"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 border-t-4 border-white/10">
             <div className="lg:col-span-5 bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
               <div className="mb-8 border-b-2 border-white pb-4">
-                <h4 className="text-white font-bold text-xs uppercase underline">STATS_EXTRACTOR</h4>
+                <h4 className="text-white font-bold text-xs uppercase underline">CORE_METRICS_VIZ</h4>
               </div>
 
               <div className="space-y-12">

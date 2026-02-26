@@ -88,7 +88,7 @@ DIRETRIZES TÉCNICAS (v5.0):
 - MODO ESTRATÉGICO: Sua análise deve ser "Direct-to-the-Point".
 - DADOS MASTIGADOS: Use os Expected Points injetados para sua base de análise. Não recalcule. Use sua 'detailedAnalysis' apenas para justificar o impacto do Defensive Rating sobre o Pace.
 - PROFUNDIDADE: Considere o Power Ranking (ai_score) injetado para avaliar quão bem o time absorve desfalques.
-- APLIQUE MARGEM DE SEGURANÇA em previsões: Over (-15%) / Under (+20%).`;
+- APLIQUE MARGEM DE SEGURANÇA em previsões: Over (-5%) / Under (+10%).`;
 
 export const nbaTools: FunctionDeclaration[] = [
   {
@@ -234,7 +234,7 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
       toast.error("Erro de permissão no Gemini AI.");
       throw new Error("PERMISSION_DENIED");
     }
-    console.error("Erro na análise da IA:", error);
+    console.error("Erro na análise da IA (CompareTeams):", error);
     toast.error("Erro ao processar análise da IA.");
     throw error;
   }
