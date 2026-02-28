@@ -52,25 +52,25 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
   );
 
   return (
-    <div className="bg-black/40 backdrop-blur-xl border-2 border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col w-full glass-morphism">
-      <div className="px-3 py-3 border-b border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between shrink-0 gap-2">
+    <div className="bg-[#0f172a]/80 backdrop-blur-xl border-2 border-slate-800 rounded-sm overflow-hidden shadow-2xl flex flex-col w-full">
+      <div className="px-3 py-3 border-b-2 border-slate-800 bg-slate-950 flex items-center justify-between shrink-0 gap-2">
         <div>
-          <h2 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-1.5 italic font-mono">
-            <span className="w-1 h-1 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]"></span>
-            STAT_LEADERS_v1.2
+          <h2 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.1em] flex items-center gap-1.5 italic">
+            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"></span>
+            Líderes
           </h2>
         </div>
 
         <div className="flex items-center gap-2">
           <input
             type="text"
-            placeholder="FILTER..."
+            placeholder="BUSCA..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent text-[8px] text-white border-b border-white/10 focus:border-indigo-500/50 py-0.5 w-16 md:w-24 focus:outline-none placeholder:text-slate-700 font-black uppercase tracking-widest font-mono"
+            className="bg-transparent text-[9px] text-white border-b border-slate-800 focus:border-indigo-500/50 py-0.5 w-16 md:w-24 focus:outline-none placeholder:text-slate-700 font-black uppercase tracking-wider"
           />
-          <button onClick={onRefresh} disabled={loading} className="text-slate-500 hover:text-white transition-all disabled:opacity-30 cursor-pointer">
-            <svg className={`w-3 h-3 ${loading ? 'animate-spin text-indigo-500' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <button onClick={onRefresh} disabled={loading} className="text-slate-600 hover:text-white transition-all disabled:opacity-30">
+            <svg className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
@@ -78,43 +78,43 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
       </div>
 
       <div className="overflow-x-hidden overflow-y-auto custom-scrollbar max-h-[500px]">
-        <table className="w-full text-left border-separate border-spacing-0 table-fixed font-mono">
+        <table className="w-full text-left border-separate border-spacing-0 table-fixed">
           <thead>
-            <tr className="sticky top-0 z-10 bg-black/80 backdrop-blur-md text-[8px] font-black text-slate-500 uppercase tracking-tighter border-b border-white/10">
-              <th className="w-[45%] pl-3 py-2 font-black italic">ATLETHE_NODE</th>
-              <th className="w-[18%] py-2 text-center border-l border-white/5">PTS</th>
-              <th className="w-[18%] py-2 text-center border-l border-white/5">REB</th>
-              <th className="w-[19%] py-2 text-center border-l border-white/5 pr-1">AST</th>
+            <tr className="sticky top-0 z-10 bg-slate-950 text-[9px] font-black text-slate-500 uppercase tracking-tighter border-b border-slate-800">
+              <th className="w-[45%] pl-3 py-2 font-black italic">Player</th>
+              <th className="w-[18%] py-2 text-center border-l border-slate-800/40">PTS</th>
+              <th className="w-[18%] py-2 text-center border-l border-slate-800/40">REB</th>
+              <th className="w-[19%] py-2 text-center border-l border-slate-800/40 pr-1">AST</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-slate-800/30">
             {loading && playerStats.length === 0 ? (
               [1, 2, 3, 4, 5].map(i => (
                 <tr key={i} className="animate-pulse">
-                  <td className="pl-3 py-3"><div className="h-1 bg-white/5 rounded-sm w-16"></div></td>
-                  <td className="py-3"><div className="h-1 bg-white/5 rounded-sm w-6 mx-auto"></div></td>
-                  <td className="py-3"><div className="h-1 bg-white/5 rounded-sm w-6 mx-auto"></div></td>
-                  <td className="py-3"><div className="h-1 bg-white/5 rounded-sm w-6 mx-auto"></div></td>
+                  <td className="pl-3 py-3"><div className="h-1.5 bg-slate-800/50 rounded-sm w-16"></div></td>
+                  <td className="py-3"><div className="h-1.5 bg-slate-800/50 rounded-sm w-6 mx-auto"></div></td>
+                  <td className="py-3"><div className="h-1.5 bg-slate-800/50 rounded-sm w-6 mx-auto"></div></td>
+                  <td className="py-3"><div className="h-1.5 bg-slate-800/50 rounded-sm w-6 mx-auto"></div></td>
                 </tr>
               ))
             ) : filteredStats.length === 0 ? (
               <tr>
                 <td colSpan={4} className="py-12 text-center font-black italic">
-                  <span className="text-[9px] text-slate-700 tracking-[0.5em] uppercase">{playerStats.length === 0 ? "DISCONNECTED" : "NULL"}</span>
+                  <span className="text-[9px] text-slate-700 tracking-widest uppercase">{playerStats.length === 0 ? "Sem Conexão" : "Vazio"}</span>
                 </td>
               </tr>
             ) : (
               filteredStats.map((player, idx) => (
-                <tr key={player.id || idx} className="hover:bg-white/5 transition-all group">
+                <tr key={player.id || idx} className="hover:bg-slate-800/20 transition-all group">
                   <td className="pl-3 py-2.5">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] font-black text-white truncate group-hover:text-indigo-400 transition-colors uppercase italic tracking-tighter leading-none">{player.nome.split(' ').pop()}</span>
-                      <span className="text-[7px] font-black text-slate-600 uppercase tracking-tighter truncate leading-tight opacity-70">{player.time.replace('Los Angeles ', 'LA ').replace('Oklahoma City ', 'OKC ')}</span>
+                      <span className="text-[10px] font-black text-slate-100 truncate group-hover:text-indigo-400 transition-colors uppercase italic tracking-tighter leading-none">{player.nome.split(' ').pop()}</span>
+                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter truncate leading-tight opacity-70">{player.time.replace('Los Angeles ', 'LA ').replace('Oklahoma City ', 'OKC ')}</span>
                     </div>
                   </td>
-                  <td className="py-2.5 text-center text-[11px] font-black text-indigo-400 font-mono tracking-tighter border-l border-white/5 leading-none">{Number(player.pontos).toFixed(1)}</td>
-                  <td className="py-2.5 text-center text-[10px] font-bold text-slate-400 font-mono border-l border-white/5 opacity-80 leading-none">{Number(player.rebotes).toFixed(1)}</td>
-                  <td className="py-2.5 text-center text-[10px] font-bold text-slate-400 font-mono border-l border-white/5 opacity-80 leading-none pr-1">{Number(player.assistencias).toFixed(1)}</td>
+                  <td className="py-2.5 text-center text-[11px] font-black text-indigo-400 font-mono tracking-tighter border-l border-slate-800/10 leading-none">{Number(player.pontos).toFixed(1)}</td>
+                  <td className="py-2.5 text-center text-[10px] font-bold text-slate-300 font-mono border-l border-slate-800/10 opacity-80 leading-none">{Number(player.rebotes).toFixed(1)}</td>
+                  <td className="py-2.5 text-center text-[10px] font-bold text-slate-300 font-mono border-l border-slate-800/10 opacity-80 leading-none pr-1">{Number(player.assistencias).toFixed(1)}</td>
                 </tr>
               ))
             )}
@@ -122,11 +122,11 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
         </table>
       </div>
 
-      <div className="px-3 py-2 bg-black/40 border-t border-white/10 flex items-center justify-between">
-        <span className="text-[7px] text-slate-600 font-black uppercase italic font-mono">
-          AGGREGATED_LOGS: {filteredStats.length} ENTITIES
+      <div className="px-3 py-2 bg-slate-950/60 border-t-2 border-slate-800 flex items-center justify-between">
+        <span className="text-[8px] text-slate-700 font-black uppercase italic">
+          {filteredStats.length} Atletas
         </span>
-        <div className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_8px_#6366f1]"></div>
+        <div className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse"></div>
       </div>
     </div>
   );

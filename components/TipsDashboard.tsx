@@ -84,11 +84,11 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
       await new Promise(resolve => setTimeout(resolve, 200));
       const dataUrl = await toPng(tableRef.current, {
         cacheBust: true,
-        backgroundColor: '#000000',
+        backgroundColor: '#0f172a',
         pixelRatio: 2,
         style: {
-          color: '#ffffff',
-          background: '#000000'
+          color: '#f8fafc',
+          background: '#0f172a'
         }
       });
       const link = document.createElement('a');
@@ -102,7 +102,7 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
 
   const exportAsText = async () => {
     if (predictions.length === 0) {
-      alert('DETERMINISTIC_NULL: NO_PREDICTIONS_TO_EXPORT');
+      alert('Nenhuma previsão para exportar.');
       return;
     }
 
@@ -123,12 +123,12 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
       text += `📊 Confiança: ${confianca}\n\n`;
     });
 
-    text += `_Gerado por NBA Monitor v5.0_`;
+    text += `_Gerado por NBA Monitor v3.0_`;
 
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
-        alert('SUCCESS: ARCHIVE_COPIED_TO_CLIPBOARD');
+        alert('Análise copiada para a área de transferência! Cole no Whatsapp/Telegram.');
       } else {
         const textArea = document.createElement("textarea");
         textArea.value = text;
@@ -138,17 +138,17 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
         textArea.select();
         try {
           document.execCommand('copy');
-          alert('SUCCESS: ARCHIVE_COPIED_v2 (FALLBACK)');
+          alert('Análise copiada para a área de transferência! Cole no Whatsapp/Telegram. (Fallback)');
         } catch (error) {
           console.error(error);
-          alert('ERROR: BROWSER_SECURITY_EXCEPTION_COPY_FAILED');
+          alert('Erro ao copiar. Seu navegador pode não suportar essa função.');
         } finally {
           textArea.remove();
         }
       }
     } catch (err) {
       console.error('Erro ao copiar:', err);
-      alert('ERROR: UNEXPECTED_COPY_FAILURE');
+      alert('Erro ao copiar o texto.');
     }
   };
 
@@ -162,7 +162,7 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
   }, [playerStats, predictions]);
 
   return (
-    <div className="flex flex-col gap-24 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20 font-mono">
+    <div className="flex flex-col gap-20 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 font-mono">
       <PowerRankingSection
         teams={teams}
         tierScores={tierScores}

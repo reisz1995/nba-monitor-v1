@@ -145,13 +145,29 @@ export const saveMatchupAnalysis = async (teamA: Team | number, teamB: Team | nu
   }
 };
 
-export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = []): Promise<MatchupAnalysis> => {
-  const [dbStats, dbInjuries, dbStandings, dbNotas] = await Promise.all([
+const fetchComparisonData = async (teamA: Team, teamB: Team) => {
+  return await Promise.all([
     supabase.from('nba_jogadores_stats').select('*').in('time', [teamA.name, teamB.name]),
     supabase.from('nba_injured_players').select('*').in('team_name', [teamA.name, teamB.name]),
     supabase.from('classificacao_nba').select('*').in('time', [teamA.name, teamB.name]),
     supabase.from('tabela_notas').select('*').in('franquia', [teamA.name, teamB.name])
   ]);
+};
+
+const getExpectedPoints = (statsA: any, statsB: any) => {
+  const atkA = Number(statsA.media_pontos_ataque || statsA.pts_ataque || 0);
+  const defA = Number(statsA.media_pontos_defesa || statsA.pts_defesa || 0);
+  const atkB = Number(statsB.media_pontos_ataque || statsB.pts_ataque || 0);
+  const defB = Number(statsB.media_pontos_defesa || statsB.pts_defesa || 0);
+
+  return {
+    projA: atkA > 0 && defB > 0 ? ((atkA + defB) / 2).toFixed(1) : "N/D",
+    projB: atkB > 0 && defA > 0 ? ((atkB + defA) / 2).toFixed(1) : "N/D"
+  };
+};
+
+export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = []): Promise<MatchupAnalysis> => {
+  const [dbStats, dbInjuries, dbStandings, dbNotas] = await fetchComparisonData(teamA, teamB);
 
   const notaA = Number(dbNotas.data?.find(n => n.franquia === teamA.name)?.nota_ia || teamA.ai_score || 0);
   const notaB = Number(dbNotas.data?.find(n => n.franquia === teamB.name)?.nota_ia || teamB.ai_score || 0);
@@ -160,18 +176,11 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   const compactInjuries = formatInjuriesForAI(dbInjuries.data || injuries);
   const compactStandings = formatStandingsForAI(dbStandings.data || []);
 
-  // Algoritmo de Eficiência Cruzada (Determinação Absoluta)
   const statsA = dbStandings.data?.find(s => s.time === teamA.name) || {};
   const statsB = dbStandings.data?.find(s => s.time === teamB.name) || {};
+  const { projA, projB } = getExpectedPoints(statsA, statsB);
 
-  const atkA = Number(statsA.media_pontos_ataque || statsA.pts_ataque || 0);
-  const defA = Number(statsA.media_pontos_defesa || statsA.pts_defesa || 0);
-  const atkB = Number(statsB.media_pontos_ataque || statsB.pts_ataque || 0);
-  const defB = Number(statsB.media_pontos_defesa || statsB.pts_defesa || 0);
-
-  const expectedPointsA = atkA > 0 && defB > 0 ? ((atkA + defB) / 2).toFixed(1) : "N/D";
-  const expectedPointsB = atkB > 0 && defA > 0 ? ((atkB + defA) / 2).toFixed(1) : "N/D";
-
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   const schema = {
     type: Type.OBJECT,
     properties: {
@@ -183,7 +192,6 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     required: ["winner", "confidence", "keyFactor", "detailedAnalysis"]
   };
 
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   const config = {
     systemInstruction: SYSTEM_INSTRUCTION,
     responseMimeType: "application/json",
@@ -197,8 +205,8 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   - ${teamB.name}: ${notaB.toFixed(1)}/5.0
 
   ALGORITMO DE EFICIÊNCIA CRUZADA (VERDADE MATEMÁTICA):
-  - Pontuação Esperada ${teamA.name}: ${expectedPointsA}
-  - Pontuação Esperada ${teamB.name}: ${expectedPointsB}
+  - Pontuação Esperada ${teamA.name}: ${projA}
+  - Pontuação Esperada ${teamB.name}: ${projB}
 
   CLASSIFICAÇÃO E MOMENTUM:
   ${compactStandings}
@@ -216,7 +224,7 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     * Se o time tem Nota > 4.5 e tem desfalques, o impacto é minimizado.
     * Se o time tem Nota < 3.0 e tem desfalques, o impacto é drástico.
   - Analise se o favorito jogou na noite anterior (Back-to-back).
-  - Verifique se o Defensive Rating de um time pode comprimir ou expandir o Pace projetado de ${expectedPointsA} e ${expectedPointsB}.`;
+  - Verifique se o Defensive Rating de um time pode comprimir ou expandir o Pace projetado de ${projA} e ${projB}.`;
 
   try {
     const response = await ai.models.generateContent({

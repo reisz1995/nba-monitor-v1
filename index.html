@@ -8,73 +8,33 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg-pure: #000000;
-      --bg-surface: #0a0a0a;
-      --bg-glass: rgba(255, 255, 255, 0.03);
-      --indigo-500: #6366f1;
-      --orange-500: #f97316;
-      --emerald-500: #10b981;
-      --rose-500: #f43f5e;
-      --amber-500: #f59e0b;
-      --text-primary: #f8fafc;
-      --text-secondary: #64748b;
-      --glass-blur: blur(12px);
-      --glass-border: 1px solid rgba(255, 255, 255, 0.1);
-      --sharp-shadow: 8px 8px 0px #000000;
-    }
-
     body {
       font-family: 'Inter', sans-serif;
-      background-color: var(--bg-pure);
-      color: var(--text-primary);
-      margin: 0;
-      -webkit-font-smoothing: antialiased;
+      background-color: #0f172a;
     }
     
-    .font-mono { font-family: 'Space Mono', monospace; }
-    
+    /* Scrollbar Padronizada para X e Y */
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
-      height: 6px;
+      height: 6px; /* Altura para scroll horizontal */
     }
     .custom-scrollbar::-webkit-scrollbar-track {
-      background: var(--bg-pure);
+      background: #0f172a;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
       background: #334155;
       border-radius: 4px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: var(--indigo-500);
+      background: #475569;
     }
     
+    /* Container utilitário para tabelas responsivas */
     .table-container {
       width: 100%;
-      overflow: auto;
+      overflow: auto; /* Permite scroll X e Y */
       -webkit-overflow-scrolling: touch;
     }
-
-    .card-brutalist {
-      background: var(--bg-surface);
-      border: 2px solid white;
-      box-shadow: var(--sharp-shadow);
-      transition: all 200ms ease;
-    }
-    .card-brutalist:hover {
-      transform: translate(-2px, -2px);
-      box-shadow: 12px 12px 0px #000000;
-    }
-
-    .table-glass {
-      background: var(--bg-glass);
-      backdrop-filter: var(--glass-blur);
-      border: var(--glass-border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .cursor-pointer { cursor: pointer; }
   </style>
 <script type="importmap">
 {

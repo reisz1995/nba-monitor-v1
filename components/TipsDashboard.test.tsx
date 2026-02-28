@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TipsDashboard from './TipsDashboard';
+import { Team, PlayerStat, UnavailablePlayer } from '../types';
 
 // Mock suprabase client
 vi.mock('../lib/supabase', () => {
@@ -28,14 +29,14 @@ vi.mock('html-to-image', () => ({
 }));
 
 describe('TipsDashboard', () => {
-    const mockTeams = [
-        { id: '1', name: 'Lakers', logo: 'lakers.png' },
-        { id: '2', name: 'Celtics', logo: 'celtics.png' }
+    const mockTeams: Team[] = [
+        { id: 1, name: 'Lakers', logo: 'lakers.png', record: ['V'], wins: 1, losses: 0, conference: 'West' },
+        { id: 2, name: 'Celtics', logo: 'celtics.png', record: ['D'], wins: 0, losses: 1, conference: 'East' }
     ];
-    const mockPlayerStats = [
-        { id: '1', nome: 'LeBron', time: 'Lakers', pontos: 25.5, rebotes: 8, assistencias: 7, pos: 'SF', min: 35 }
+    const mockPlayerStats: PlayerStat[] = [
+        { id: 1, nome: 'LeBron', time: 'Lakers', pontos: 25.5, rebotes: 8, assistencias: 7, posicao: 'SF', min: '35' }
     ];
-    const mockUnavailable = [
+    const mockUnavailable: UnavailablePlayer[] = [
         { player_name: 'Davis', team_name: 'Lakers', injury_status: 'OUT' }
     ];
 

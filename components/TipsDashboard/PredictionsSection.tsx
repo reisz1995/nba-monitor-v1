@@ -40,28 +40,28 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
     tableRef
 }) => {
     return (
-        <section className="space-y-10 animate-in fade-in duration-1000">
+        <section className="space-y-8">
             <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between flex-wrap gap-8 border-b-2 border-white/10 pb-8">
+                <div className="flex items-center justify-between flex-wrap gap-6 border-b-4 border-slate-100 pb-6">
                     <div className="flex items-center gap-6">
-                        <div className="bg-white p-4 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] rounded-sm">
-                            <BrainCircuit className="w-10 h-10 text-black" />
+                        <div className="bg-white p-3 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)]">
+                            <BrainCircuit className="w-8 h-8 text-slate-950" />
                         </div>
                         <div>
-                            <h3 className="text-5xl font-black text-white italic uppercase tracking-tighter leading-none">
-                                PREDICTOR <span className="text-indigo-500 underline decoration-indigo-500/30 underline-offset-8">NODE</span>
+                            <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter leading-none">
+                                Predictor <span className="text-slate-500">Node</span>
                             </h3>
-                            <div className="flex items-center gap-6 mt-4 font-mono">
-                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] flex items-center gap-2">
-                                    <Database className="w-3 h-3 text-indigo-500" /> SOURCE: painel_palpites_io
+                            <div className="flex items-center gap-4 mt-3">
+                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] flex items-center gap-2">
+                                    <Database className="w-3 h-3" /> painel_palpites
                                 </p>
-                                <div className="bg-white/10 h-3 w-[1px]" />
+                                <div className="bg-slate-800 h-3 w-[1px]" />
                                 <div className="flex items-center gap-2">
-                                    <Calendar className="w-3 h-3 text-indigo-400" />
+                                    <Calendar className="w-3 h-3 text-red-500" />
                                     <input
                                         type="text" value={tipsDate} onChange={(e) => setTipsDate(e.target.value)}
                                         placeholder="DD/MM/YYYY"
-                                        className="bg-transparent border-0 focus:ring-0 text-indigo-400 font-black text-[11px] w-32 tracking-[0.2em] p-0 outline-none"
+                                        className="bg-transparent border-0 focus:ring-0 text-red-500 font-mono font-bold text-[11px] w-28 tracking-wider p-0"
                                     />
                                 </div>
                             </div>
@@ -71,58 +71,58 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
                         <button
                             onClick={onImportIA}
                             disabled={isImporting}
-                            className="bg-black border-2 border-amber-600/50 hover:bg-amber-600 text-white text-[10px] font-black px-6 py-4 rounded-sm uppercase tracking-[0.2em] transition-all cursor-pointer shadow-[6px_6px_0px_#000] active:translate-x-1 active:translate-y-1 flex items-center gap-2 disabled:opacity-50"
+                            className="bg-slate-900 border-2 border-amber-600 hover:bg-amber-600 text-white text-[10px] font-black px-6 py-4 uppercase tracking-[0.2em] transition-all shadow-[4px_4px_0px_0px_rgba(217,119,6,0.2)] hover:shadow-none flex items-center gap-2 disabled:opacity-50"
                         >
-                            <Plus className="w-4 h-4 text-amber-500" />
-                            RECOVER_IA_DATA
+                            <Plus className="w-3.5 h-3.5" />
+                            IMPORT IA
                         </button>
                         <button
                             onClick={onExportPNG}
                             disabled={isExporting}
-                            className="bg-black border-2 border-white/10 hover:bg-white hover:text-black text-[10px] font-black px-6 py-4 rounded-sm uppercase tracking-[0.2em] transition-all cursor-pointer shadow-[6px_6px_0px_#000] active:translate-x-1 active:translate-y-1 flex items-center gap-3 disabled:opacity-50"
+                            className="bg-slate-900 border-2 border-slate-600 hover:bg-slate-600 text-white text-[10px] font-black px-6 py-4 uppercase tracking-[0.2em] transition-all shadow-[4px_4px_0px_0px_rgba(71,85,105,0.2)] hover:shadow-none flex items-center gap-3 disabled:opacity-50"
                         >
-                            <Download className="w-4 h-4" />
-                            EXPORT_IMAGE
+                            <Download className="w-3.5 h-3.5" />
+                            EXPORT PNG
                         </button>
                         <button
                             onClick={onCopyText}
-                            className="bg-black border-2 border-emerald-500/50 hover:bg-emerald-500 text-white text-[10px] font-black px-6 py-4 rounded-sm uppercase tracking-[0.2em] transition-all cursor-pointer shadow-[6px_6px_0px_#000] active:translate-x-1 active:translate-y-1 flex items-center gap-3"
+                            className="bg-slate-900 border-2 border-emerald-600 hover:bg-emerald-600 text-white text-[10px] font-black px-6 py-4 uppercase tracking-[0.2em] transition-all shadow-[4px_4px_0px_0px_rgba(5,150,105,0.2)] hover:shadow-none flex items-center gap-3"
                         >
-                            <Copy className="w-4 h-4 text-emerald-400" />
-                            COPY_ARCHIVE
+                            <Copy className="w-3.5 h-3.5" />
+                            COPIAR TEXTO
                         </button>
                         <button
                             onClick={onAddNewRow}
-                            className="bg-black border-2 border-white/20 hover:border-white text-white text-[10px] font-black px-6 py-4 rounded-sm uppercase tracking-[0.2em] transition-all cursor-pointer shadow-[6px_6px_0px_#000] active:translate-x-1 active:translate-y-1"
+                            className="bg-slate-900 border-2 border-slate-200 hover:bg-white hover:text-slate-950 text-white text-[10px] font-black px-6 py-4 uppercase tracking-[0.2em] transition-all shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-none"
                         >
-                            + NEW_ENTITY
+                            + NEW NODE
                         </button>
                         <button
                             onClick={onSavePalpites}
                             disabled={isSavingPalpites}
-                            className="bg-indigo-600 border-2 border-indigo-400/50 hover:bg-indigo-500 text-white text-[10px] font-black px-8 py-4 rounded-sm uppercase tracking-[0.2em] shadow-[8px_8px_0px_#000] active:translate-x-1 active:translate-y-1 transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer font-mono"
+                            className="bg-indigo-600 border-2 border-indigo-400 hover:bg-indigo-500 text-white text-[10px] font-black px-8 py-4 uppercase tracking-[0.2em] shadow-[6px_6px_0px_0px_rgba(99,102,241,0.2)] hover:shadow-none transition-all disabled:opacity-50 flex items-center gap-2"
                         >
-                            {isSavingPalpites ? <Zap className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            SYNC_SYSTEM_LOGS
+                            {isSavingPalpites ? <Zap className="w-3.5 h-3.5 animate-pulse" /> : <Save className="w-3.5 h-3.5" />}
+                            SYNC LOGS
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div ref={tableRef} className="bg-black/40 backdrop-blur-xl border-2 border-white/10 overflow-x-auto shadow-[32px_32px_0px_#000] rounded-xl glass-morphism">
-                <table className="w-full text-left border-collapse min-w-[900px] font-mono">
+            <div ref={tableRef} className="bg-slate-950 border-2 border-slate-800 overflow-x-auto shadow-[30px_30px_0px_0px_rgba(0,0,0,0.4)]">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead>
-                        <tr className="bg-black/60 backdrop-blur-md text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] border-b border-white/10">
-                            <th className="px-4 py-4 border-r border-white/5 w-[18%]">MATCHUP_ID: HOME</th>
-                            <th className="px-4 py-4 border-r border-white/5 w-[18%]">MATCHUP_ID: AWAY</th>
-                            <th className="px-4 py-4 border-r border-white/5 bg-indigo-500/5 text-indigo-400 w-[15%]">QUANTUM_PICK</th>
-                            <th className="px-2 py-4 border-r border-white/5 text-center text-amber-500/80 w-[8%]">OVER_v</th>
-                            <th className="px-2 py-4 border-r border-white/5 text-center text-rose-500/80 w-[8%]">UNDER_v</th>
-                            <th className="px-2 py-4 border-r border-white/5 text-center w-[10%]">TARGET_PTS</th>
-                            <th className="px-4 py-4 border-r border-white/5 text-center text-indigo-500 w-[10%] font-black">CONF_IDX</th>
-                            <th className="px-2 py-4 border-r border-white/5 text-center w-[5%]">N_C</th>
-                            <th className="px-2 py-4 border-r border-white/5 text-center w-[5%]">N_F</th>
-                            <th className="px-2 py-4 text-center w-[3%]">ACT</th>
+                        <tr className="bg-slate-900 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b-2 border-slate-800">
+                            <th className="px-3 py-3 border-r border-slate-800/50 w-[18%]">MATCHUP: HOME</th>
+                            <th className="px-3 py-3 border-r border-slate-800/50 w-[18%]">MATCHUP: AWAY</th>
+                            <th className="px-3 py-3 border-r border-slate-800/50 bg-slate-950/40 text-emerald-500/80 w-[15%]">CORE_PICK</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center text-amber-500/80 w-[8%]">OVER_L</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center text-rose-500/80 w-[8%]">UNDER_L</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center w-[10%]">T_POINTS</th>
+                            <th className="px-3 py-3 border-r border-slate-800/50 text-center text-red-500/80 w-[10%]">CONF_IDX</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center w-[5%]">N_C</th>
+                            <th className="px-2 py-3 border-r border-slate-800/50 text-center w-[5%]">N_F</th>
+                            <th className="px-2 py-3 text-center w-[3%]">ACT</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -138,13 +138,13 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={10} className="py-40 text-center bg-black/20">
-                                    <div className="flex flex-col items-center gap-8">
-                                        <Database className="w-16 h-16 text-white/5" />
-                                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-[1em] italic">NULL_SET: NO_ACTIVE_NODES_DETECTION</span>
-                                        <div className="flex gap-6">
-                                            <button onClick={onImportIA} className="text-[10px] font-black text-amber-500 border-2 border-amber-500/20 px-10 py-4 uppercase tracking-[0.3em] hover:bg-amber-500/10 transition-all cursor-pointer rounded-sm">INITIALIZE_IA_RESTORE</button>
-                                            <button onClick={onAddNewRow} className="text-[10px] font-black text-white bg-white/5 border-2 border-white/10 px-10 py-4 uppercase tracking-[0.3em] hover:border-white transition-all cursor-pointer rounded-sm">+ MANUAL_ENTITY_ADD</button>
+                                <td colSpan={10} className="py-32 text-center bg-slate-950">
+                                    <div className="flex flex-col items-center gap-6">
+                                        <Database className="w-12 h-12 text-slate-800" />
+                                        <span className="text-xs font-black text-slate-600 uppercase tracking-[0.4em] italic">No active nodes for {tipsDate}</span>
+                                        <div className="flex gap-4">
+                                            <button onClick={onImportIA} className="text-[10px] font-black text-amber-600 border-2 border-amber-600/30 px-8 py-3 uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all">RECOVER IA DATA</button>
+                                            <button onClick={onAddNewRow} className="text-[10px] font-black text-white bg-slate-900 border-2 border-slate-800 px-8 py-3 uppercase tracking-widest hover:border-white transition-all">+ INITIALIZE NODE</button>
                                         </div>
                                     </div>
                                 </td>

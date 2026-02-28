@@ -15,6 +15,7 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
   const [seeding, setSeeding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Filtra jogadores duplicados pelo nome
   const uniquePlayers = useMemo(() => {
     const seen = new Set();
     return players.filter(p => {
@@ -39,6 +40,7 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
   const getPlayerData = (p: UnavailablePlayer) => {
     const rawStatus = (p.injury_status || p.gravidade || 'moderada').toUpperCase();
 
+    // Normalização para cores
     let statusType: 'out' | 'dtd' = 'dtd';
     if (rawStatus.includes('OUT') || rawStatus.includes('GRAVE') || rawStatus.includes('FORA')) {
       statusType = 'out';
@@ -83,32 +85,32 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
   };
 
   return (
-    <div className="bg-black/40 backdrop-blur-xl border-2 border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col glass-morphism">
-      <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-black/40 backdrop-blur-md">
+    <div className="bg-[#0f172a]/80 backdrop-blur-xl border-2 border-slate-800 rounded-sm overflow-hidden shadow-2xl flex flex-col">
+      <div className="px-6 py-4 border-b-2 border-slate-800 flex items-center justify-between bg-slate-950">
         <div className="flex flex-col">
-          <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.3em] flex items-center gap-2 italic font-mono">
-            <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shadow-[0_0_8px_#f43f5e]"></span>
-            HEALTH_STATUS_MATRIX
+          <h3 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.2em] flex items-center gap-2 italic">
+            <span className="w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>
+            Health Report
           </h3>
-          <span className="text-[8px] text-slate-600 font-black uppercase mt-1 tracking-widest font-mono">CONFRONTO_IMPACT_v5.0</span>
+          <span className="text-[9px] text-slate-600 font-black uppercase mt-1 tracking-widest">Impacto nos Confrontos 2026</span>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative border-b border-white/10 bg-transparent flex items-center px-1">
+          <div className="relative border-b-2 border-slate-800 bg-transparent flex items-center px-1">
             <input
               type="text"
-              placeholder="SEARCH_PLAYER..."
+              placeholder="FILTRAR JOGADOR..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent text-[9px] text-white py-1 w-32 focus:outline-none placeholder:text-slate-500 font-black uppercase tracking-wider font-mono"
+              className="bg-transparent text-[10px] text-white py-1 w-32 focus:outline-none placeholder:text-slate-700 font-black uppercase tracking-wider"
             />
-            <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3 h-3 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
 
-          <button onClick={onRefresh} className="text-slate-500 hover:text-white transition-all transform hover:scale-110 cursor-pointer">
-            <svg className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-500' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <button onClick={onRefresh} className="text-slate-600 hover:text-white transition-all transform hover:scale-110">
+            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
@@ -117,49 +119,49 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
 
       <div className="overflow-auto custom-scrollbar max-h-[500px]">
         {filteredPlayers.length === 0 ? (
-          <div className="py-24 text-center flex flex-col items-center bg-black/20">
-            <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.5em] mb-6 italic font-mono">
-              {uniquePlayers.length === 0 ? "NULL_RECORDS: NO_LOSSES_DETECTED" : "NULL_QUERY: ZERO_RESULTS"}
+          <div className="py-24 text-center flex flex-col items-center bg-slate-900/40">
+            <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.3em] mb-6 italic">
+              {uniquePlayers.length === 0 ? "NENHUM DESFALQUE REGISTRADO" : "NENHUM RESULTADO ENCONTRADO"}
             </span>
             {uniquePlayers.length === 0 && (
-              <button onClick={seedUnavailable} className="text-[9px] font-black text-rose-500 border-2 border-rose-500/20 px-6 py-2 rounded-sm uppercase bg-rose-500/5 hover:bg-rose-500/10 transition-all flex items-center gap-2 cursor-pointer font-mono">
+              <button onClick={seedUnavailable} className="text-[9px] font-black text-rose-500 border-2 border-rose-500/20 px-6 py-2 rounded-sm uppercase bg-rose-500/5 hover:bg-rose-500/10 transition-all flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-rose-500 rounded-full"></span>
-                SIMULATE_DATA_INJECTION
+                Simular Dados
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-white/5 bg-black/20">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-slate-800/30">
             {filteredPlayers.map((p, idx) => {
               const d = getPlayerData(p);
               return (
-                <div key={p.id || idx} className="p-5 flex items-center gap-5 hover:bg-white/5 transition-all group border-b border-white/5 min-h-[100px] font-mono">
-                  <div className="relative shrink-0 flex items-center justify-center w-12 h-12 border-2 border-white/10 bg-black shadow-[4px_4px_0px_#000] group-hover:border-rose-500/30 transition-colors">
-                    <img src={getTeamLogo(d.time)} className="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform" alt="" />
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-black border border-white/10 flex items-center justify-center">
-                      <span className="text-[7px] font-black text-slate-600">{idx + 1}</span>
+                <div key={p.id || idx} className="p-5 flex items-center gap-5 hover:bg-slate-800/20 transition-all group border-b border-slate-800/10 min-h-[100px]">
+                  <div className="relative shrink-0 flex items-center justify-center w-12 h-12 border border-slate-800/50 bg-slate-950/50 rounded-sm">
+                    <img src={getTeamLogo(d.time)} className="w-10 h-10 object-contain drop-shadow-md group-hover:scale-110 transition-transform" alt="" />
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-900 border border-slate-800 flex items-center justify-center">
+                      <span className="text-[8px] font-black text-slate-500">{idx + 1}</span>
                     </div>
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-xs font-black text-white truncate group-hover:text-rose-400 transition-colors uppercase italic tracking-tighter">{d.nome}</h3>
-                        <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-sm border-2 uppercase tracking-wider shrink-0 font-mono ${d.statusType === 'out'
-                          ? 'bg-rose-500/20 text-rose-500 border-rose-500/40 shadow-[0_0_10px_#f43f5e33]'
-                          : 'bg-amber-500/20 text-amber-500 border-amber-500/40'
+                        <h3 className="text-xs font-black text-slate-100 truncate group-hover:text-rose-400 transition-colors uppercase italic tracking-tighter">{d.nome}</h3>
+                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-sm border uppercase tracking-wider shrink-0 ${d.statusType === 'out'
+                          ? 'bg-rose-500/10 text-rose-500 border-rose-500/40'
+                          : 'bg-amber-500/10 text-amber-500 border-amber-500/40'
                           }`}>
                           {d.statusLabel}
                         </span>
                       </div>
 
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-slate-500 truncate uppercase tracking-tight opacity-70 mb-1">{d.motivo}</span>
-                        <div className="flex items-center justify-between mt-1 pt-2 border-t border-white/5">
-                          <span className="text-[7px] font-black text-slate-700 uppercase">FRANCHISE: {d.time}</span>
+                        <span className="text-[9px] font-black text-slate-500 truncate uppercase tracking-tight">{d.motivo}</span>
+                        <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-800/40">
+                          <span className="text-[8px] font-black text-slate-600 uppercase">TIME: {d.time}</span>
                           <span className="text-[8px] font-black text-emerald-500 uppercase flex items-center gap-1">
-                            <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></span>
-                            E_RETURN: {d.retorno}
+                            <span className="w-1 h-1 bg-emerald-500 rounded-full"></span>
+                            Retorno: {d.retorno}
                           </span>
                         </div>
                       </div>
@@ -172,18 +174,18 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
         )}
       </div>
 
-      <div className="px-6 py-3 bg-black/40 border-t border-white/10 flex items-center justify-between">
-        <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.3em] italic font-mono">
-          PHYSICAL_INTEGRITY: {filteredPlayers.length} BA_LOCKED
+      <div className="px-6 py-3 bg-slate-950/60 border-t-2 border-slate-800 flex items-center justify-between">
+        <span className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em] italic">
+          Integridade Física: {filteredPlayers.length} Baixas Confirmadas
         </span>
         <div className="flex gap-4 items-center">
-          <div className="flex items-center gap-1.5 font-mono">
+          <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
-            <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest italic opacity-60">OUT</span>
+            <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest italic">OUT</span>
           </div>
-          <div className="flex items-center gap-1.5 font-mono">
+          <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
-            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest italic opacity-60">DTD</span>
+            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest italic">DTD</span>
           </div>
         </div>
       </div>
