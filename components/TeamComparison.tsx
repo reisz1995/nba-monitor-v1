@@ -3,6 +3,7 @@ import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer } from '../types';
 import MomentumBar from './MomentumBar';
 import { useTeamComparisonData } from '../hooks/useTeamComparisonData';
 import { StatBar, PlayerCard, AdvantageItem } from './ComparisonStats';
+import { X, Trophy, TrendingUp, AlertTriangle, Info, Target, Download, Share2, Activity, Zap } from 'lucide-react';
 
 interface TeamComparisonProps {
   teamA: Team;
@@ -17,26 +18,25 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   const {
     analysis,
     loading,
-    savedToCloud,
     notas,
     injuriesA,
     injuriesB,
     keyPlayersA,
     keyPlayersB,
     bettingLines,
-    advantageMatrix,
-    getPlayerWeight
+    advantageMatrix
   } = useTeamComparisonData({ teamA, teamB, playerStats, unavailablePlayers, initialAnalysis });
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
       <div className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
 
+        {/* Header */}
         <div className="px-8 py-4 border-b-4 border-white flex justify-between items-center bg-white text-black">
           <div className="flex items-center gap-3">
             <div className="w-4 h-4 bg-black animate-ping"></div>
             <h2 className="text-xs font-bold uppercase tracking-widest">
-              ALGORITMO DE EFICIÊNCIA CRUZADA v5.0 // ROSTER_DEPTH_AWARE
+              NBA_DETERMINISTIC_HUB v2.0 // PACE_CALIBRATED
             </h2>
           </div>
           <button onClick={onClose} className="border-2 border-black p-1 hover:bg-black hover:text-white transition-colors">
@@ -46,255 +46,209 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-16">
 
-          <div className="flex flex-col items-center justify-center gap-8 bg-black border-4 border-white p-12 relative shadow-[8px_8px_0px_#333]">
-            <div className="absolute top-0 left-8 -translate-y-1/2 bg-white text-black px-4 py-1 border-2 border-black font-bold text-[10px]">
-              EXPECTED_POINTS_MATRIX
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-16 md:gap-32 w-full relative z-0">
-              <div className="flex flex-col items-center gap-4">
-                <div className="flex flex-col items-center border-2 border-white p-4 shadow-[8px_8px_0px_#222] bg-zinc-900">
-                  <img src={teamA.logo} className="w-24 h-24 object-contain mb-4" alt="" />
-                  <div className="flex items-center gap-2">
-                    <MomentumBar record={teamA.record} className="w-24" showLabel />
-                    <div className="bg-black border border-white px-2 py-1 flex flex-col items-center">
-                      <span className="text-[6px] text-slate-500 font-bold uppercase">SCORE_IA</span>
-                      <span className="text-xs font-black text-white">{notas.a.toFixed(1)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-center mt-4">
-                  <span className="text-7xl md:text-9xl font-bold text-white leading-none">
-                    {bettingLines.projectedA.toFixed(1)}
-                  </span>
-                  <p className="text-[10px] font-bold text-indigo-400 mt-2">({teamA.espnData?.pts || 0} + {teamB.espnData?.pts_contra || 0}) / 2</p>
-                </div>
-              </div>
-
-              <div className="text-white font-bold text-6xl opacity-20 hidden md:block select-none">X</div>
-
-              <div className="flex flex-col items-center gap-4">
-                <div className="flex flex-col items-center border-2 border-white p-4 shadow-[8px_8px_0px_#222] bg-zinc-900">
-                  <img src={teamB.logo} className="w-24 h-24 object-contain mb-4" alt="" />
-                  <div className="flex items-center gap-2">
-                    <MomentumBar record={teamB.record} className="w-24" showLabel />
-                    <div className="bg-black border border-white px-2 py-1 flex flex-col items-center">
-                      <span className="text-[6px] text-slate-500 font-bold uppercase">SCORE_IA</span>
-                      <span className="text-xs font-black text-slate-400">{notas.b.toFixed(1)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-center mt-4">
-                  <span className="text-7xl md:text-9xl font-bold text-slate-400 leading-none">
-                    {bettingLines.projectedB.toFixed(1)}
-                  </span>
-                  <p className="text-[10px] font-bold text-indigo-400 mt-2">({teamB.espnData?.pts || 0} + {teamA.espnData?.pts_contra || 0}) / 2</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">
-              <div className="flex flex-col bg-white text-black p-6 border-4 border-zinc-800 shadow-[8px_8px_0px_#000]">
-                <span className="text-[10px] font-bold uppercase mb-2">PONTUAÇÃO TOTAL_ESTIMADA</span>
-                <span className="text-4xl font-bold italic">{bettingLines.totalProjected.toFixed(1)}</span>
-              </div>
-              <div className="flex flex-col bg-zinc-900 text-white p-6 border-4 border-white shadow-[8px_8px_0px_#000]">
-                <span className="text-[10px] font-bold uppercase mb-2">HANDICAP_ALGORÍTMICO</span>
-                <span className="text-2xl font-bold uppercase">
-                  {bettingLines.favorite} <span className={Number(bettingLines.spread) > 0 ? "text-rose-500" : "text-emerald-500"}>{bettingLines.spread}</span>
-                </span>
-              </div>
-            </div>
-
-            {(bettingLines.penaltyA > 0 || bettingLines.penaltyB > 0) && (
-              <div className="mt-8 w-full max-w-3xl bg-rose-950 border-4 border-rose-500 p-6 shadow-[8px_8px_0px_#000]">
-                <span className="text-[10px] font-bold text-rose-500 uppercase flex items-center gap-2 mb-4">
-                  [!] IMPACTO_MÉDICO_ESTRAÍDO
-                </span>
-                <div className="grid grid-cols-2 gap-8 text-rose-500 font-bold">
-                  {bettingLines.penaltyA > 0 && (
-                    <div className="border-l-2 border-rose-500 pl-4">
-                      <span className="block text-[8px] opacity-60">{teamA.name}</span>
-                      <span>-{bettingLines.penaltyA.toFixed(1)} PTS</span>
-                    </div>
-                  )}
-                  {bettingLines.penaltyB > 0 && (
-                    <div className="border-l-2 border-rose-500 pl-4">
-                      <span className="block text-[8px] opacity-60">{teamB.name}</span>
-                      <span>-{bettingLines.penaltyB.toFixed(1)} PTS</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-black border-4 border-white overflow-hidden shadow-[12px_12px_0px_#000]">
-            <div className="bg-white text-black px-6 py-2 border-b-4 border-white flex justify-between items-center">
-              <span className="text-[10px] font-black uppercase tracking-widest">STATS_EXTRACTOR // ADVANTAGE_MATRIX_DETERMINISTIC</span>
-              <span className="text-[8px] font-bold opacity-60">CLIENT_SIDE_HYDRATION: READY</span>
-            </div>
-            <div className="flex flex-wrap md:flex-nowrap border-b-4 border-white">
-              <AdvantageItem
-                label="MOMENTUM_EXP"
-                valA={advantageMatrix.momentum.a}
-                valB={advantageMatrix.momentum.b}
-                winner={advantageMatrix.momentum.winner}
-                sub="EXP_WEIGHTED_WIN_STREAK"
-              />
-              <AdvantageItem
-                label="OFF_EFFICIENCY"
-                valA={advantageMatrix.ataque.a.toFixed(1)}
-                valB={advantageMatrix.ataque.b.toFixed(1)}
-                winner={advantageMatrix.ataque.winner}
-                sub="PACE_ADJUSTED_OFFENSE"
-              />
-              <AdvantageItem
-                label="DEF_EFFICIENCY"
-                valA={advantageMatrix.defesa.a.toFixed(1)}
-                valB={advantageMatrix.defesa.b.toFixed(1)}
-                winner={advantageMatrix.defesa.winner}
-                sub="PPG_ALLOWED_MATRIZ"
-              />
-              <AdvantageItem
-                label="HW_ACTIVE_POWER"
-                valA={advantageMatrix.hw.a.toFixed(1)}
-                valB={advantageMatrix.hw.b.toFixed(1)}
-                winner={advantageMatrix.hw.winner}
-                sub="TOTAL_STAR_WEIGHT_ACTIVE"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 border-t-4 border-white/10">
+          {/* Result Matrix */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
             <div className="lg:col-span-5 bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
               <div className="mb-8 border-b-2 border-white pb-4">
                 <h4 className="text-white font-bold text-xs uppercase underline">CORE_METRICS_VIZ</h4>
               </div>
 
-              <div className="space-y-12">
-                <StatBar label="OFF_EFFICIENCY (PTS)" valA={bettingLines.ataqueA} valB={bettingLines.ataqueB} />
-                <StatBar label="DEF_EFFICIENCY (PTS_ALLOWED)" valA={bettingLines.defesaA} valB={bettingLines.defesaB} />
-                <StatBar label="WIN_PCT (%)" valA={bettingLines.aproveitamentoA} valB={bettingLines.aproveitamentoB} isPercent />
+              <div className="grid grid-cols-1 gap-6">
+                <div className="bg-black border-2 border-slate-800 p-4 font-['Space_Mono'] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
+                    <Zap className="w-12 h-12 text-indigo-500" />
+                  </div>
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <Activity className="w-3 h-3 text-indigo-500" />
+                    Ritmo do Confronto v2.0
+                  </h4>
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-3xl font-black text-white italic tracking-tighter">
+                      {bettingLines.matchPace.toFixed(1)}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-1 border-2 ${bettingLines.kineticState === 'HYPER_KINETIC' ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' : 'bg-slate-500/20 border-slate-500 text-slate-400'}`}>
+                      {bettingLines.kineticState}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-1000 ease-out ${bettingLines.kineticState === 'HYPER_KINETIC' ? 'bg-indigo-500' : 'bg-slate-600'}`}
+                      style={{ width: `${Math.min(100, (bettingLines.matchPace / 115) * 100)}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[8px] text-slate-500 mt-2 uppercase font-bold">
+                    Projeção baseada em eficiência cruzada e posses de bola.
+                  </p>
+                </div>
+                <StatBar label="Aproveitamento" valA={bettingLines.aproveitamentoA} valB={bettingLines.aproveitamentoB} isPercent />
+                <StatBar label="Ataque (PPG)" valA={bettingLines.ataqueA} valB={bettingLines.ataqueB} />
+                <StatBar label="Defesa (PPG)" valA={bettingLines.defesaA} valB={bettingLines.defesaB} />
               </div>
             </div>
 
-            <div className="lg:col-span-7 bg-white text-black border-4 border-black p-8 shadow-[12px_12px_0px_#333]">
-              <div className="flex items-center justify-between mb-8">
-                <h4 className="font-bold text-xs uppercase underline">ESTATÍSTICO_CHEFE_REPORT</h4>
-                {analysis && (
-                  <div className="bg-black text-white px-4 py-1 border-2 border-black font-bold text-[10px]">
-                    CONFIDENCE: {analysis.confidence}%
+            <div className="lg:col-span-7 bg-white text-black border-4 border-black p-8 shadow-[12px_12px_0px_#333] flex flex-col justify-center">
+              <div className="flex items-center justify-between mb-8 border-b-2 border-black pb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest">Resultado do Algoritmo</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
+                  <span className="text-[8px] font-bold uppercase tracking-tighter">DETERMINISTIC_MODE</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-6 mb-8">
+                  <div className="flex flex-col items-center">
+                    <span className="text-5xl font-black">{bettingLines.projectedA.toFixed(1)}</span>
+                    <span className="text-[8px] font-bold text-zinc-400 uppercase mt-1">PROJ_{teamA.name.slice(0, 3)}</span>
+                  </div>
+                  <div className="h-16 w-1 bg-black skew-x-[-15deg]"></div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-5xl font-black">{bettingLines.projectedB.toFixed(1)}</span>
+                    <span className="text-[8px] font-bold text-zinc-400 uppercase mt-1">PROJ_{teamB.name.slice(0, 3)}</span>
+                  </div>
+                </div>
+
+                <div className="bg-black text-white p-6 w-full text-center relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
+                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-2 block">Total Projetado Hub</span>
+                  <div className="text-7xl font-black flex items-center justify-center gap-3 italic">
+                    <Zap className="w-8 h-8 text-indigo-500" />
+                    {bettingLines.totalProjected.toFixed(1)}
+                  </div>
+                  <div className="mt-4 flex justify-center gap-4">
+                    <span className="text-[10px] font-black text-black bg-white px-3 py-1 uppercase">
+                      {bettingLines.favorite} {bettingLines.spread}
+                    </span>
+                    <span className="text-[10px] font-black text-white bg-indigo-500 px-3 py-1 uppercase skew-x-[-10deg]">
+                      {bettingLines.totalProjected > 225.5 ? 'HIGH_SCORE_EXPECTED' : 'DEFENSIVE_BATTLE'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Advantage Section */}
+          <div className="bg-white border-4 border-black shadow-[12px_12px_0px_#000] overflow-hidden">
+            <div className="bg-black text-white py-2 px-6 border-b-4 border-black flex justify-between items-center">
+              <span className="text-[10px] font-black uppercase tracking-widest">Matriz de Vantagem Dominante</span>
+              <span className="text-[8px] font-bold opacity-40">CALC_V2.0</span>
+            </div>
+            <div className="flex flex-wrap">
+              <AdvantageItem label="Ritmo (Pace)" valA={bettingLines.ataqueA} valB={bettingLines.ataqueB} winner={advantageMatrix.ataque.winner} sub={advantageMatrix.ataque.label} />
+              <AdvantageItem label="Momentum" valA={advantageMatrix.momentum.a} valB={advantageMatrix.momentum.b} winner={advantageMatrix.momentum.winner} sub={advantageMatrix.momentum.label} />
+              <AdvantageItem label="Defensa" valA={bettingLines.defesaA} valB={bettingLines.defesaB} winner={advantageMatrix.defesa.winner} sub={advantageMatrix.defesa.label} />
+              <AdvantageItem label="Star Power" valA={bettingLines.activeHWA} valB={bettingLines.activeHWB} winner={advantageMatrix.hw.winner} sub={advantageMatrix.hw.label} />
+            </div>
+          </div>
+
+          {/* Roster & Injuries */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            {[{ team: teamA, injuries: injuriesA, key: keyPlayersA, side: 'LEFT' }, { team: teamB, injuries: injuriesB, key: keyPlayersB, side: 'RIGHT' }].map((t, idx) => (
+              <div key={idx} className="space-y-8">
+                <div className="flex items-center gap-4 border-b-4 border-white pb-4">
+                  <img src={t.team.logo} className="w-16 h-16 object-contain" alt="" />
+                  <div>
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">{t.team.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <MomentumBar record={t.team.record} className="w-24" />
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">POWER_SCORE: {notas[idx === 0 ? 'a' : 'b'].toFixed(1)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">Elenco Ativo (Stars)</span>
+                  <div className="grid grid-cols-1 gap-2">
+                    {t.key.map((p, pIdx) => (
+                      <PlayerCard key={pIdx} name={p.nome} weight={Math.floor((p.pontos || 0) / 3)} />
+                    ))}
+                  </div>
+                </div>
+
+                {t.injuries.length > 0 && (
+                  <div className="space-y-4">
+                    <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest block flex items-center gap-2">
+                      <AlertTriangle className="w-3 h-3" /> Relatório Médico
+                    </span>
+                    <div className="grid grid-cols-1 gap-2">
+                      {t.injuries.map((p, pIdx) => (
+                        <PlayerCard key={pIdx} name={p.nome} status={p.status} isOut={p.isOut} />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
+            ))}
+          </div>
+
+          {/* AI Analysis */}
+          <div className="bg-indigo-600 border-4 border-white p-10 shadow-[12px_12px_0px_#000] relative overflow-hidden group">
+            <div className="absolute -right-20 -bottom-20 opacity-10 group-hover:rotate-12 transition-transform duration-1000">
+              <TrendingUp className="w-80 h-80" />
+            </div>
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="p-3 bg-white text-indigo-600 rounded-none border-2 border-black">
+                  <Info className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white uppercase italic">Análise do Estatístico Chefe</h3>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1 w-24 bg-white/30"></div>
+                    <span className="text-[8px] font-bold text-white/60 tracking-[0.3em] uppercase">V2.0_PACE_DETERMINISTIC</span>
+                  </div>
+                </div>
+              </div>
 
               {loading ? (
-                <div className="py-20 flex flex-col items-center justify-center gap-4">
-                  <div className="w-12 h-12 border-4 border-black border-t-white bg-black animate-spin"></div>
-                  <p className="font-bold text-[10px] uppercase">ANALYSING_DATA_MATRICES...</p>
+                <div className="flex flex-col items-center py-20 gap-4">
+                  <div className="w-12 h-1 bg-white animate-[shimmer_2s_infinite]"></div>
+                  <span className="text-white font-black italic animate-pulse">PROCESSANDO_MODELO_NEURAL...</span>
                 </div>
               ) : analysis ? (
-                <div className="space-y-8">
-                  <div className="border-l-8 border-black pl-6">
-                    <span className="block text-[10px] font-bold opacity-60 mb-2">TARGET_OUTCOME:</span>
-                    <span className="text-4xl md:text-6xl font-black uppercase italic leading-none">
-                      {analysis.winner}
-                    </span>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                  <div className="space-y-8">
+                    <div>
+                      <span className="text-[10px] font-bold text-white/60 uppercase block mb-4">Recomendação Principal</span>
+                      <div className="text-5xl font-black text-white italic tracking-tighter leading-tight bg-black p-6 border-l-8 border-white shadow-[8px_8px_0px_rgba(0,0,0,0.3)]">
+                        {analysis.winner}
+                      </div>
+                    </div>
+                    <div className="bg-black/20 p-6 border-2 border-white/20">
+                      <span className="text-[10px] font-bold text-white/60 uppercase block mb-2">Fator Chave</span>
+                      <p className="text-white font-bold uppercase text-sm leading-relaxed">{analysis.keyFactor}</p>
+                    </div>
                   </div>
-
-                  <div className="bg-zinc-100 p-6 border-2 border-dashed border-black">
-                    <p className="text-[10px] font-bold opacity-60 mb-2">KEY_FACTOR_INJECTION:</p>
-                    <p className="text-xl font-bold uppercase italic leading-tight">"{analysis.keyFactor}"</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-bold opacity-60">DETAILED_STRATEGIC_LOG:</p>
-                    <p className="text-sm border-2 border-black p-4 bg-zinc-50 font-medium leading-relaxed">
-                      {analysis.detailedAnalysis}
-                    </p>
+                  <div className="bg-white text-black p-8 border-4 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.5)]">
+                    <span className="text-[10px] font-black uppercase mb-4 block underline">Análise Técnica Brutalista</span>
+                    <p className="text-sm font-bold leading-loose whitespace-pre-wrap">{analysis.detailedAnalysis}</p>
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className="text-center py-20 border-4 border-dashed border-white/20">
+                  <span className="text-white/40 font-black italic">ERRO_AO_SINCRONIZAR_IA</span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
-              <div className="flex items-center gap-4 mb-8">
-                <h4 className="text-rose-500 font-bold text-xs uppercase underline">MEDICAL_LOGS</h4>
-                <div className="flex-1 h-1 bg-rose-500/20"></div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white">{teamA.name}</span>
-                  {injuriesA.length > 0 ? (
-                    injuriesA.map((p, i) => <PlayerCard key={i} name={p.nome} status={p.status} isOut={p.isOut} />)
-                  ) : (
-                    <div className="p-4 border-2 border-dashed border-zinc-800 text-[10px] font-bold text-zinc-600 text-center">NO_INJURIES</div>
-                  )}
-                </div>
-                <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white block text-right ml-auto w-fit">{teamB.name}</span>
-                  {injuriesB.length > 0 ? (
-                    injuriesB.map((p, i) => <PlayerCard key={i} name={p.nome} status={p.status} isOut={p.isOut} />)
-                  ) : (
-                    <div className="p-4 border-2 border-dashed border-zinc-800 text-[10px] font-bold text-zinc-600 text-center">NO_INJURIES</div>
-                  )}
-                </div>
-              </div>
-            </div>
+        </div>
 
-            <div className="bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
-              <div className="flex items-center gap-4 mb-8">
-                <h4 className="text-white font-bold text-xs uppercase underline">HIGH_VAL_ENTITIES</h4>
-                <div className="flex-1 h-1 bg-white/20"></div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white">{teamA.name}</span>
-                  {keyPlayersA.map((p, i) => {
-                    const inj = injuriesA.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase());
-                    return (
-                      <PlayerCard
-                        key={`a-${i}`}
-                        name={p.nome}
-                        isOut={inj?.isOut}
-                        status={inj?.status}
-                        weight={getPlayerWeight(p.pontos)}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white block text-right ml-auto w-fit">{teamB.name}</span>
-                  {keyPlayersB.map((p, i) => {
-                    const inj = injuriesB.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase());
-                    return (
-                      <PlayerCard
-                        key={`b-${i}`}
-                        name={p.nome}
-                        isOut={inj?.isOut}
-                        status={inj?.status}
-                        weight={getPlayerWeight(p.pontos)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+        {/* Footer */}
+        <div className="px-8 py-4 border-t-4 border-white flex justify-between items-center bg-zinc-900 text-slate-500 font-bold text-[8px]">
+          <span className="uppercase tracking-[0.5em]">System_NBA_v2.0 // Latency: 42ms // Status: Operational</span>
+          <div className="flex gap-4">
+            <button className="flex items-center gap-2 hover:text-white transition-colors">
+              <Download className="w-3 h-3" /> EXPORT_DATA
+            </button>
+            <button className="flex items-center gap-2 hover:text-white transition-colors">
+              <Share2 className="w-3 h-3" /> SHARE_MATCHUP
+            </button>
           </div>
         </div>
 
-        <div className="px-8 py-4 bg-zinc-900 border-t-4 border-white flex justify-between items-center text-white">
-          <span className="text-[10px] font-bold uppercase tracking-widest">[ v5.0 // ALGO_CROSS_REF_DETERMINISTIC ]</span>
-          {savedToCloud && (
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 bg-emerald-500 animate-pulse"></div>
-              <span className="text-[10px] font-bold uppercase shadow-sm">DATA_SYNC_LOCKED</span>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

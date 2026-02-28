@@ -1,5 +1,36 @@
 
-import { GameResult } from '../types';
+import { GameResult, Team } from '../types';
+
+/**
+ * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.0
+ * Calcula a projeção exata de pontuação baseada em posses de bola (Pace).
+ */
+export const calculateDeterministicPace = (entityA: Team, entityB: Team) => {
+    // Fallback tático caso o rawEspnPayload sofra latência
+    const offRtgA = entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || 110.0;
+    const defRtgA = entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || 110.0;
+
+    const offRtgB = entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || 110.0;
+    const defRtgB = entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || 110.0;
+
+    // Derivação do Pace baseada na relação Ataque/Defesa (Ajuste Médico de 1.05x para posses)
+    const estimatedPaceA = offRtgA / 1.05;
+    const estimatedPaceB = offRtgB / 1.05;
+    const matchPace = (estimatedPaceA + estimatedPaceB) / 2.0;
+
+    // Cálculo de Eficiência Cruzada: Ataque da Entidade vs Defesa do Oponente
+    const projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
+    const projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
+    const totalPayload = projectedScoreA + projectedScoreB;
+
+    return {
+        matchPace,
+        totalPayload,
+        deltaA: projectedScoreA,
+        deltaB: projectedScoreB,
+        kineticState: matchPace > 102.5 ? 'HYPER_KINETIC' : 'STATIC_TRENCH'
+    };
+};
 
 /**
  * Calculates a momentum score based on the weighted recent results.

@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer } from "../types";
 import { supabase } from "../lib/supabase";
+import { calculateDeterministicPace } from "../lib/nbaUtils";
 import { toast } from "sonner";
 
 export const formatStandingsForAI = (data: Partial<ESPNData>[]): string => {
@@ -69,26 +70,25 @@ const extractSources = (response: GenerateContentResponse): Source[] => {
   return sources;
 };
 
-const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub", um assistente analítico especializado em fornecer insights baseados em dados reais da NBA e estratégias de apostas de elite.
+const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub". Operação estrita e brutalista.
+DIRETRIZES ESTRATÉGICAS (MATRIZ DE IMPACTO V2):
 
-DIRETRIZES ESTRATÉGICAS (REGRAS DE OURO):
-1. DEFESA RUIM = OVER: Se um time tem média de pontos sofridos alta, priorize palpites de Over.
-2. IMPACTO DE ESTRELAS: Se o melhor jogador do time não joga, o jogo fica extremamente complicado para essa equipe; reduza drasticamente as chances de vitória.
-3. FORÇAS IGUAIS: Em confrontos equilibrados, prefira sempre sugerir Handicap Positivo (Handicap+).
-4. CAUTELA COM DERROTAS: Times que vêm de derrota recente são instáveis; analise se há motivação para recuperação ou colapso.
-5. FILTRO DE HANDICAP: Nunca sugira Handicap +5.5 (é considerado sem valor). Prefira Handicaps mais agressivos como +10 ou conservadores como -5.
-6. POTENCIAL DE PONTUAÇÃO: Verifique se ambos os times possuem estrelas com capacidade para somar +110 pts cada no jogo.
-7. FATOR CANSAÇO: Se o favorito vem de jogos seguidos (back-to-back), o risco de zebra é alto; considere que o cansaço pode quebrar o favoritismo.
-8. JOGOS DIFÍCEIS: Encare o "Placar Projetado Hub" (Expected Points) como a verdade matemática absoluta trazida para você.
-9. PROFUNDIDADE DE ELENCO E DESFALQUES (NOVA):
-   - Times "Elite" (Nota 4.5 a 5.0): Possuem esquemas táticos robustos e banco de reservas forte. Se tiverem desfalques (mesmo de estrelas), o impacto negativo é MENOR. Eles continuam competitivos.
-   - Times "Regulares/Fracos" (Nota abaixo de 3.0): São extremamente dependentes de seus titulares. Um desfalque importante causa um impacto DRÁSTICO nas chances de vitória e na produção de pontos.
+1. OBRIGAÇÃO DO RITMO (PACE):
+   - Nunca analise o mercado de Over/Under usando médias de pontos nominais.
+   - Utilize o fator 'kineticState'. Se o estado for HYPER_KINETIC, linhas abaixo de 225.5 são alvos prioritários para OVER.
+   - Se o estado for STATIC_TRENCH, repudie o OVER, mesmo com defesas comprometidas.
 
-DIRETRIZES TÉCNICAS (v5.0):
-- MODO ESTRATÉGICO: Sua análise deve ser "Direct-to-the-Point".
-- DADOS MASTIGADOS: Use os Expected Points injetados para sua base de análise. Não recalcule. Use sua 'detailedAnalysis' apenas para justificar o impacto do Defensive Rating sobre o Pace.
-- PROFUNDIDADE: Considere o Power Ranking (ai_score) injetado para avaliar quão bem o time absorve desfalques.
-- APLIQUE MARGEM DE SEGURANÇA em previsões: Over (-5%) / Under (+10%).`;
+2. IMPACTO DE ESTRELAS: Se o melhor jogador do time não joga, o impacto é DRÁSTICO nas chances de vitória e na produção de pontos, a menos que o time seja "Elite" (Nota > 4.5).
+
+3. REGRAS DE OURO COMPLEMENTARES:
+   - Em confrontos equilibrados, prefira sempre sugerir Handicap Positivo (Handicap+).
+   - Nunca sugira Handicap +5.5 (sem valor). Prefira +10 ou -5.
+   - Verifique o fator cansaço (Back-to-back) para o favorito.
+
+MATRIZ DE COMPARAÇÃO DE EXECUÇÃO:
+- Linha Base (Over/Under): Cálculo determinístico de totalPayload.
+- Ambiente de Jogo: Classificado como HYPER_KINETIC ou STATIC_TRENCH.
+- Comunicação da IA: Operacional e ancorada em flags de volatilidade.`;
 
 export const nbaTools: FunctionDeclaration[] = [
   {
@@ -198,15 +198,19 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     responseSchema: schema
   };
 
+  const { matchPace, totalPayload, kineticState, deltaA, deltaB } = calculateDeterministicPace(teamA, teamB);
+
   const prompt = `Analise NBA Confronto: ${teamA.name} vs ${teamB.name}.
   
   📊 POWER RANKING / NÍVEL DA EQUIPE (Escala de 2.0 a 5.0):
   - ${teamA.name}: ${notaA.toFixed(1)}/5.0
   - ${teamB.name}: ${notaB.toFixed(1)}/5.0
 
-  ALGORITMO DE EFICIÊNCIA CRUZADA (VERDADE MATEMÁTICA):
-  - Pontuação Esperada ${teamA.name}: ${projA}
-  - Pontuação Esperada ${teamB.name}: ${projB}
+  ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.0:
+  - Pace do Confronto: ${matchPace.toFixed(1)} (${kineticState})
+  - Pontuação Esperada ${teamA.name}: ${deltaA.toFixed(1)}
+  - Pontuação Esperada ${teamB.name}: ${deltaB.toFixed(1)}
+  - Payload Total Projetado: ${totalPayload.toFixed(1)}
 
   CLASSIFICAÇÃO E MOMENTUM:
   ${compactStandings}
@@ -217,14 +221,11 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   RELATÓRIO DE DESFALQUES:
   ${compactInjuries}
   
-  APLIQUE AS REGRAS DE OURO:
-  - Avalie se as defesas são ruins para projetar Over.
-  - Verifique se estrelas como LeBron, Luka, Jokic, etc., estão fora.
-  - USE O POWER RANKING para avaliar a Profundidade de Elenco:
-    * Se o time tem Nota > 4.5 e tem desfalques, o impacto é minimizado.
-    * Se o time tem Nota < 3.0 e tem desfalques, o impacto é drástico.
-  - Analise se o favorito jogou na noite anterior (Back-to-back).
-  - Verifique se o Defensive Rating de um time pode comprimir ou expandir o Pace projetado de ${projA} e ${projB}.`;
+  APLIQUE AS REGRAS DE OURO V2:
+  - Utilize o fator 'kineticState': ${kineticState}.
+  - Se HYPER_KINETIC, linhas abaixo de 225.5 são alvos para OVER.
+  - Se STATIC_TRENCH, repudie o OVER.
+  - Verifique se o Defensive Rating pode comprimir ou expandir o Pace de ${matchPace.toFixed(1)}.`;
 
   try {
     const response = await ai.models.generateContent({

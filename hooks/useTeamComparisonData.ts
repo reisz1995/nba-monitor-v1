@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult } from '../types';
 import { compareTeams, saveMatchupAnalysis } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
+import { calculateDeterministicPace } from '../lib/nbaUtils';
 import { toast } from 'sonner';
 
 interface UseTeamComparisonDataProps {
@@ -130,8 +131,9 @@ export const useTeamComparisonData = ({
         const impactA = calculateHWImpact(allPlayersA, injuriesA);
         const impactB = calculateHWImpact(allPlayersB, injuriesB);
 
-        let projA = (atkA > 0 && defB > 0) ? ((atkA + defB) / 2) : 0;
-        let projB = (atkB > 0 && defA > 0) ? ((atkB + defA) / 2) : 0;
+        const { matchPace, totalPayload, deltaA, deltaB, kineticState } = calculateDeterministicPace(teamA, teamB);
+        let projA = deltaA;
+        let projB = deltaB;
 
         projA -= impactA.penalty;
         projB -= impactB.penalty;
@@ -148,6 +150,8 @@ export const useTeamComparisonData = ({
             projectedA: projA,
             projectedB: projB,
             totalProjected: projA + projB,
+            matchPace,
+            kineticState,
             penaltyA: impactA.penalty,
             penaltyB: impactB.penalty,
             activeHWA: impactA.activeHW,
