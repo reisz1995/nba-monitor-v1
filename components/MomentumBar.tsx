@@ -18,50 +18,53 @@ const MomentumBar: React.FC<MomentumBarProps> = ({ record, className = "", showL
     else break;
   }
 
-  let intensityColor = 'bg-slate-600'; // Oscilando
+  let intensityColor = 'bg-slate-800'; // Oscillating
   let glowStyle = {};
-  let label = 'Oscilando';
+  let label = 'STABLE_ORBIT';
 
   if (lastResult === 'V') {
     if (streakCount >= 4) {
       intensityColor = 'bg-emerald-400';
-      glowStyle = { boxShadow: '0 0 15px rgba(52, 211, 153, 0.6)' };
-      label = 'Hot Streak 🔥';
+      glowStyle = { boxShadow: '0 0 12px #34d399' };
+      label = 'CRITICAL_ASCENSION';
     } else {
       intensityColor = 'bg-emerald-600';
-      label = 'Em Ascensão';
+      label = 'POSITIVE_MOMENTUM';
     }
   } else if (lastResult === 'D') {
     if (streakCount >= 3) {
       intensityColor = 'bg-rose-600';
-      glowStyle = { boxShadow: '0 0 12px rgba(225, 29, 72, 0.4)' };
-      label = 'Cold Streak ❄️';
+      glowStyle = { boxShadow: '0 0 12px #e11d48' };
+      label = 'NEGATIVE_CASCADE';
     } else {
       intensityColor = 'bg-rose-900';
-      label = 'Em Queda';
+      label = 'DECAYING_TREND';
     }
   }
 
   return (
-    <div className={`flex flex-col gap-1 shrink-0 ${className} font-['Space_Mono']`}>
+    <div className={`flex flex-col gap-1 shrink-0 ${className} font-mono`}>
       {showLabel && (
-        <span className="text-[7px] font-bold text-slate-500 uppercase tracking-tighter mb-1 text-center">
+        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] mb-1 text-center opacity-70">
           {label}
         </span>
       )}
-      {/* Mini Mapa de Resultados */}
-      <div className="flex gap-0.5 h-1.5 w-full bg-black border border-slate-800">
+      {/* Mini Results Map */}
+      <div className="flex gap-0.5 h-1.5 w-full bg-black/60 border border-white/5 overflow-hidden rounded-sm glass-morphism">
         {lastFive.map((r, i) => (
           <div
             key={i}
-            className={`flex-1 ${r === 'V' ? 'bg-emerald-500' : 'bg-rose-500'}`}
+            className={`flex-1 ${r === 'V' ? 'bg-emerald-500/80' : 'bg-rose-500/80'}`}
           />
         ))}
       </div>
-      {/* Barra de Intensidade Principal */}
-      <div
-        className={`h-2 w-full transition-all duration-700 border border-black ${intensityColor}`}
-      />
+      {/* Main Intensity Bar */}
+      <div className="h-2 w-full bg-black/40 border border-white/10 rounded-sm glass-morphism overflow-hidden">
+        <div
+          className={`h-full w-full transition-all duration-700 ${intensityColor}`}
+          style={glowStyle}
+        />
+      </div>
     </div>
   );
 };

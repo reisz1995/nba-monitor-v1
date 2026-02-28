@@ -37,7 +37,6 @@ const EspnScoreboard: React.FC = () => {
     const fetchScores = async () => {
         try {
             setLoading(true);
-            // Fetch from Supabase instead of direct ESPN API
             const { data, error } = await supabase
                 .from('live_scoreboard')
                 .select('games_data')
@@ -56,7 +55,6 @@ const EspnScoreboard: React.FC = () => {
     useEffect(() => {
         fetchScores();
 
-        // Subscribe to real-time changes
         const channel = supabase
             .channel('live_scores')
             .on(
@@ -82,25 +80,25 @@ const EspnScoreboard: React.FC = () => {
 
     return (
         <div className="flex flex-col gap-4 font-mono">
-            <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <div className="flex items-center gap-2">
-                    <Tv className="w-4 h-4 text-rose-500" />
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">NBA Live Scoreboard</h4>
+                    <Tv className="w-4 h-4 text-indigo-500" />
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 italic">NBA_LIVE_DETERMINISTIC_FEED</h4>
                 </div>
-                <button onClick={fetchScores} className="text-[9px] font-black text-rose-500 hover:text-white transition-colors underline underline-offset-4 decoration-rose-500/30">
-                    REFREASH_DATA
+                <button onClick={fetchScores} className="text-[9px] font-black text-indigo-500 hover:text-white transition-colors cursor-pointer tracking-widest border border-indigo-500/30 px-2 py-0.5 rounded-sm bg-indigo-500/5">
+                    SYNC_GAMES
                 </button>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 {loading && games.length === 0 ? (
-                    <div className="col-span-full py-8 flex flex-col items-center gap-2">
-                        <Zap className="w-5 h-5 text-slate-800 animate-pulse" />
-                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-widestAlpha">Scanning...</span>
+                    <div className="col-span-full py-12 flex flex-col items-center gap-2 bg-white/5 border-2 border-dashed border-white/10 rounded-xl glass-morphism">
+                        <Zap className="w-5 h-5 text-indigo-500 animate-pulse" />
+                        <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.5em] animate-pulse">SCANNING_FREQUENCIES...</span>
                     </div>
                 ) : games.length === 0 ? (
-                    <div className="col-span-full py-8 text-center text-[9px] text-slate-800 font-black uppercase tracking-widestAlpha border-2 border-dashed border-slate-800">
-                        No games today.
+                    <div className="col-span-full py-12 text-center text-[9px] text-slate-700 font-black uppercase tracking-[0.5em] border-2 border-dashed border-white/10 rounded-xl glass-morphism">
+                        ZERO_GAMES_DETECTED
                     </div>
                 ) : (
                     games.map(game => {
@@ -111,34 +109,35 @@ const EspnScoreboard: React.FC = () => {
                         const isLive = game.status.type.state === 'in';
 
                         return (
-                            <div key={game.id} className="bg-slate-900/40 border border-slate-800 p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:border-indigo-500/30 transition-all flex flex-col gap-2 relative group cursor-default">
-                                {isLive && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-rose-600 animate-pulse m-1.5 shadow-[0_0_5px_rgba(225,29,72,1)]" />}
+                            <div key={game.id} className="bg-black/60 backdrop-blur-md border-2 border-white/10 p-3 shadow-[6px_6px_0px_#000] hover:border-indigo-500/50 transition-all flex flex-col gap-3 relative group glass-morphism rounded-lg overflow-hidden">
+                                {isLive && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-rose-600 animate-pulse m-2 shadow-[0_0_8px_#e11d48]" />}
 
-                                <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-tighter border-b border-slate-800/50 pb-1">
+                                <div className="absolute inset-x-0 top-0 h-0.5 bg-white/5 group-hover:bg-indigo-500/30 transition-colors"></div>
+
+                                <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-[0.2em] border-b border-white/5 pb-2">
                                     <span className={isLive ? 'text-rose-500' : 'text-slate-600'}>
                                         {game.status.type.detail.replace('Final', 'F')}
                                     </span>
+                                    {isLive && <span className="text-rose-500/50 italic">LIVE</span>}
                                 </div>
 
-                                <div className="flex flex-col gap-1.5">
-                                    {/* AWAY */}
+                                <div className="flex flex-col gap-3">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                            <img src={away?.team.logo} className="w-4 h-4 object-contain" alt="" />
-                                            <span className="text-[10px] font-black text-slate-300 truncate">{away?.team.abbreviation}</span>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <img src={away?.team.logo} className="w-5 h-5 object-contain drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]" alt="" />
+                                            <span className="text-[10px] font-black text-slate-400 truncate tracking-tighter uppercase">{away?.team.abbreviation}</span>
                                         </div>
-                                        <span className={`text-xs font-black ${Number(away?.score) > Number(home?.score) && isCompleted ? 'text-indigo-400' : 'text-slate-500'}`}>
+                                        <span className={`text-sm font-black italic tracking-tighter ${Number(away?.score) > Number(home?.score) && (isCompleted || isLive) ? 'text-white' : 'text-slate-700'}`}>
                                             {away?.score}
                                         </span>
                                     </div>
 
-                                    {/* HOME */}
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                            <img src={home?.team.logo} className="w-4 h-4 object-contain" alt="" />
-                                            <span className="text-[10px] font-black text-slate-300 truncate">{home?.team.abbreviation}</span>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <img src={home?.team.logo} className="w-5 h-5 object-contain drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]" alt="" />
+                                            <span className="text-[10px] font-black text-slate-400 truncate tracking-tighter uppercase">{home?.team.abbreviation}</span>
                                         </div>
-                                        <span className={`text-xs font-black ${Number(home?.score) > Number(away?.score) && isCompleted ? 'text-indigo-400' : 'text-slate-500'}`}>
+                                        <span className={`text-sm font-black italic tracking-tighter ${Number(home?.score) > Number(away?.score) && (isCompleted || isLive) ? 'text-white' : 'text-slate-700'}`}>
                                             {home?.score}
                                         </span>
                                     </div>

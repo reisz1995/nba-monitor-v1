@@ -196,39 +196,37 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
   };
 
   return (
-    <div className="bg-[#0f172a]/80 backdrop-blur-xl border-2 border-slate-800 rounded-sm overflow-hidden shadow-2xl flex flex-col w-full">
-      {/* Header Info */}
-      <div className="px-4 py-3 border-b-2 border-slate-800 flex items-center justify-between bg-slate-950">
+    <div className="bg-black/40 backdrop-blur-xl border-2 border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col w-full glass-morphism">
+      <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-black/40 backdrop-blur-md">
         <div className="flex flex-col">
-          <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.1em] flex items-center gap-1.5 italic">
+          <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.1em] flex items-center gap-1.5 italic font-mono">
             <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"></span>
-            Performance
+            PERFORMANCE_DATA_MATRIX
           </h3>
         </div>
         {usingOfflineData && (
-          <span className="bg-orange-600/20 text-orange-400 text-[8px] font-black px-1.5 py-0.5 rounded-sm border border-orange-500/30 uppercase italic">Offline</span>
+          <span className="bg-orange-600/20 text-orange-400 text-[8px] font-black px-1.5 py-0.5 rounded-sm border border-orange-500/30 uppercase italic font-mono">OFFLINE_CACHE</span>
         )}
       </div>
 
-      {/* Table Container with Horizontal Scroll and Sticky Headers */}
       <div className="table-container custom-scrollbar max-h-[600px] relative overflow-x-auto">
         <table className="w-full text-left border-separate border-spacing-0">
           <thead>
-            <tr className="bg-slate-950">
+            <tr className="bg-black/80 backdrop-blur-md">
               {dynamicColumns.map((key, idx) => {
                 const isSticky = ['time', 'nome', 'equipe'].includes(key);
                 return (
                   <th
                     key={key}
                     onClick={() => handleSort(key)}
-                    className={`px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-tighter whitespace-nowrap cursor-pointer hover:text-indigo-400 transition-all border-b border-slate-800 sticky top-0 z-40 bg-slate-950 ${isSticky ? 'left-0 z-50 shadow-[2px_0_8px_rgba(0,0,0,0.6)]' : 'border-l border-slate-800/40'
+                    className={`px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-tighter whitespace-nowrap cursor-pointer hover:text-indigo-400 transition-all border-b border-white/10 sticky top-0 z-40 bg-black font-mono ${isSticky ? 'left-0 z-50 shadow-[2px_0_8px_rgba(0,0,0,0.8)]' : 'border-l border-white/5'
                       }`}
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{getHeaderContent(key)}</span>
                       <div className="flex flex-col gap-0 opacity-20 scale-75">
-                        <span className={`leading-none text-[6px] ${sortConfig?.key === key && sortConfig.direction === 'asc' ? 'text-indigo-500' : 'text-slate-700'}`}>▲</span>
-                        <span className={`leading-none text-[6px] ${sortConfig?.key === key && sortConfig.direction === 'desc' ? 'text-indigo-500' : 'text-slate-700'}`}>▼</span>
+                        <span className={`leading-none text-[6px] ${sortConfig?.key === key && sortConfig.direction === 'asc' ? 'text-indigo-500' : 'text-slate-400'}`}>▲</span>
+                        <span className={`leading-none text-[6px] ${sortConfig?.key === key && sortConfig.direction === 'desc' ? 'text-indigo-500' : 'text-slate-400'}`}>▼</span>
                       </div>
                     </div>
                   </th>
@@ -236,12 +234,12 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/40">
+          <tbody className="divide-y divide-white/5">
             {loading ? (
               [1, 2, 3, 4, 5, 6].map(i => (
                 <tr key={i} className="animate-pulse">
                   {dynamicColumns.map(k => (
-                    <td key={k} className="px-3 py-4 border-b border-slate-800/20"><div className="h-1.5 bg-slate-800/50 rounded-sm w-6"></div></td>
+                    <td key={k} className="px-3 py-4 border-b border-white/5"><div className="h-1.5 bg-white/5 rounded-sm w-6"></div></td>
                   ))}
                 </tr>
               ))
@@ -250,15 +248,15 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
                 const team = findTeamStats(row.time);
                 const isSelected = team && selectedTeams.includes(team.id);
                 return (
-                  <tr key={idx} className={`group transition-all duration-300 ${isSelected ? 'bg-indigo-500/5' : 'hover:bg-slate-800/20'}`}>
+                  <tr key={idx} className={`group transition-all duration-300 ${isSelected ? 'bg-indigo-500/10' : 'hover:bg-white/5'} cursor-pointer`}>
                     {dynamicColumns.map((key) => {
                       const isSticky = ['time', 'nome', 'equipe'].includes(key);
                       return (
                         <td
                           key={key}
-                          className={`px-3 py-2.5 border-b border-slate-800/30 text-[10px] md:text-[11px] whitespace-nowrap ${isSticky
-                            ? `sticky left-0 z-20 bg-slate-900 group-hover:bg-slate-800/90 shadow-[2px_0_8px_rgba(0,0,0,0.4)] border-r-2 border-indigo-500/20 ${isSelected ? 'bg-indigo-950/40' : ''}`
-                            : 'border-l border-slate-800/20'
+                          className={`px-3 py-2.5 border-b border-white/5 text-[10px] md:text-[11px] whitespace-nowrap font-mono ${isSticky
+                            ? `sticky left-0 z-20 bg-black group-hover:bg-zinc-900 shadow-[2px_0_8px_rgba(0,0,0,0.8)] border-r-2 border-indigo-500/20 ${isSelected ? 'bg-indigo-900/40' : ''}`
+                            : 'border-l border-white/5'
                             }`}
                         >
                           {renderCell(key, row[key])}
@@ -273,12 +271,11 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
         </table>
       </div>
 
-      {/* Footer */}
-      <div className="px-4 py-2 bg-slate-950/60 border-t-2 border-slate-800 flex items-center justify-between">
-        <span className="text-[8px] text-slate-700 font-black uppercase italic">
-          {data.length} Franquias
+      <div className="px-4 py-2 bg-black/40 border-t border-white/10 flex items-center justify-between">
+        <span className="text-[8px] text-slate-600 font-black uppercase italic font-mono tracking-widest">
+          {data.length}_FRANCHISES_LOADED
         </span>
-        <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></div>
+        <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
       </div>
     </div>
   );

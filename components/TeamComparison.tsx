@@ -22,18 +22,18 @@ const StatBar: React.FC<{ label: string; valA: number; valB: number; isPercent?:
   const displayB = isPercent ? `${valB.toFixed(1)}%` : valB.toFixed(1);
 
   return (
-    <div className="flex flex-col gap-2 w-full font-['Space_Mono']">
+    <div className="flex flex-col gap-2 w-full font-mono">
       <div className="flex justify-between items-end px-1">
-        <span className="text-white font-bold text-lg">{displayA}</span>
+        <span className="text-white font-black text-lg">{displayA}</span>
         <span className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">{label}</span>
-        <span className="text-slate-300 font-bold text-lg">{displayB}</span>
+        <span className="text-slate-300 font-black text-lg">{displayB}</span>
       </div>
-      <div className="h-4 w-full bg-black border-2 border-slate-800 p-0.5 flex relative">
-        <div style={{ width: `${pctA}%` }} className="h-full bg-indigo-500 transition-all duration-1000 ease-out"></div>
-        <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
-          <div className="h-full w-px bg-slate-800"></div>
-          <div className="h-full w-px bg-slate-800"></div>
-          <div className="h-full w-px bg-slate-800"></div>
+      <div className="h-4 w-full bg-black border-2 border-white/10 p-0.5 flex relative overflow-hidden rounded-sm">
+        <div style={{ width: `${pctA}%` }} className="h-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-1000 ease-out"></div>
+        <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none opacity-20">
+          <div className="h-full w-px bg-white"></div>
+          <div className="h-full w-px bg-white"></div>
+          <div className="h-full w-px bg-white"></div>
         </div>
       </div>
     </div>
@@ -41,23 +41,23 @@ const StatBar: React.FC<{ label: string; valA: number; valB: number; isPercent?:
 };
 
 const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boolean; weight?: number }> = ({ name, status, isOut, weight }) => (
-  <div className={`flex items-center justify-between p-2 border-2 transition-all w-full font-['Space_Mono'] shadow-[4px_4px_0px_#000] ${isOut
+  <div className={`flex items-center justify-between p-2 border-2 transition-all w-full font-mono shadow-[4px_4px_0px_#000] rounded-sm ${isOut
     ? 'bg-rose-500/10 border-rose-500 text-rose-500'
     : status
       ? 'bg-amber-500/10 border-amber-500 text-amber-500'
-      : 'bg-black border-slate-800 text-slate-200'
+      : 'bg-black border-white/20 text-slate-200'
     }`}>
-    <span className="text-[10px] md:text-xs font-bold uppercase truncate">
+    <span className="text-[10px] md:text-xs font-black uppercase truncate">
       {name}
     </span>
     <div className="flex items-center gap-2">
       {weight !== undefined && (
-        <span title="Handicap de Estrela" className="text-[10px] font-bold border border-current px-1 py-0.5">
+        <span title="Handicap de Estrela" className={`text-[10px] font-black border-2 px-1 py-0.5 ${isOut ? 'border-rose-500' : 'border-emerald-500 text-emerald-500 bg-emerald-500/10'}`}>
           HW: {weight.toFixed(1)}
         </span>
       )}
       {status && (
-        <span className="text-[8px] font-bold px-1 py-0.5 border border-current uppercase">
+        <span className="text-[8px] font-black px-1 py-0.5 border-2 border-current uppercase">
           {status}
         </span>
       )}
@@ -66,23 +66,23 @@ const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boolean; wei
 );
 
 const AdvantageItem: React.FC<{ label: string; valA: string | number; valB: string | number; winner: 'a' | 'b' | 'none'; sub?: string }> = ({ label, valA, valB, winner, sub }) => (
-  <div className="flex flex-col border-r-4 border-white last:border-r-0 px-6 py-4 flex-1 min-w-[150px] bg-black hover:bg-zinc-900 transition-colors group relative overflow-hidden">
-    <div className="absolute top-0 left-0 w-full h-1 bg-zinc-800 group-hover:bg-indigo-500 transition-colors"></div>
-    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-tighter mb-6 group-hover:text-zinc-300">{label}</span>
+  <div className="flex flex-col border-r-2 border-white/10 last:border-r-0 px-6 py-4 flex-1 min-w-[150px] bg-black hover:bg-zinc-900 transition-colors group relative overflow-hidden font-mono">
+    <div className="absolute top-0 left-0 w-full h-1 bg-white/5 group-hover:bg-indigo-500 transition-colors"></div>
+    <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter mb-6 group-hover:text-slate-300">{label}</span>
     <div className="flex justify-between items-end mb-4">
       <div className="flex flex-col">
-        <span className={`text-2xl font-black leading-none ${winner === 'a' ? 'text-white' : 'text-zinc-700'}`}>{valA}</span>
-        <span className="text-[6px] font-bold text-zinc-600 mt-1 uppercase">TEAM_A</span>
+        <span className={`text-2xl font-black leading-none ${winner === 'a' ? 'text-white' : 'text-zinc-800'}`}>{valA}</span>
+        <span className="text-[6px] font-bold text-slate-600 mt-1 uppercase">TEAM_A</span>
       </div>
-      <div className="h-8 w-px bg-zinc-800 mb-1"></div>
+      <div className="h-8 w-px bg-white/10 mb-1"></div>
       <div className="flex flex-col items-end">
-        <span className={`text-2xl font-black leading-none ${winner === 'b' ? 'text-white' : 'text-zinc-700'}`}>{valB}</span>
-        <span className="text-[6px] font-bold text-zinc-600 mt-1 uppercase">TEAM_B</span>
+        <span className={`text-2xl font-black leading-none ${winner === 'b' ? 'text-white' : 'text-zinc-800'}`}>{valB}</span>
+        <span className="text-[6px] font-bold text-slate-600 mt-1 uppercase">TEAM_B</span>
       </div>
     </div>
     {sub && (
-      <div className="mt-auto pt-4 border-t border-zinc-900">
-        <span className="text-[7px] font-bold text-indigo-500 uppercase leading-none block italic">{sub}</span>
+      <div className="mt-auto pt-4 border-t border-white/5">
+        <span className="text-[7px] font-black text-indigo-400 uppercase leading-none block italic">{sub}</span>
       </div>
     )}
   </div>
@@ -290,27 +290,31 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   }, [teamA.id, teamB.id, !!initialAnalysis]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
-      <div className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md font-mono">
+      <div className="bg-black border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh] relative">
+        <div className="absolute top-0 right-0 p-4 z-10">
+          <button onClick={onClose} className="border-2 border-white/20 p-2 hover:bg-white hover:text-black transition-all cursor-pointer backdrop-blur-xl">
+            <span className="font-black text-xl px-2">X</span>
+          </button>
+        </div>
 
-        <div className="px-8 py-4 border-b-4 border-white flex justify-between items-center bg-white text-black">
+        <div className="px-8 py-6 border-b-2 border-white/10 flex flex-col gap-1 bg-gradient-to-r from-indigo-900/20 to-transparent">
           <div className="flex items-center gap-3">
-            <div className="w-4 h-4 bg-black animate-ping"></div>
-            <h2 className="text-xs font-bold uppercase tracking-widest">
-              ALGORITMO DE EFICIÊNCIA CRUZADA v5.0 // ROSTER_DEPTH_AWARE
+            <div className="w-3 h-3 bg-indigo-500 animate-pulse rounded-full shadow-[0_0_10px_#6366f1]"></div>
+            <h2 className="text-sm font-black uppercase tracking-widest text-white">
+              ALGORITMO DE EFICIÊNCIA CRUZADA v5.0
             </h2>
           </div>
-          <button onClick={onClose} className="border-2 border-black p-1 hover:bg-black hover:text-white transition-colors">
-            <span className="font-bold text-xl px-2">X</span>
-          </button>
+          <p className="text-[10px] text-slate-500 font-bold tracking-tighter uppercase pl-6">ROSTER_DEPTH_AWARE // DETERMINISTIC_MATRIZ</p>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-16">
 
-          <div className="flex flex-col items-center justify-center gap-8 bg-black border-4 border-white p-12 relative shadow-[8px_8px_0px_#333]">
-            <div className="absolute top-0 left-8 -translate-y-1/2 bg-white text-black px-4 py-1 border-2 border-black font-bold text-[10px]">
+          <div className="flex flex-col items-center justify-center gap-8 bg-white/5 border-2 border-white/10 p-12 relative shadow-[12px_12px_0px_#000] rounded-xl overflow-hidden glass-morphism">
+            <div className="absolute top-0 left-8 -translate-y-1/2 bg-white text-black px-4 py-1 border-2 border-black font-black text-[10px] uppercase tracking-widest">
               EXPECTED_POINTS_MATRIX
             </div>
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.1),transparent)]"></div>
 
             <div className="flex flex-wrap items-center justify-center gap-16 md:gap-32 w-full relative z-0">
               <div className="flex flex-col items-center gap-4">
@@ -390,12 +394,12 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
             )}
           </div>
 
-          <div className="bg-black border-4 border-white overflow-hidden shadow-[12px_12px_0px_#000]">
-            <div className="bg-white text-black px-6 py-2 border-b-4 border-white flex justify-between items-center">
+          <div className="bg-black/40 backdrop-blur-md border-2 border-white/10 overflow-hidden shadow-[12px_12px_0px_#000] rounded-xl">
+            <div className="bg-white/5 text-slate-400 px-6 py-2 border-b-2 border-white/10 flex justify-between items-center bg-gradient-to-r from-white/5 to-transparent">
               <span className="text-[10px] font-black uppercase tracking-widest">STATS_EXTRACTOR // ADVANTAGE_MATRIX_DETERMINISTIC</span>
               <span className="text-[8px] font-bold opacity-60">CLIENT_SIDE_HYDRATION: READY</span>
             </div>
-            <div className="flex flex-wrap md:flex-nowrap border-b-4 border-white">
+            <div className="flex flex-wrap md:flex-nowrap border-b-2 border-white/10">
               <AdvantageItem
                 label="MOMENTUM_EXP"
                 valA={advantageMatrix.momentum.a}
@@ -427,10 +431,10 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 border-t-4 border-white/10">
-            <div className="lg:col-span-5 bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
-              <div className="mb-8 border-b-2 border-white pb-4">
-                <h4 className="text-white font-bold text-xs uppercase underline">CORE_METRICS_VIZ</h4>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 border-t-2 border-white/10">
+            <div className="lg:col-span-5 bg-black/40 backdrop-blur-md border-2 border-white/10 p-8 shadow-[12px_12px_0px_#000] rounded-xl glass-morphism">
+              <div className="mb-8 border-b border-white/10 pb-4">
+                <h4 className="text-white font-black text-xs uppercase underline">CORE_METRICS_VIZ</h4>
               </div>
 
               <div className="space-y-12">
@@ -440,11 +444,11 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
               </div>
             </div>
 
-            <div className="lg:col-span-7 bg-white text-black border-4 border-black p-8 shadow-[12px_12px_0px_#333]">
+            <div className="lg:col-span-7 bg-white text-black border-4 border-black p-8 shadow-[12px_12px_0px_rgba(255,255,255,0.1)] rounded-xl">
               <div className="flex items-center justify-between mb-8">
-                <h4 className="font-bold text-xs uppercase underline">ESTATÍSTICO_CHEFE_REPORT</h4>
+                <h4 className="font-black text-xs uppercase underline">ESTATÍSTICO_CHEFE_REPORT</h4>
                 {analysis && (
-                  <div className="bg-black text-white px-4 py-1 border-2 border-black font-bold text-[10px]">
+                  <div className="bg-black text-white px-4 py-1 border-2 border-black font-black text-[10px] uppercase">
                     CONFIDENCE: {analysis.confidence}%
                   </div>
                 )}
@@ -452,26 +456,26 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
 
               {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4">
-                  <div className="w-12 h-12 border-4 border-black border-t-white bg-black animate-spin"></div>
-                  <p className="font-bold text-[10px] uppercase">ANALYSING_DATA_MATRICES...</p>
+                  <div className="w-12 h-12 border-4 border-black border-t-indigo-500 bg-black animate-spin rounded-full"></div>
+                  <p className="font-black text-[10px] uppercase">ANALYSING_DATA_MATRICES...</p>
                 </div>
               ) : analysis ? (
                 <div className="space-y-8">
                   <div className="border-l-8 border-black pl-6">
-                    <span className="block text-[10px] font-bold opacity-60 mb-2">TARGET_OUTCOME:</span>
+                    <span className="block text-[10px] font-black opacity-60 mb-2">TARGET_OUTCOME:</span>
                     <span className="text-4xl md:text-6xl font-black uppercase italic leading-none">
                       {analysis.winner}
                     </span>
                   </div>
 
                   <div className="bg-zinc-100 p-6 border-2 border-dashed border-black">
-                    <p className="text-[10px] font-bold opacity-60 mb-2">KEY_FACTOR_INJECTION:</p>
-                    <p className="text-xl font-bold uppercase italic leading-tight">"{analysis.keyFactor}"</p>
+                    <p className="text-[10px] font-black opacity-60 mb-2">KEY_FACTOR_INJECTION:</p>
+                    <p className="text-xl font-black uppercase italic leading-tight">"{analysis.keyFactor}"</p>
                   </div>
 
                   <div className="space-y-4">
-                    <p className="text-[10px] font-bold opacity-60">DETAILED_STRATEGIC_LOG:</p>
-                    <p className="text-sm border-2 border-black p-4 bg-zinc-50 font-medium leading-relaxed">
+                    <p className="text-[10px] font-black opacity-60">DETAILED_STRATEGIC_LOG:</p>
+                    <p className="text-sm border-2 border-black p-4 bg-zinc-50 font-bold leading-relaxed">
                       {analysis.detailedAnalysis}
                     </p>
                   </div>
@@ -481,39 +485,39 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
+            <div className="bg-black/40 backdrop-blur-md border-2 border-white/10 p-8 shadow-[12px_12px_0px_#000] rounded-xl glass-morphism">
               <div className="flex items-center gap-4 mb-8">
-                <h4 className="text-rose-500 font-bold text-xs uppercase underline">MEDICAL_LOGS</h4>
-                <div className="flex-1 h-1 bg-rose-500/20"></div>
+                <h4 className="text-rose-500 font-black text-xs uppercase underline">MEDICAL_LOGS</h4>
+                <div className="flex-1 h-px bg-rose-500/20"></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white">{teamA.name}</span>
+                  <span className="text-[10px] font-black text-white bg-zinc-900 px-2 py-0.5 border border-white/20 rounded-sm">{teamA.name}</span>
                   {injuriesA.length > 0 ? (
                     injuriesA.map((p, i) => <PlayerCard key={i} name={p.nome} status={p.status} isOut={p.isOut} />)
                   ) : (
-                    <div className="p-4 border-2 border-dashed border-zinc-800 text-[10px] font-bold text-zinc-600 text-center">NO_INJURIES</div>
+                    <div className="p-4 border-2 border-dashed border-zinc-900 text-[10px] font-black text-zinc-600 text-center">NO_INJURIES</div>
                   )}
                 </div>
                 <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white block text-right ml-auto w-fit">{teamB.name}</span>
+                  <span className="text-[10px] font-black text-white bg-zinc-900 px-2 py-0.5 border border-white/20 rounded-sm block text-right ml-auto w-fit">{teamB.name}</span>
                   {injuriesB.length > 0 ? (
                     injuriesB.map((p, i) => <PlayerCard key={i} name={p.nome} status={p.status} isOut={p.isOut} />)
                   ) : (
-                    <div className="p-4 border-2 border-dashed border-zinc-800 text-[10px] font-bold text-zinc-600 text-center">NO_INJURIES</div>
+                    <div className="p-4 border-2 border-dashed border-zinc-900 text-[10px] font-black text-zinc-600 text-center">NO_INJURIES</div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="bg-black border-4 border-white p-8 shadow-[12px_12px_0px_#000]">
+            <div className="bg-black/40 backdrop-blur-md border-2 border-white/10 p-8 shadow-[12px_12px_0px_#000] rounded-xl glass-morphism">
               <div className="flex items-center gap-4 mb-8">
-                <h4 className="text-white font-bold text-xs uppercase underline">HIGH_VAL_ENTITIES</h4>
-                <div className="flex-1 h-1 bg-white/20"></div>
+                <h4 className="text-white font-black text-xs uppercase underline">HIGH_VAL_ENTITIES</h4>
+                <div className="flex-1 h-px bg-white/10"></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white">{teamA.name}</span>
+                  <span className="text-[10px] font-black text-white bg-zinc-900 px-2 py-0.5 border border-white/20 rounded-sm">{teamA.name}</span>
                   {keyPlayersA.map((p, i) => {
                     const inj = injuriesA.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase());
                     return (
@@ -528,7 +532,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                   })}
                 </div>
                 <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-white bg-zinc-800 px-2 py-0.5 border border-white block text-right ml-auto w-fit">{teamB.name}</span>
+                  <span className="text-[10px] font-black text-white bg-zinc-900 px-2 py-0.5 border border-white/20 rounded-sm block text-right ml-auto w-fit">{teamB.name}</span>
                   {keyPlayersB.map((p, i) => {
                     const inj = injuriesB.find(inj => inj.nome.toLowerCase() === p.nome.toLowerCase());
                     return (
@@ -547,12 +551,12 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
           </div>
         </div>
 
-        <div className="px-8 py-4 bg-zinc-900 border-t-4 border-white flex justify-between items-center text-white">
-          <span className="text-[10px] font-bold uppercase tracking-widest">[ v5.0 // ALGO_CROSS_REF_DETERMINISTIC ]</span>
+        <div className="px-8 py-4 bg-zinc-950 border-t-2 border-white/10 flex justify-between items-center text-white/40">
+          <span className="text-[9px] font-black uppercase tracking-widest leading-none">[ v5.0 // ALGO_CROSS_REF_DETERMINISTIC // {new Date().getFullYear()} ]</span>
           {savedToCloud && (
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 bg-emerald-500 animate-pulse"></div>
-              <span className="text-[10px] font-bold uppercase shadow-sm">DATA_SYNC_LOCKED</span>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
+              <span className="text-[9px] font-black uppercase tracking-tighter">DATA_SYNC_LOCKED</span>
             </div>
           )}
         </div>
