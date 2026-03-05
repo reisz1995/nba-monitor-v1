@@ -1,11 +1,19 @@
 
 import { GameResult, Team } from '../types';
 
+export interface PaceOptions {
+    isHomeA?: boolean;
+    isB2BA?: boolean;
+    isB2BB?: boolean;
+    lastMarginA?: number; // Margin of last game (+ for win, - for loss)
+    lastMarginB?: number;
+}
+
 /**
- * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.0
- * Calcula a projeção exata de pontuação baseada em posses de bola (Pace).
+ * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.1
+ * Calcula a projeção exata de pontuação baseada em posses de bola (Pace) e ajustes situacionais.
  */
-export const calculateDeterministicPace = (entityA: Team, entityB: Team) => {
+export const calculateDeterministicPace = (entityA: Team, entityB: Team, options?: PaceOptions) => {
     // Fallback tático caso o rawEspnPayload sofra latência
     const offRtgA = entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || 110.0;
     const defRtgA = entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || 110.0;
@@ -16,11 +24,40 @@ export const calculateDeterministicPace = (entityA: Team, entityB: Team) => {
     // Derivação do Pace baseada na relação Ataque/Defesa (Ajuste Médico de 1.05x para posses)
     const estimatedPaceA = offRtgA / 1.05;
     const estimatedPaceB = offRtgB / 1.05;
-    const matchPace = (estimatedPaceA + estimatedPaceB) / 2.0;
+    let matchPace = (estimatedPaceA + estimatedPaceB) / 2.0;
 
     // Cálculo de Eficiência Cruzada: Ataque da Entidade vs Defesa do Oponente
-    const projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
-    const projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
+    let projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
+    let projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
+
+    // --- REGRAS UNDERDOG & AJUSTES SITUACIONAIS ---
+
+    // 1. Ajuste_Casa (+3 pontos para o time da casa)
+    if (options?.isHomeA) {
+        projectedScoreA += 1.5;
+        projectedScoreB -= 1.5;
+    } else {
+        projectedScoreB += 1.5;
+        projectedScoreA -= 1.5;
+    }
+
+    // 2. Ajuste_Fadiga (B2B reduz projeção em ~2.5 pontos)
+    if (options?.isB2BA) projectedScoreA -= 2.5;
+    if (options?.isB2BB) projectedScoreB -= 2.5;
+
+    // 3. Blowout_Regressao (Vitória anterior >20 reduz projeção em 2 pontos)
+    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 2.0;
+    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 2.0;
+
+    // 4. Jogo_Ritmo_Lento (Pace < 98 dificulta blowouts)
+    if (matchPace < 98) {
+        const spread = projectedScoreA - projectedScoreB;
+        // Reduz a diferença projetada em 5%
+        const adjustment = spread * 0.05;
+        projectedScoreA -= adjustment / 2;
+        projectedScoreB += adjustment / 2;
+    }
+
     const totalPayload = projectedScoreA + projectedScoreB;
 
     return {
@@ -28,7 +65,7 @@ export const calculateDeterministicPace = (entityA: Team, entityB: Team) => {
         totalPayload,
         deltaA: projectedScoreA,
         deltaB: projectedScoreB,
-        kineticState: matchPace > 102.5 ? 'HYPER_KINETIC' : 'STATIC_TRENCH'
+        kineticState: matchPace > 102.5 ? 'HYPER_KINETIC' : (matchPace < 98 ? 'SLOW_GRIND' : 'STATIC_TRENCH')
     };
 };
 
@@ -132,4 +169,35 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: any[]
     );
 
     return { yesterday: playedYesterday, tomorrow: playsTomorrow };
+};
+
+/**
+ * Identifica se o confronto possui valor em Underdog baseado nas novas regras.
+ */
+export const calculateUnderdogValue = (teamA: Team, teamB: Team, analysis: any, marketSpread: number | null) => {
+    if (marketSpread === null) return null;
+
+    const rules = [];
+    const isUnderdogA = marketSpread > 0; // Se spread > 0 para o time da casa (A), ele é underdog
+    const fairSpread = analysis.deltaB - analysis.deltaA;
+    const edge = marketSpread - fairSpread;
+
+    // Regra: Underdog_Casa
+    if (isUnderdogA) rules.push('Underdog_Casa');
+
+    // Regra: Defesa_Top15 (Simplificado: media_pontos_defesa < media liga ~112)
+    const defA = teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 115;
+    if (defA < 112) rules.push('Defesa_Forte');
+
+    // Regra: Total_Baixo
+    if (analysis.totalPayload < 214) rules.push('Total_Baixo');
+
+    // Regra: Value_Bet (Diferença >= 3 pontos)
+    if (Math.abs(edge) >= 3) rules.push('Value_Bet');
+
+    return {
+        hasValue: rules.length >= 2,
+        rules,
+        edge: edge.toFixed(1)
+    };
 };

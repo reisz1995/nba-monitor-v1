@@ -72,24 +72,23 @@ const extractSources = (response: GenerateContentResponse): Source[] => {
 };
 
 const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub". Operação estrita e brutalista.
-DIRETRIZES ESTRATÉGICAS (MATRIZ DE IMPACTO V2):
+DIRETRIZES ESTRATÉGICAS (MATRIZ DE IMPACTO V2.1 - UNDERDOG HANDICAP):
 
 1. OBRIGAÇÃO DO RITMO (PACE):
-   - Nunca analise o mercado de Over/Under usando médias de pontos nominais.
-   - Utilize o fator 'kineticState'. Se o estado for HYPER_KINETIC, linhas abaixo de 225.5 são alvos prioritários para OVER.
-   - Se o estado for STATIC_TRENCH, repudie o OVER, mesmo com defesas comprometidas.
+   - Se o estado for HYPER_KINETIC, linhas abaixo de 225.5 são alvos prioritários para OVER.
+   - Se o estado for SLOW_GRIND, repudie o OVER, mesmo com defesas comprometidas (Total Baixo favorece Underdog).
 
-2. IMPACTO DE ESTRELAS: Se o melhor jogador do time não joga, o impacto é DRÁSTICO nas chances de vitória e na produção de pontos, a menos que o time seja "Elite" (Nota > 4.5).
+2. IMPACTO DE ESTRELAS: Se o melhor jogador do time não joga, o impacto é DRÁSTICO, a menos que o time seja "Elite" (Nota > 4.5).
 
-3. REGRAS DE OURO COMPLEMENTARES:
+3. MÉTODO HANDICAP POSITIVO (UNDERDOG):
+   - Underdog_Casa: Underdogs jogando em casa (+7 a +12) tendem a competir mais. Favorito não costuma vencer por grande margem fora.
+   - Favorito_Back_to_Back: Reduzir projeção do favorito em 2 a 3 pontos se jogou no dia anterior (Ajuste_Fadiga).
+   - Blowout_Regressao: Se o favorito venceu o último jogo por >20 pontos, o mercado o supervaloriza. Gere valor no Underdog.
+   - Defesa_Top15: Times com defesa forte evitam blowouts e mantêm o jogo competitivo. Favorito +7 vs Underdog -1 indica vantagem real.
+
+4. REGRAS DE OURO COMPLEMENTARES:
    - Em confrontos equilibrados, prefira sempre sugerir Handicap Positivo (Handicap+).
-   - Nunca sugira Handicap +5.5 (sem valor). Prefira +10 ou -5.
-   - Verifique o fator cansaço (Back-to-back) para o favorito.
-
-MATRIZ DE COMPARAÇÃO DE EXECUÇÃO:
-- Linha Base (Over/Under): Cálculo determinístico de totalPayload.
-- Ambiente de Jogo: Classificado como HYPER_KINETIC ou STATIC_TRENCH.
-- Comunicação da IA: Operacional e ancorada em flags de volatilidade.`;
+   - Diferença entre linha da casa e sua projeção ≥ 3 pontos ≈ 58% chance (Value_Bet).`;
 
 export const nbaTools: FunctionDeclaration[] = [
   {
@@ -187,8 +186,8 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     properties: {
       winner: { type: Type.STRING, description: "Vencedor sugerido ou Handicap (Lembre: prefira +10 ou -5, evite +5.5)" },
       confidence: { type: Type.NUMBER, description: "Confiança de 0 a 100" },
-      keyFactor: { type: Type.STRING, description: "Justificativa curta baseada nas Regras de Ouro (ex: Defesa Ruim, Estrela Fora)" },
-      detailedAnalysis: { type: Type.STRING, description: "Análise estratégica completa focada no impacto do Defensive Rating sobre o Pace." }
+      keyFactor: { type: Type.STRING, description: "Justificativa curta baseada nas Regras de Ouro e Underdog Handicap" },
+      detailedAnalysis: { type: Type.STRING, description: "Análise estratégica completa focada no impacto do Defensive Rating, B2B e Underdog Value." }
     },
     required: ["winner", "confidence", "keyFactor", "detailedAnalysis"]
   };
@@ -199,7 +198,9 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     responseSchema: schema
   };
 
-  const { matchPace, totalPayload, kineticState, deltaA, deltaB } = calculateDeterministicPace(teamA, teamB);
+  const { matchPace, totalPayload, kineticState, deltaA, deltaB } = calculateDeterministicPace(teamA, teamB, {
+    isHomeA: true, // No context de comparação direta, Home/Away depende da UI, mas passamos a análise base
+  });
 
   const prompt = `Analise NBA Confronto: ${teamA.name} vs ${teamB.name}.
   
@@ -207,7 +208,7 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   - ${teamA.name}: ${notaA.toFixed(1)}/5.0
   - ${teamB.name}: ${notaB.toFixed(1)}/5.0
 
-  ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.0:
+  ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.1 (Ajustado):
   - Pace do Confronto: ${matchPace.toFixed(1)} (${kineticState})
   - Pontuação Esperada ${teamA.name}: ${deltaA.toFixed(1)}
   - Pontuação Esperada ${teamB.name}: ${deltaB.toFixed(1)}
@@ -222,11 +223,12 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   RELATÓRIO DE DESFALQUES:
   ${compactInjuries}
   
-  APLIQUE AS REGRAS DE OURO V2:
-  - Utilize o fator 'kineticState': ${kineticState}.
-  - Se HYPER_KINETIC, linhas abaixo de 225.5 são alvos para OVER.
-  - Se STATIC_TRENCH, repudie o OVER.
-  - Verifique se o Defensive Rating pode comprimir ou expandir o Pace de ${matchPace.toFixed(1)}.`;
+  APLIQUE AS REGRAS UNDERDOG HANDICAP:
+  - Fator 'kineticState': ${kineticState}. Total Projetado: ${totalPayload.toFixed(1)}.
+  - Se SLOW_GRIND (<98 Pace), a vantagem do Underdog aumenta.
+  - Verifique 'Favorito_Back_to_Back' na SEQ (Streak) do favorito.
+  - Verifique 'Defesa_Top15' nos PTS- (Pontos sofridos) das equipes.
+  - Procure por 'Blowout_Regressao' se o favorito vem de vitória esmagadora.`;
 
   try {
     const response = await withRetry(() => ai.models.generateContent({

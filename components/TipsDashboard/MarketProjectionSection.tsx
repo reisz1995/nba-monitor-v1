@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { TrendingUp, Target, Activity, Zap, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Team, PalpiteData } from '../../types';
-import { calculateDeterministicPace, findTeamByName } from '../../lib/nbaUtils';
+import { calculateDeterministicPace, findTeamByName, calculateUnderdogValue } from '../../lib/nbaUtils';
 import { supabase } from '../../lib/supabase';
 
 interface MarketOdds {
@@ -51,7 +51,14 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
 
                 if (!teamCasa || !teamFora) return null;
 
-                const analysis = calculateDeterministicPace(teamCasa, teamFora);
+                const isB2BHome = p.n_casa?.includes('B2B') || false; // Mock or extracted from string if available
+                const isB2BAway = p.n_fora?.includes('B2B') || false;
+
+                const analysis = calculateDeterministicPace(teamCasa, teamFora, {
+                    isHomeA: true,
+                    isB2BA: isB2BHome,
+                    isB2BB: isB2BAway
+                });
 
                 const fairHandicapNum = Number((analysis.deltaB - analysis.deltaA).toFixed(1));
                 const fairHandicapLabel = fairHandicapNum > 0 ? `+${fairHandicapNum}` : fairHandicapNum.toString();
@@ -60,10 +67,11 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 const market = marketOdds[matchup];
 
                 // Edge calculation
-                // Spread Edge: If fair is -5 and market is -3, edge is 2 points.
-                const spreadEdge = market?.spread !== undefined && market?.spread !== null ? (market.spread - fairHandicapNum).toFixed(1) : null;
-                // Total Edge: If fair is 230 and market is 225, edge is 5 points.
+                const marketSpread = market?.spread !== undefined && market?.spread !== null ? market.spread : null;
+                const spreadEdge = marketSpread !== null ? (marketSpread - fairHandicapNum).toFixed(1) : null;
                 const totalEdge = market?.total !== undefined && market?.total !== null ? (analysis.totalPayload - market.total).toFixed(1) : null;
+
+                const underdogValue = calculateUnderdogValue(teamCasa, teamFora, analysis, marketSpread);
 
                 return {
                     id: p.id,
@@ -78,10 +86,13 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                     state: analysis.kineticState,
                     projHome: analysis.deltaA.toFixed(1),
                     projAway: analysis.deltaB.toFixed(1),
-                    marketSpread: market?.spread,
+                    marketSpread,
                     marketTotal: market?.total,
                     spreadEdge,
-                    totalEdge
+                    totalEdge,
+                    underdogValue,
+                    isB2BHome,
+                    isB2BAway
                 };
             })
             .filter(Boolean);
@@ -136,7 +147,12 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
 
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-4 group-hover:translate-x-2 transition-transform">
-                                <img src={proj!.homeLogo} alt="" className="w-12 h-12 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]" />
+                                <div className="relative">
+                                    <img src={proj!.homeLogo} alt="" className="w-12 h-12 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]" />
+                                    {proj!.isB2BHome && (
+                                        <span className="absolute -top-1 -left-1 bg-amber-500 text-black text-[7px] font-black px-1 py-0.5 shadow-[2px_2px_0px_#000]">B2B</span>
+                                    )}
+                                </div>
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Home</span>
                                     <span className="text-lg font-black text-white uppercase italic">{proj!.home}</span>
@@ -153,9 +169,28 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Away</span>
                                     <span className="text-lg font-black text-white uppercase italic">{proj!.away}</span>
                                 </div>
-                                <img src={proj!.awayLogo} alt="" className="w-12 h-12 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]" />
+                                <div className="relative">
+                                    <img src={proj!.awayLogo} alt="" className="w-12 h-12 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]" />
+                                    {proj!.isB2BAway && (
+                                        <span className="absolute -top-1 -right-1 bg-amber-500 text-black text-[7px] font-black px-1 py-0.5 shadow-[2px_2px_0px_#000]">B2B</span>
+                                    )}
+                                </div>
                             </div>
                         </div>
+
+                        {proj!.underdogValue?.hasValue && (
+                            <div className="mb-4 bg-indigo-500/10 border border-indigo-500/30 p-2 flex items-center gap-3">
+                                <Zap className="w-4 h-4 text-indigo-400" />
+                                <div className="flex flex-wrap gap-2">
+                                    {proj!.underdogValue.rules.map((rule: string) => (
+                                        <span key={rule} className="text-[8px] font-black text-indigo-300 uppercase tracking-tighter bg-indigo-500/20 px-1.5 py-0.5 rounded-sm">
+                                            {rule}
+                                        </span>
+                                    ))}
+                                </div>
+                                <span className="ml-auto text-[10px] font-black text-indigo-400">VALUE DETECTED</span>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-slate-900/50 p-4 border border-slate-800 rounded-sm relative overflow-hidden group/item">

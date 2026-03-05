@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getMomentumScore, parseStreakToRecord } from './nbaUtils';
+import { getMomentumScore, parseStreakToRecord, calculateDeterministicPace, calculateUnderdogValue } from './nbaUtils';
 
 describe('nbaUtils', () => {
     describe('getMomentumScore', () => {
@@ -64,6 +64,74 @@ describe('nbaUtils', () => {
 
         it('should return null for empty input', () => {
             expect(parseStreakToRecord('')).toBe(null);
+        });
+    });
+
+    describe('calculateDeterministicPace Adjustments', () => {
+        const teamA = { name: 'Lakers', stats: { media_pontos_ataque: 110, media_pontos_defesa: 110 } } as any;
+        const teamB = { name: 'Celtics', stats: { media_pontos_ataque: 110, media_pontos_defesa: 110 } } as any;
+
+        it('should apply home advantage (+3 net)', () => {
+            const resultHomeA = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
+            const resultHomeB = calculateDeterministicPace(teamA, teamB, { isHomeA: false });
+
+            // Difference should be 3 points in favor of home team
+            expect(resultHomeA.deltaA - resultHomeA.deltaB).toBeCloseTo(3);
+            expect(resultHomeB.deltaB - resultHomeB.deltaA).toBeCloseTo(3);
+        });
+
+        it('should apply B2B fatigue (-2.5)', () => {
+            const base = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
+            const b2b = calculateDeterministicPace(teamA, teamB, { isHomeA: true, isB2BA: true });
+
+            expect(b2b.deltaA).toBeLessThan(base.deltaA);
+            expect(base.deltaA - b2b.deltaA).toBeCloseTo(2.5);
+        });
+
+        it('should apply Blowout Regression (-2.0)', () => {
+            const base = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
+            const regression = calculateDeterministicPace(teamA, teamB, { isHomeA: true, lastMarginA: 25 });
+
+            expect(regression.deltaA).toBeLessThan(base.deltaA);
+            expect(base.deltaA - regression.deltaA).toBeCloseTo(2.0);
+        });
+    });
+
+    describe('calculateUnderdogValue', () => {
+        const teamA = { name: 'Lakers', espnData: { pts_contra: 110 } } as any;
+        const teamB = { name: 'Celtics' } as any;
+        const analysis = { deltaA: 110, deltaB: 115, totalPayload: 225 }; // Fair spread: +5 (B-A)
+
+        it('should detect Underdog_Casa when spread > 0', () => {
+            const result = calculateUnderdogValue(teamA, teamB, analysis, 6.5);
+            expect(result?.rules).toContain('Underdog_Casa');
+        });
+
+        it('should detect Defesa_Forte when pts_contra < 112', () => {
+            const result = calculateUnderdogValue(teamA, teamB, analysis, 6.5);
+            expect(result?.rules).toContain('Defesa_Forte');
+        });
+
+        it('should detect Total_Baixo when totalPayload < 214', () => {
+            const result = calculateUnderdogValue(teamA, teamB, { ...analysis, totalPayload: 210 }, 6.5);
+            expect(result?.rules).toContain('Total_Baixo');
+        });
+
+        it('should detect Value_Bet when edge >= 3', () => {
+            // Market: 9.0, Fair: 5.0 -> Edge: 4.0
+            const result = calculateUnderdogValue(teamA, teamB, analysis, 9.0);
+            expect(result?.rules).toContain('Value_Bet');
+        });
+
+        it('should return hasValue true when 2 or more rules match', () => {
+            const result = calculateUnderdogValue(teamA, teamB, analysis, 6.5);
+            // Underdog_Casa (6.5 > 0) + Defesa_Forte (110 < 112)
+            expect(result?.hasValue).toBe(true);
+            expect(result?.rules.length).toBeGreaterThanOrEqual(2);
+        });
+
+        it('should return null if marketSpread is null', () => {
+            expect(calculateUnderdogValue(teamA, teamB, analysis, null)).toBe(null);
         });
     });
 });
