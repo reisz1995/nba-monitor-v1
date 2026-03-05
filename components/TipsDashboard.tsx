@@ -6,6 +6,7 @@ import { useTipsDashboardLogic } from '../hooks/useTipsDashboardLogic';
 import { findTeamByName } from '../lib/nbaUtils';
 import PowerRankingSection from './TipsDashboard/PowerRankingSection';
 import PredictionsSection from './TipsDashboard/PredictionsSection';
+import MarketProjectionSection from './TipsDashboard/MarketProjectionSection';
 import PropsSection from './TipsDashboard/PropsSection';
 
 interface TipsDashboardProps {
@@ -169,6 +170,11 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
         isSavingNotas={isSavingNotas}
         onSaveNotas={handleOnSaveNotas}
         onScoreChange={handleLocalScoreChange}
+      />
+
+      <MarketProjectionSection
+        predictions={predictions}
+        teams={teams}
       />
 
       <PredictionsSection
