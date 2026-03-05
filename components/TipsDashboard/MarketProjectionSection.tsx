@@ -61,9 +61,9 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
 
                 // Edge calculation
                 // Spread Edge: If fair is -5 and market is -3, edge is 2 points.
-                const spreadEdge = market?.spread !== null ? (market.spread - fairHandicapNum).toFixed(1) : null;
+                const spreadEdge = market?.spread !== undefined && market?.spread !== null ? (market.spread - fairHandicapNum).toFixed(1) : null;
                 // Total Edge: If fair is 230 and market is 225, edge is 5 points.
-                const totalEdge = market?.total !== null ? (analysis.totalPayload - market.total).toFixed(1) : null;
+                const totalEdge = market?.total !== undefined && market?.total !== null ? (analysis.totalPayload - market.total).toFixed(1) : null;
 
                 return {
                     id: p.id,

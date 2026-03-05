@@ -3,6 +3,7 @@ import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, Unavailab
 import { supabase } from "../lib/supabase";
 import { calculateDeterministicPace } from "../lib/nbaUtils";
 import { toast } from "sonner";
+import { withRetry } from "../lib/resilience";
 
 export const formatStandingsForAI = (data: Partial<ESPNData>[]): string => {
   if (!data || data.length === 0) return "Sem dados de classificação.";
@@ -228,11 +229,11 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   - Verifique se o Defensive Rating pode comprimir ou expandir o Pace de ${matchPace.toFixed(1)}.`;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await withRetry(() => ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config
-    });
+    }), { retries: 3 });
 
     if (!response.text) throw new Error("Empty response");
     const analysis = JSON.parse(cleanJsonOutput(response.text));
@@ -272,11 +273,11 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
 
   try {
     const prompt = "Gere insights baseados nas Regras de Ouro (Handicaps, Over por Defesa Ruim e Cansaço).";
-    const response = await ai.models.generateContent({
+    const response = await withRetry(() => ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config
-    });
+    }), { retries: 2 });
 
     if (!response.text) return [];
     const insights = JSON.parse(cleanJsonOutput(response.text));

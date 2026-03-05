@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { INITIAL_TEAMS, INITIAL_ESPN_DATA } from '../constants';
 import { Team, GameResult, PlayerStat, ESPNData } from '../types';
 import { getMomentumScore, parseStreakToRecord } from '../lib/nbaUtils';
+import { withRetry } from '../lib/resilience';
 
 export const useNBAData = () => {
     // 1. Data Fetching
@@ -33,16 +34,76 @@ export const useNBAData = () => {
         return data || [];
     }, { revalidateOnFocus: true });
 
-    // 2. Real-time Subscriptions
+    // 2. Real-time Subscriptions with Resilience
     useEffect(() => {
-        const channel = supabase
-            .channel('nba-realtime-global')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => mutateTeams())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'classificacao_nba' }, () => mutateEspn())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'game_predictions' }, () => mutatePredictions())
-            .subscribe();
+        let isActive = true;
+        let currentChannel: any = null;
+
+        const startSubscription = async () => {
+            try {
+                await withRetry(async () => {
+                    if (!isActive) return;
+
+                    // Clean up previous channel if any (shouldn't happen often but good for safety)
+                    if (currentChannel) {
+                        await supabase.removeChannel(currentChannel);
+                        currentChannel = null;
+                    }
+
+                    const channelName = `nba-realtime-${Math.random().toString(36).slice(2, 11)}`;
+                    const channel = supabase
+                        .channel(channelName)
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => mutateTeams())
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'classificacao_nba' }, () => mutateEspn())
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'game_predictions' }, () => mutatePredictions());
+
+                    return new Promise((resolve, reject) => {
+                        channel.subscribe((status) => {
+                            if (status === 'SUBSCRIBED') {
+                                if (isActive) {
+                                    currentChannel = channel;
+                                    console.log(`[Realtime] Conectado: ${channelName}`);
+                                    resolve(true);
+                                } else {
+                                    supabase.removeChannel(channel);
+                                    resolve(false);
+                                }
+                            }
+
+                            if (status === 'CHANNEL_ERROR') {
+                                console.error(`[Realtime] Erro no canal: ${channelName}`);
+                                supabase.removeChannel(channel);
+                                reject(new Error(`Supabase Realtime Error: ${channelName}`));
+                            }
+
+                            if (status === 'CLOSED') {
+                                console.warn(`[Realtime] Conexão fechada: ${channelName}`);
+                                if (isActive) {
+                                    // Trigger a re-subscription attempt by rejecting
+                                    reject(new Error(`Supabase Realtime Closed: ${channelName}`));
+                                }
+                            }
+                        });
+                    });
+                }, {
+                    retries: 10,
+                    initialDelay: 2000,
+                    maxDelay: 60000
+                });
+            } catch (err) {
+                if (isActive) {
+                    console.error('[Realtime] Falha crítica após múltiplas tentativas:', err);
+                }
+            }
+        };
+
+        startSubscription();
+
         return () => {
-            supabase.removeChannel(channel);
+            isActive = false;
+            if (currentChannel) {
+                supabase.removeChannel(currentChannel);
+            }
         };
     }, [mutateTeams, mutateEspn, mutatePredictions]);
 
