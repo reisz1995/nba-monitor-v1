@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { withRetry } from '../lib/resilience';
+import { withRetry } from '../lib/resilience.js';
 
 // ESPN status type IDs: 1 = pre-game, 2 = in-progress, 3 = final
 const LIVE_STATUS_ID = '2';
