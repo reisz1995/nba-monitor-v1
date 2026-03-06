@@ -10,12 +10,6 @@
             "maxDuration": 60
         }
     },
-    "crons": [
-        {
-            "path": "/api/update-scores",
-            "schedule": "*/5 * * * *"
-        }
-    ],
     "headers": [
         {
             "source": "/api/(.*)",
