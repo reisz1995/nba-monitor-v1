@@ -10,8 +10,8 @@ export interface PaceOptions {
 }
 
 /**
- * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.1
- * Calcula a projeção exata de pontuação baseada em posses de bola (Pace) e ajustes situacionais.
+ * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.2 (RECALIBRADO)
+ * Projeção rigorosa de pontuação minimizando a elasticidade do fator Underdog.
  */
 export const calculateDeterministicPace = (entityA: Team, entityB: Team, options?: PaceOptions) => {
     // Fallback tático caso o rawEspnPayload sofra latência
@@ -30,7 +30,7 @@ export const calculateDeterministicPace = (entityA: Team, entityB: Team, options
     let projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
     let projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
 
-    // --- REGRAS UNDERDOG & AJUSTES SITUACIONAIS ---
+    // --- REGRAS & AJUSTES SITUACIONAIS ---
 
     // 1. Ajuste_Casa (+3 pontos para o time da casa)
     if (options?.isHomeA) {
@@ -41,19 +41,18 @@ export const calculateDeterministicPace = (entityA: Team, entityB: Team, options
         projectedScoreA -= 1.5;
     }
 
-    // 2. Ajuste_Fadiga (B2B reduz projeção em ~2.5 pontos)
-    if (options?.isB2BA) projectedScoreA -= 2.5;
-    if (options?.isB2BB) projectedScoreB -= 2.5;
+    // 2. Ajuste_Fadiga (B2B reduz projeção em ~2.0 pontos, marginalmente menos agressivo para não punir favoritos cegamente)
+    if (options?.isB2BA) projectedScoreA -= 2.0;
+    if (options?.isB2BB) projectedScoreB -= 2.0;
 
-    // 3. Blowout_Regressao (Vitória anterior >20 reduz projeção em 2 pontos)
-    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 2.0;
-    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 2.0;
+    // 3. Blowout_Regressao (Vitória anterior >20 reduz projeção em 1.5 pontos)
+    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1.5;
+    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1.5;
 
-    // 4. Jogo_Ritmo_Lento (Pace < 98 dificulta blowouts)
+    // 4. Jogo_Ritmo_Lento (Pace < 98) - Compressão de vantagem do favorito severamente reduzida de 5% para 2%
     if (matchPace < 98) {
         const spread = projectedScoreA - projectedScoreB;
-        // Reduz a diferença projetada em 5%
-        const adjustment = spread * 0.05;
+        const adjustment = spread * 0.02; // Vector 1: Redução do peso Underdog
         projectedScoreA -= adjustment / 2;
         projectedScoreB += adjustment / 2;
     }
@@ -172,7 +171,8 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: any[]
 };
 
 /**
- * Identifica se o confronto possui valor em Underdog baseado nas novas regras.
+ * ALGORITMO DE VALOR DE UNDERDOG RESTRITO
+ * Identifica se o confronto possui valor em Underdog baseado em regras endurecidas.
  */
 export const calculateUnderdogValue = (teamA: Team, teamB: Team, analysis: any, marketSpread: number | null) => {
     if (marketSpread === null) return null;
@@ -185,15 +185,16 @@ export const calculateUnderdogValue = (teamA: Team, teamB: Team, analysis: any, 
     // Regra: Underdog_Casa
     if (isUnderdogA) rules.push('Underdog_Casa');
 
-    // Regra: Defesa_Top15 (Simplificado: media_pontos_defesa < media liga ~112)
+    // Vector 2: Endurecimento de Gatilhos
+    // Defesa de Elite (apenas times permitindo < 109.5 pts ativam a vantagem de underdog defensivo)
     const defA = teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 115;
-    if (defA < 112) rules.push('Defesa_Forte');
+    if (defA < 109.5) rules.push('Defesa_Forte');
 
-    // Regra: Total_Baixo
-    if (analysis.totalPayload < 214) rules.push('Total_Baixo');
+    // Total sufocado para evitar inflações estatísticas
+    if (analysis.totalPayload < 210) rules.push('Total_Baixo');
 
-    // Regra: Value_Bet (Diferença >= 3 pontos)
-    if (Math.abs(edge) >= 3) rules.push('Value_Bet');
+    // Vector 3: Exigência Matemática Bruta (A borda necessária salta de 3 para 4.5 pts)
+    if (Math.abs(edge) >= 4.5) rules.push('Value_Bet');
 
     return {
         hasValue: rules.length >= 2,

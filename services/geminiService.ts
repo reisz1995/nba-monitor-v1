@@ -5,6 +5,9 @@ import { calculateDeterministicPace } from "../lib/nbaUtils";
 import { toast } from "sonner";
 import { withRetry } from "../lib/resilience";
 
+// Module-level singleton — avoids re-instantiation on every call
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+
 export const formatStandingsForAI = (data: Partial<ESPNData>[]): string => {
   if (!data || data.length === 0) return "Sem dados de classificação.";
   let output = "TIME|V|D|%|PTS+|PTS-|SEQ\n";
@@ -180,7 +183,6 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   const statsB = dbStandings.data?.find(s => s.time === teamB.name) || {};
   const { projA, projB } = getExpectedPoints(statsA, statsB);
 
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   const schema = {
     type: Type.OBJECT,
     properties: {
@@ -195,7 +197,8 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   const config = {
     systemInstruction: SYSTEM_INSTRUCTION,
     responseMimeType: "application/json",
-    responseSchema: schema
+    responseSchema: schema,
+    temperature: 0.1, // Deterministic: IA atua como calculadora estatística, não gerador de texto
   };
 
   const { matchPace, totalPayload, kineticState, deltaA, deltaB } = calculateDeterministicPace(teamA, teamB, {
@@ -208,7 +211,7 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   - ${teamA.name}: ${notaA.toFixed(1)}/5.0
   - ${teamB.name}: ${notaB.toFixed(1)}/5.0
 
-  ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.1 (Ajustado):
+  ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.2 (Ajustado):
   - Pace do Confronto: ${matchPace.toFixed(1)} (${kineticState})
   - Pontuação Esperada ${teamA.name}: ${deltaA.toFixed(1)}
   - Pontuação Esperada ${teamB.name}: ${deltaB.toFixed(1)}
@@ -232,13 +235,14 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
 
   try {
     const response = await withRetry(() => ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-flash",
       contents: prompt,
       config
     }), { retries: 3 });
 
     if (!response.text) throw new Error("Empty response");
-    const analysis = JSON.parse(cleanJsonOutput(response.text));
+    // Native structured output — no regex cleaning needed
+    const analysis = JSON.parse(response.text);
     analysis.sources = extractSources(response);
     return analysis;
   } catch (error: any) {
@@ -266,30 +270,35 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
     }
   };
 
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   const config = {
     systemInstruction: SYSTEM_INSTRUCTION,
     responseMimeType: "application/json",
-    responseSchema: schema
+    responseSchema: schema,
+    temperature: 0.1, // Deterministic statistical reasoning
   };
 
   try {
     const prompt = "Gere insights baseados nas Regras de Ouro (Handicaps, Over por Defesa Ruim e Cansaço).";
     const response = await withRetry(() => ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-flash",
       contents: prompt,
       config
-    }), { retries: 2 });
+    }), { retries: 2, initialDelay: 500 });
 
-    if (!response.text) return [];
-    const insights = JSON.parse(cleanJsonOutput(response.text));
+    if (!response.text) throw new Error("EMPTY_PAYLOAD");
+    // Native structured output — no regex cleaning needed
+    const insights: Insight[] = JSON.parse(response.text);
     const sources = extractSources(response);
     if (insights.length > 0 && sources.length > 0) insights[0].sources = sources;
     return insights;
   } catch (error) {
-    console.error("Erro ao analisar classificação:", error);
-    toast.error("Erro ao gerar insights da NBA.");
-    return [];
+    console.error("[IA_ENGINE] Colapso na matriz de processamento:", error);
+    // Graceful degradation: mantém a UI operacional mesmo com a IA inativa
+    return [{
+      title: "SYSTEM_WARNING: IA OFFLINE",
+      content: "Motor de inferência temporariamente indisponível. Analise os dados brutos no HUD inferior.",
+      type: "warning"
+    }];
   }
 };
 
