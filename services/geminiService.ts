@@ -235,7 +235,7 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
 
   try {
     const response = await withRetry(() => ai.models.generateContent({
-      model: "gemini-3-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config
     }), { retries: 3 });
@@ -280,7 +280,7 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
   try {
     const prompt = "Gere insights baseados nas Regras de Ouro (Handicaps, Over por Defesa Ruim e Cansaço).";
     const response = await withRetry(() => ai.models.generateContent({
-      model: "gemini-3-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config
     }), { retries: 2, initialDelay: 500 });
