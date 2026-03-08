@@ -129,6 +129,15 @@ export interface ESPNData {
   [key: string]: any;
 }
 
+export interface MarketData {
+  matchup?: string;
+  spread?: number | null;
+  total?: number | null;
+  moneyline_away?: number | null;
+  moneyline_home?: number | null;
+  updated_at?: string;
+}
+
 export interface HistoryLog {
   id: string;
   action: string;

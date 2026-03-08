@@ -80,20 +80,20 @@ describe('nbaUtils', () => {
             expect(resultHomeB.deltaB - resultHomeB.deltaA).toBeCloseTo(3);
         });
 
-        it('should apply B2B fatigue (-2.5)', () => {
+        it('should apply B2B fatigue (-2.0)', () => {
             const base = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
             const b2b = calculateDeterministicPace(teamA, teamB, { isHomeA: true, isB2BA: true });
 
             expect(b2b.deltaA).toBeLessThan(base.deltaA);
-            expect(base.deltaA - b2b.deltaA).toBeCloseTo(2.5);
+            expect(base.deltaA - b2b.deltaA).toBeCloseTo(2.0);
         });
 
-        it('should apply Blowout Regression (-2.0)', () => {
+        it('should apply Blowout Regression (-1.5)', () => {
             const base = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
             const regression = calculateDeterministicPace(teamA, teamB, { isHomeA: true, lastMarginA: 25 });
 
             expect(regression.deltaA).toBeLessThan(base.deltaA);
-            expect(base.deltaA - regression.deltaA).toBeCloseTo(2.0);
+            expect(base.deltaA - regression.deltaA).toBeCloseTo(1.5);
         });
     });
 
@@ -107,25 +107,41 @@ describe('nbaUtils', () => {
             expect(result?.rules).toContain('Underdog_Casa');
         });
 
-        it('should detect Defesa_Forte when pts_contra < 112', () => {
+        it('should detect Defesa_Forte when pts_contra < 109.5 (elite threshold)', () => {
+            // teamA.espnData.pts_contra = 110 — acima do gatilho, NÃO deve activar
             const result = calculateUnderdogValue(teamA, teamB, analysis, 6.5);
-            expect(result?.rules).toContain('Defesa_Forte');
+            expect(result?.rules).not.toContain('Defesa_Forte');
+
+            // Tim com defesa de elite (< 109.5) — DEVE activar
+            const eliteDefTeamA = { name: 'Lakers', espnData: { pts_contra: 108 } } as any;
+            const resultElite = calculateUnderdogValue(eliteDefTeamA, teamB, analysis, 6.5);
+            expect(resultElite?.rules).toContain('Defesa_Forte');
         });
 
-        it('should detect Total_Baixo when totalPayload < 214', () => {
-            const result = calculateUnderdogValue(teamA, teamB, { ...analysis, totalPayload: 210 }, 6.5);
+        it('should detect Total_Baixo when totalPayload < 210 (hardened threshold)', () => {
+            // totalPayload = 210 — abaixo do gatilho
+            const result = calculateUnderdogValue(teamA, teamB, { ...analysis, totalPayload: 209 }, 6.5);
             expect(result?.rules).toContain('Total_Baixo');
+
+            // totalPayload = 214 — acima do gatilho, NÃO deve activar
+            const resultHigh = calculateUnderdogValue(teamA, teamB, { ...analysis, totalPayload: 214 }, 6.5);
+            expect(resultHigh?.rules).not.toContain('Total_Baixo');
         });
 
-        it('should detect Value_Bet when edge >= 3', () => {
-            // Market: 9.0, Fair: 5.0 -> Edge: 4.0
-            const result = calculateUnderdogValue(teamA, teamB, analysis, 9.0);
+        it('should detect Value_Bet when edge >= 4.5 (hardened threshold)', () => {
+            // Market: 10.0, Fair: 5.0 -> Edge: 5.0 >= 4.5 -> VALUE_BET
+            const result = calculateUnderdogValue(teamA, teamB, analysis, 10.0);
             expect(result?.rules).toContain('Value_Bet');
+
+            // Market: 8.0, Fair: 5.0 -> Edge: 3.0 < 4.5 -> SEM VALUE_BET
+            const resultLow = calculateUnderdogValue(teamA, teamB, analysis, 8.0);
+            expect(resultLow?.rules).not.toContain('Value_Bet');
         });
 
         it('should return hasValue true when 2 or more rules match', () => {
-            const result = calculateUnderdogValue(teamA, teamB, analysis, 6.5);
-            // Underdog_Casa (6.5 > 0) + Defesa_Forte (110 < 112)
+            // teamA com defesa de elite (pts_contra=108 < 109.5) + Underdog_Casa (6.5 > 0) = 2 regras
+            const eliteDefTeamA = { name: 'Lakers', espnData: { pts_contra: 108 } } as any;
+            const result = calculateUnderdogValue(eliteDefTeamA, teamB, analysis, 6.5);
             expect(result?.hasValue).toBe(true);
             expect(result?.rules.length).toBeGreaterThanOrEqual(2);
         });

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
-import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer } from "../types";
+import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer, MarketData } from "../types";
 import { supabase } from "../lib/supabase";
 import { calculateDeterministicPace } from "../lib/nbaUtils";
 import { toast } from "sonner";
@@ -84,14 +84,19 @@ DIRETRIZES ESTRATÉGICAS (MATRIZ DE IMPACTO V2.1 - UNDERDOG HANDICAP):
 2. IMPACTO DE ESTRELAS: Se o melhor jogador do time não joga, o impacto é DRÁSTICO, a menos que o time seja "Elite" (Nota > 4.5).
 
 3. MÉTODO HANDICAP POSITIVO (UNDERDOG):
-   - Underdog_Casa: Underdogs jogando em casa (+7 a +12) tendem a competir mais. Favorito não costuma vencer por grande margem fora.
+   - Underdog_Casa: Underdogs jogando em casa (+8 a +14) tendem a competir mais. Favorito não costuma vencer por grande margem fora.
    - Favorito_Back_to_Back: Reduzir projeção do favorito em 2 a 3 pontos se jogou no dia anterior (Ajuste_Fadiga).
    - Blowout_Regressao: Se o favorito venceu o último jogo por >20 pontos, o mercado o supervaloriza. Gere valor no Underdog.
-   - Defesa_Top15: Times com defesa forte evitam blowouts e mantêm o jogo competitivo. Favorito +7 vs Underdog -1 indica vantagem real.
+   - Defesa_Top5: Times com defesa forte evitam blowouts e mantêm o jogo competitivo. Favorito +7 vs Underdog -1 indica vantagem real.
 
 4. REGRAS DE OURO COMPLEMENTARES:
    - Em confrontos equilibrados, prefira sempre sugerir Handicap Positivo (Handicap+).
-   - Diferença entre linha da casa e sua projeção ≥ 3 pontos ≈ 58% chance (Value_Bet).`;
+   - Diferença entre linha da casa e sua projeção ≥ 3 pontos ≈ 58% chance (Value_Bet).
+
+5. DETECÇÃO DE ASSIMETRIA (EDGE CALCULATION):
+   - Compare a sua projeção matemática com o 'Market_Odds' fornecido no prompt.
+   - Se o Edge (diferença absoluta) for >= 3.0 pontos, classifique a operação como VALUE_BET.
+   - Explique o diferencial na análise e qual lado do mercado está incorrectamente precificado.`;
 
 export const nbaTools: FunctionDeclaration[] = [
   {
@@ -169,7 +174,7 @@ const getExpectedPoints = (statsA: any, statsB: any) => {
   };
 };
 
-export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = []): Promise<MatchupAnalysis> => {
+export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = [], marketData?: MarketData | null): Promise<MatchupAnalysis> => {
   const [dbStats, dbInjuries, dbStandings, dbNotas] = await fetchComparisonData(teamA, teamB);
 
   const notaA = Number(dbNotas.data?.find(n => n.franquia === teamA.name)?.nota_ia || teamA.ai_score || 0);
@@ -205,6 +210,19 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     isHomeA: true, // No context de comparação direta, Home/Away depende da UI, mas passamos a análise base
   });
 
+  // --- EDGE CALCULATION (Vectorial Collision: Projection vs Financial Line) ---
+  const projectedSpread = deltaB - deltaA;
+  const marketSpread = marketData?.spread ?? null;
+  let edgeBlock: string;
+  if (marketSpread !== null) {
+    const edge = Math.abs(projectedSpread - marketSpread);
+    const classification = edge >= 3.0 ? "🔴 VALUE_BET DETECTADO" : "⚪ DENTRO DA MARGEM";
+    edgeBlock = `Market_Odds: Spread de Mercado=${marketSpread} | Spread Projetado=${projectedSpread.toFixed(1)} | Edge=${edge.toFixed(1)} pts | ${classification}`;
+    console.info(`[Edge] ${teamA.name} vs ${teamB.name} → ${edgeBlock}`);
+  } else {
+    edgeBlock = "Market_Odds: Mercado Indisponível (Calcular Fair Spread Isolado)";
+  }
+
   const prompt = `Analise NBA Confronto: ${teamA.name} vs ${teamB.name}.
   
   📊 POWER RANKING / NÍVEL DA EQUIPE (Escala de 2.0 a 5.0):
@@ -216,6 +234,11 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   - Pontuação Esperada ${teamA.name}: ${deltaA.toFixed(1)}
   - Pontuação Esperada ${teamB.name}: ${deltaB.toFixed(1)}
   - Payload Total Projetado: ${totalPayload.toFixed(1)}
+
+  📡 DETECÇÃO DE ASSIMETRIA DE MERCADO (EDGE CALCULATION):
+  - ${edgeBlock}
+  - Total de Mercado: ${marketData?.total ?? 'N/D'} | ML Away: ${marketData?.moneyline_away ?? 'N/D'} | ML Home: ${marketData?.moneyline_home ?? 'N/D'}
+  - Se Edge >= 3.0: VALUE_BET confirmado. Identifique qual lado do mercado está incorrectamente precificado.
 
   CLASSIFICAÇÃO E MOMENTUM:
   ${compactStandings}

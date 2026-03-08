@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult } from '../types';
+import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, MarketData } from '../types';
 import { compareTeams, saveMatchupAnalysis } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
 import { calculateDeterministicPace } from '../lib/nbaUtils';
@@ -23,6 +23,7 @@ export const useTeamComparisonData = ({
     const [analysis, setAnalysis] = useState<MatchupAnalysis | null>(initialAnalysis || null);
     const [loading, setLoading] = useState(!initialAnalysis);
     const [savedToCloud, setSavedToCloud] = useState(!!initialAnalysis);
+    const [marketData, setMarketData] = useState<MarketData | null>(null);
     const [notas, setNotas] = useState<{ a: number, b: number }>({
         a: teamA.ai_score || 0,
         b: teamB.ai_score || 0
@@ -47,6 +48,26 @@ export const useTeamComparisonData = ({
         };
         fetchTeamNotas();
     }, [teamA.name, teamB.name, teamA.ai_score, teamB.ai_score]);
+
+    // Busca odds da nba_odds_matrix — tolerante a falhas com maybeSingle()
+    // Se o cron job ainda não correu ou não há linhas abertas, oddsData será null
+    // e o motor de IA calcula apenas a projeção pura (sem colapso HTTP 406)
+    useEffect(() => {
+        const fetchMarketOdds = async () => {
+            try {
+                const { data: oddsData } = await supabase
+                    .from('nba_odds_matrix')
+                    .select('*')
+                    .eq('matchup', `${teamB.name} @ ${teamA.name}`)
+                    .maybeSingle();
+                setMarketData(oddsData ?? null);
+            } catch (e) {
+                console.warn('[MarketOdds] Não foi possível obter linha de mercado:', e);
+                setMarketData(null);
+            }
+        };
+        fetchMarketOdds();
+    }, [teamA.name, teamB.name]);
 
     const getInjuriesForTeam = useCallback((teamName: string) => {
         const teamPlayers = (unavailablePlayers || []).filter(p => {
@@ -206,7 +227,7 @@ export const useTeamComparisonData = ({
         const fetchAnalysis = async () => {
             setLoading(true);
             try {
-                const result = await compareTeams(teamA, teamB, playerStats, [...injuriesA, ...injuriesB]);
+                const result = await compareTeams(teamA, teamB, playerStats, [...injuriesA, ...injuriesB], marketData);
                 setAnalysis(result);
                 await saveMatchupAnalysis(teamA.id, teamB.id, { ...result, result: 'pending' });
                 setSavedToCloud(true);
@@ -231,6 +252,7 @@ export const useTeamComparisonData = ({
         keyPlayersB,
         bettingLines,
         advantageMatrix,
-        getPlayerWeight
+        getPlayerWeight,
+        marketData
     };
 };
