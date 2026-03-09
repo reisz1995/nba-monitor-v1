@@ -30,9 +30,14 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'classificacao_nba' }, () => {
         fetchESPNData();
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] Conectado e Selado.');
+        }
+      });
 
     return () => {
+      console.log('[Realtime] Destruindo canal para preservar memória...');
       supabase.removeChannel(subscription);
     };
   }, []);

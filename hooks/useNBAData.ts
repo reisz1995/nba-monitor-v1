@@ -117,7 +117,7 @@ export const useNBAData = () => {
         espnDataRaw.forEach((d: Partial<ESPNData>) => {
             const name = (d.time || d.nome || d.equipe || '').toLowerCase();
             if (!name) return;
-            let targetKey = Array.from(baseMap.keys()).find(key => name.includes(key) || key.includes(name)) || name;
+            let targetKey = Array.from(baseMap.keys()).find(key => name === key || name.startsWith(key + ' ') || name.endsWith(' ' + key) || key.startsWith(name + ' ') || key.endsWith(' ' + name)) || name;
             const existing = baseMap.get(targetKey) || {};
             baseMap.set(targetKey, { ...existing, ...d });
         });
@@ -137,17 +137,18 @@ export const useNBAData = () => {
     const mergedTeams = useMemo(() => {
         return INITIAL_TEAMS.map(initial => {
             let dbTeam = dbTeams.find((t: Team) => t.id === initial.id);
-            if (!dbTeam || (dbTeam.name && !dbTeam.name.toLowerCase().includes(initial.name.toLowerCase()))) {
-                dbTeam = dbTeams.find((t: any) =>
-                    t.name?.toLowerCase().includes(initial.name.toLowerCase()) ||
-                    initial.name.toLowerCase().includes(t.name?.toLowerCase())
-                );
+            if (!dbTeam || (dbTeam.name && dbTeam.name.toLowerCase() !== initial.name.toLowerCase())) {
+                dbTeam = dbTeams.find((t: any) => {
+                    if (!t.name) return false;
+                    const tName = t.name.toLowerCase();
+                    const iName = initial.name.toLowerCase();
+                    return tName === iName || tName.startsWith(iName + ' ') || tName.endsWith(' ' + iName) || iName.startsWith(tName + ' ') || iName.endsWith(' ' + tName);
+                });
             }
 
             const espnStats = espnData.find(e => {
                 const teamName = (e.time || '').toLowerCase();
-                const initialName = initial.name.toLowerCase();
-                return teamName === initialName || teamName.includes(initialName) || initialName.includes(teamName);
+                return teamName === initialName || teamName.startsWith(initialName + ' ') || teamName.endsWith(' ' + initialName) || initialName.startsWith(teamName + ' ') || initialName.endsWith(' ' + teamName);
             });
 
             let currentWins = dbTeam?.wins ?? initial.wins;

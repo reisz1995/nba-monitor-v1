@@ -5,6 +5,35 @@ import { useTeamComparisonData } from '../hooks/useTeamComparisonData';
 import { StatBar, PlayerCard, AdvantageItem } from './ComparisonStats';
 import { X, Trophy, TrendingUp, AlertTriangle, Info, Target, Download, Share2, Activity, Zap } from 'lucide-react';
 
+export const EdgeDisplay = ({ keyFactor }: { keyFactor: string }) => {
+  if (!keyFactor) return null;
+
+  const isValueBet = keyFactor.includes("VALUE_BET") || keyFactor.includes("EDGE");
+  const bgColor = isValueBet ? "bg-yellow-400" : "bg-zinc-800";
+  const textColor = isValueBet ? "text-black" : "text-emerald-400";
+  const borderColor = isValueBet ? "border-black" : "border-zinc-600";
+  const shadowColor = isValueBet ? "rgba(0,0,0,1)" : "rgba(16,185,129,0.3)";
+
+  return (
+    <div
+      className={`mt-3 p-[12px] border-2 ${borderColor} ${bgColor} transition-colors duration-200`}
+      style={{ boxShadow: `4px 4px 0px 0px ${shadowColor}` }}
+    >
+      <div className="flex items-center justify-between border-b border-current pb-1 mb-2">
+        <span className="font-mono text-[10px] uppercase tracking-widest opacity-80 font-bold">
+          [ Vantagem Matemática / Edge ]
+        </span>
+        <span className="font-mono text-[10px] uppercase animate-pulse">
+          {isValueBet ? 'Alerta de Mercado' : 'Matriz Padrão'}
+        </span>
+      </div>
+      <p className={`font-mono text-[12px] uppercase font-bold leading-relaxed ${textColor}`}>
+        {keyFactor}
+      </p>
+    </div>
+  );
+};
+
 interface TeamComparisonProps {
   teamA: Team;
   teamB: Team;
@@ -216,10 +245,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                         {analysis.winner}
                       </div>
                     </div>
-                    <div className="bg-black/20 p-6 border-2 border-white/20">
-                      <span className="text-[10px] font-bold text-white/60 uppercase block mb-2">Fator Chave</span>
-                      <p className="text-white font-bold uppercase text-sm leading-relaxed">{analysis.keyFactor}</p>
-                    </div>
+                    <EdgeDisplay keyFactor={analysis.keyFactor} />
                   </div>
                   <div className="bg-white text-black p-8 border-4 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.5)]">
                     <span className="text-[10px] font-black uppercase mb-4 block underline">Análise Técnica Brutalista</span>

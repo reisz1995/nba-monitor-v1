@@ -73,9 +73,14 @@ const EspnScoreboard: React.FC = () => {
                     }
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('[Realtime] Conectado e Selado.');
+                }
+            });
 
         return () => {
+            console.log('[Realtime] Destruindo canal para preservar memória...');
             supabase.removeChannel(channel);
         };
     }, []);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, MarketData } from '../types';
 import { compareTeams, saveMatchupAnalysis } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
@@ -73,7 +73,7 @@ export const useTeamComparisonData = ({
         const teamPlayers = (unavailablePlayers || []).filter(p => {
             const pTime = (p.team_name || p.time || p.franquia || '').toLowerCase();
             const tName = teamName.toLowerCase();
-            return pTime.includes(tName) || tName.includes(pTime);
+            return pTime === tName || pTime.startsWith(tName + ' ') || pTime.endsWith(' ' + tName);
         });
 
         const seen = new Set();
@@ -101,8 +101,8 @@ export const useTeamComparisonData = ({
     const getKeyPlayers = useCallback((teamName: string) => {
         return playerStats
             .filter(p => {
-                const pTime = (p.time || '').toLowerCase();
-                return pTime.includes(teamName.toLowerCase()) || teamName.toLowerCase().includes(pTime);
+                const targetName = teamName.toLowerCase();
+                return pTime === targetName || pTime.startsWith(targetName + ' ') || pTime.endsWith(' ' + targetName);
             })
             .sort((a, b) => (b.pontos || 0) - (a.pontos || 0))
             .slice(0, 4);
@@ -126,7 +126,7 @@ export const useTeamComparisonData = ({
         const rosterFilter = (time: string, team: Team) => {
             const pTime = time.toLowerCase();
             const tName = team.name.toLowerCase();
-            return pTime.includes(tName) || tName.includes(pTime);
+            return pTime === tName || pTime.startsWith(tName + ' ') || pTime.endsWith(' ' + tName);
         };
 
         const allPlayersA = playerStats.filter(p => rosterFilter(p.time || p.team_name || '', teamA));
@@ -222,24 +222,39 @@ export const useTeamComparisonData = ({
         };
     }, [teamA.record, teamB.record, bettingLines]);
 
+    const fetchLock = useRef<string | null>(null);
+    const matchupKey = `${teamA.id}_vs_${teamB.id}`;
+
     useEffect(() => {
-        if (!!initialAnalysis) return;
+        if (!!initialAnalysis || fetchLock.current === matchupKey) return;
+
         const fetchAnalysis = async () => {
+            fetchLock.current = matchupKey;
             setLoading(true);
             try {
+                // Ensure array copies or original objects are resolved
                 const result = await compareTeams(teamA, teamB, playerStats, [...injuriesA, ...injuriesB], marketData);
                 setAnalysis(result);
                 await saveMatchupAnalysis(teamA.id, teamB.id, { ...result, result: 'pending' });
                 setSavedToCloud(true);
             } catch (e: any) {
-                console.error(e);
-                toast.error("Não foi possível carregar a análise do confronto.");
+                console.error("[SYSTEM_ERROR] Colapso na matriz vetorial:", e);
+                setAnalysis({
+                    winner: "N/A",
+                    confidence: 0,
+                    keyFactor: "FALHA_DE_SISTEMA_EXTERNO",
+                    detailedAnalysis: "ERRO 503: Motor IA temporariamente indisponível devido a anomalias no servidor. Tente novamente mais tarde.",
+                    expectedScoreA: 0,
+                    expectedScoreB: 0,
+                    projectedPace: 0,
+                    result: 'pending'
+                });
             } finally {
                 setLoading(false);
             }
         };
         fetchAnalysis();
-    }, [teamA, teamB, playerStats, injuriesA, injuriesB, initialAnalysis]);
+    }, [teamA.id, teamB.id, initialAnalysis]);
 
     return {
         analysis,
