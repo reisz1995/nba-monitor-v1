@@ -148,6 +148,7 @@ export const useNBAData = () => {
 
             const espnStats = espnData.find(e => {
                 const teamName = (e.time || '').toLowerCase();
+                const initialName = initial.name.toLowerCase();
                 return teamName === initialName || teamName.startsWith(initialName + ' ') || teamName.endsWith(' ' + initialName) || initialName.startsWith(teamName + ' ') || initialName.endsWith(' ' + teamName);
             });
 
