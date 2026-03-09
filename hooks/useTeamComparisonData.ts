@@ -101,6 +101,7 @@ export const useTeamComparisonData = ({
     const getKeyPlayers = useCallback((teamName: string) => {
         return playerStats
             .filter(p => {
+                const pTime = (p.team_name || p.time || p.franquia || '').toLowerCase();
                 const targetName = teamName.toLowerCase();
                 return pTime === targetName || pTime.startsWith(targetName + ' ') || pTime.endsWith(' ' + targetName);
             })

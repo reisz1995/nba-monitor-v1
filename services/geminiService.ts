@@ -85,17 +85,17 @@ DIRETRIZES ESTRATÉGICAS (MATRIZ DE IMPACTO V2.1 - UNDERDOG HANDICAP):
 
 3. MÉTODO HANDICAP POSITIVO (UNDERDOG):
    - Underdog_Casa: Underdogs jogando em casa (+8 a +14) tendem a competir mais. Favorito não costuma vencer por grande margem fora.
-   - Favorito_Back_to_Back: Reduzir projeção do favorito em 2 a 3 pontos se jogou no dia anterior (Ajuste_Fadiga).
+   - Favorito_Back_to_Back: Reduzir projeção do favorito em 1 a 2 pontos se jogou no dia anterior (Ajuste_Fadiga).
    - Blowout_Regressao: Se o favorito venceu o último jogo por >20 pontos, o mercado o supervaloriza. Gere valor no Underdog.
    - Defesa_Top5: Times com defesa forte evitam blowouts e mantêm o jogo competitivo. Favorito +7 vs Underdog -1 indica vantagem real.
 
 4. REGRAS DE OURO COMPLEMENTARES:
    - Em confrontos equilibrados, prefira sempre sugerir Handicap Positivo (Handicap+).
-   - Diferença entre linha da casa e sua projeção ≥ 3 pontos ≈ 58% chance (Value_Bet).
+   - Diferença entre linha da casa e sua projeção ≥ 2 pontos ≈ 58% chance (Value_Bet).
 
 5. DETECÇÃO DE ASSIMETRIA (EDGE CALCULATION):
    - Compare a sua projeção matemática com o 'Market_Odds' fornecido no prompt.
-   - Se o Edge (diferença absoluta) for >= 3.0 pontos, classifique a operação como VALUE_BET.
+   - Se o Edge (diferença absoluta) for >= 2.0 pontos, classifique a operação como VALUE_BET.
    - Explique o diferencial na análise e qual lado do mercado está incorrectamente precificado.`;
 
 export const nbaTools: FunctionDeclaration[] = [

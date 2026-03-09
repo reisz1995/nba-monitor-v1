@@ -189,9 +189,18 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                 <div className="space-y-4">
                   <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">Elenco Ativo (Stars)</span>
                   <div className="grid grid-cols-1 gap-2">
-                    {t.key.map((p, pIdx) => (
-                      <PlayerCard key={pIdx} name={p.nome} weight={Math.floor((p.pontos || 0) / 3)} />
-                    ))}
+                    {t.key.map((p, pIdx) => {
+                      const injury = t.injuries.find(i => i.nome.toLowerCase() === (p.nome || p.player_name || '').toLowerCase());
+                      return (
+                        <PlayerCard
+                          key={pIdx}
+                          name={p.nome}
+                          weight={Math.floor((p.pontos || 0) / 3)}
+                          status={injury?.status}
+                          isOut={injury?.isOut}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
 
