@@ -69,21 +69,24 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ teams, selectedTeams, o
         </div>
 
         <div className="w-full md:col-span-4 mt-3 md:mt-0 flex justify-center md:justify-end gap-1.5 md:gap-2 md:border-l border-white/10 h-full py-1 md:pl-4 border-t md:border-t-0 pt-3 md:pt-1">
-          {record.map((result, i) => (
-            <button
-              key={i}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleRecord(team.id, i);
-              }}
-              className={`w-6 h-6 md:w-7 md:h-7 flex items-center justify-center rounded-sm text-[9px] md:text-[10px] font-black transition-all border-2 shadow-lg font-mono ${result === 'V'
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
-                : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/30'
-                }`}
-            >
-              {result}
-            </button>
-          ))}
+          {record.map((result, i) => {
+            const resString = typeof result === 'object' && result !== null ? (result as any).result : result;
+            return (
+              <button
+                key={i}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleRecord(team.id, i);
+                }}
+                className={`w-6 h-6 md:w-7 md:h-7 flex items-center justify-center rounded-sm text-[9px] md:text-[10px] font-black transition-all border-2 shadow-lg font-mono ${resString === 'V'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
+                  : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/30'
+                  }`}
+              >
+                {resString}
+              </button>
+            );
+          })}
         </div>
       </div>
     );

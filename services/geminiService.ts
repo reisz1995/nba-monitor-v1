@@ -61,6 +61,62 @@ const cleanJsonOutput = (text: string): string => {
   return clean;
 };
 
+// Função para buscar o jogo e efetuar JOIN seguro com a tabela teams
+export const fetchGameWithMomentum = async (gameId: string) => {
+  const { data, error } = await supabase
+    .from('game_predictions')
+    .select('*')
+    .eq('id', gameId)
+    .single();
+
+  if (error || !data) {
+    console.error("[Supabase] Falha ao extrair Matriz Temporal:", error);
+    return null;
+  }
+
+  // Busca os records usando os nomes dos times (já que não há chave estrangeira)
+  const { data: teamsData } = await supabase
+    .from('teams')
+    .select('name, record')
+    .in('name', [data.home_team, data.away_team]);
+
+  const homeTeamData = teamsData?.find(t => t.name === data.home_team);
+  const awayTeamData = teamsData?.find(t => t.name === data.away_team);
+
+  // Parsing seguro de JSONB
+  const parseJSONField = (field: any, fallback: any) => {
+    try {
+      if (!field) return fallback;
+      return typeof field === 'string' ? JSON.parse(field) : field;
+    } catch (e) {
+      console.warn("[JSON Parsing] Estrutura corrompida identificada. Fallback injetado.", e);
+      return fallback;
+    }
+  };
+
+  return {
+    ...data,
+    home_record: parseJSONField(homeTeamData?.record, []),
+    away_record: parseJSONField(awayTeamData?.record, []),
+    momentum_data: parseJSONField(data.momentum_data, { home_vs_away: [] }),
+  };
+};
+
+const formatTemporalEntropy = (homeRecord: any[], awayRecord: any[], h2hRecord: any[]) => {
+  const summarize = (record: any[]) =>
+    record?.map(g => `[${g.date}] ${g.result} vs ${g.opponent} (${g.score})`).join(' | ') || "";
+
+  return `
+  🧊 MOMENTO TERMODINÂMICO (ENTROPIA TEMPORAL):
+  - Streaks (Casa - Últimos 5): ${summarize(homeRecord) || "Dados N/D"}
+  - Streaks (Visitante - Últimos 5): ${summarize(awayRecord) || "Dados N/D"}
+  - Histórico de Colisões (H2H): ${summarize(h2hRecord) || "Dados N/D"}
+  
+  INSTRUÇÃO ESTRITA DE CONTEXTO TEMPORAL: 
+  Utilize esta matriz temporal para calibrar a regressão final. Equipes em 'Cold Streaks' (D, D, D) apresentam maior entropia e probabilidade de colapso, mesmo quando avaliadas como favoritas no Baseline Matemático. O Histórico H2H dominante sobrepuja métricas de Pace isoladas.
+  `;
+};
+
 const extractSources = (response: GenerateContentResponse): Source[] => {
   const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const sources: Source[] = [];
@@ -174,7 +230,7 @@ const getExpectedPoints = (statsA: any, statsB: any) => {
   };
 };
 
-export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = [], marketData?: MarketData | null): Promise<MatchupAnalysis> => {
+export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = [], marketData?: MarketData | null, momentumData?: any): Promise<MatchupAnalysis> => {
   const [dbStats, dbInjuries, dbStandings, dbNotas] = await fetchComparisonData(teamA, teamB);
 
   const notaA = Number(dbNotas.data?.find(n => n.franquia === teamA.name)?.nota_ia || teamA.ai_score || 0);
@@ -223,7 +279,14 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     edgeBlock = "Market_Odds: Mercado Indisponível (Calcular Fair Spread Isolado)";
   }
 
+  const homeRecord = momentumData?.home_record || [];
+  const awayRecord = momentumData?.away_record || [];
+  const h2hRecord = momentumData?.momentum_data?.home_vs_away || [];
+  const temporalBlock = formatTemporalEntropy(homeRecord, awayRecord, h2hRecord);
+
   const prompt = `Analise NBA Confronto: ${teamA.name} vs ${teamB.name}.
+  
+  ${temporalBlock}
   
   📊 POWER RANKING / NÍVEL DA EQUIPE (Escala de 2.0 a 5.0):
   - ${teamA.name}: ${notaA.toFixed(1)}/5.0
@@ -267,6 +330,7 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
     // Native structured output — no regex cleaning needed
     const analysis = JSON.parse(response.text);
     analysis.sources = extractSources(response);
+    analysis.momentumData = momentumData;
     return analysis;
   } catch (error: any) {
     if (error.status === 403) {

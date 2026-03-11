@@ -114,6 +114,7 @@ export interface MatchupAnalysis {
   detailedAnalysis: string;
   result?: 'green' | 'red' | 'pending';
   sources?: Source[];
+  momentumData?: any;
 }
 
 export interface ESPNData {

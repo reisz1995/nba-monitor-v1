@@ -1,6 +1,7 @@
 import React from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer } from '../types';
 import MomentumBar from './MomentumBar';
+import MomentumPanel from './MomentumPanel';
 import { useTeamComparisonData } from '../hooks/useTeamComparisonData';
 import { StatBar, PlayerCard, AdvantageItem } from './ComparisonStats';
 import { X, Trophy, TrendingUp, AlertTriangle, Info, Target, Download, Share2, Activity, Zap } from 'lucide-react';
@@ -264,6 +265,16 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
               ) : (
                 <div className="text-center py-20 border-4 border-dashed border-white/20">
                   <span className="text-white/40 font-black italic">ERRO_AO_SINCRONIZAR_IA</span>
+                </div>
+              )}
+
+              {analysis?.momentumData && (
+                <div className="mt-8 relative z-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <MomentumPanel
+                    homeRecord={analysis.momentumData.home_record || []}
+                    awayRecord={analysis.momentumData.away_record || []}
+                    h2hRecord={analysis.momentumData.momentum_data?.home_vs_away || []}
+                  />
                 </div>
               )}
             </div>

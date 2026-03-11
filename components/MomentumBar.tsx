@@ -11,10 +11,12 @@ interface MomentumBarProps {
 const MomentumBar: React.FC<MomentumBarProps> = ({ record, className = "", showLabel = false }) => {
   const lastFive = record || [];
   let streakCount = 0;
-  const lastResult = lastFive[lastFive.length - 1];
+  const lastResultObj = lastFive[lastFive.length - 1];
+  const lastResult = typeof lastResultObj === 'object' && lastResultObj !== null ? (lastResultObj as any).result : lastResultObj;
 
   for (let i = lastFive.length - 1; i >= 0; i--) {
-    if (lastFive[i] === lastResult) streakCount++;
+    const res = typeof lastFive[i] === 'object' && lastFive[i] !== null ? (lastFive[i] as any).result : lastFive[i];
+    if (res === lastResult) streakCount++;
     else break;
   }
 
@@ -51,12 +53,15 @@ const MomentumBar: React.FC<MomentumBarProps> = ({ record, className = "", showL
       )}
       {/* Mini Results Map */}
       <div className="flex gap-0.5 h-1.5 w-full bg-black/60 border border-white/5 overflow-hidden rounded-sm glass-morphism">
-        {lastFive.map((r, i) => (
-          <div
-            key={i}
-            className={`flex-1 ${r === 'V' ? 'bg-emerald-500/80' : 'bg-rose-500/80'}`}
-          />
-        ))}
+        {lastFive.map((r, i) => {
+          const resStr = typeof r === 'object' && r !== null ? (r as any).result : r;
+          return (
+            <div
+              key={i}
+              className={`flex-1 ${resStr === 'V' ? 'bg-emerald-500/80' : 'bg-rose-500/80'}`}
+            />
+          );
+        })}
       </div>
       {/* Main Intensity Bar */}
       <div className="h-2 w-full bg-black/40 border border-white/10 rounded-sm glass-morphism overflow-hidden">

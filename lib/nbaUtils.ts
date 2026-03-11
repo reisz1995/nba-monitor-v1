@@ -74,7 +74,8 @@ export const calculateDeterministicPace = (entityA: Team, entityB: Team, options
  */
 export const getMomentumScore = (record: GameResult[]) => {
     return record.reduce((score, res, idx) => {
-        return score + (res === 'V' ? Math.pow(2, idx) : 0);
+        const rStr = typeof res === 'object' && res !== null ? (res as any).result : res;
+        return score + (rStr === 'V' ? Math.pow(2, idx) : 0);
     }, 0);
 };
 

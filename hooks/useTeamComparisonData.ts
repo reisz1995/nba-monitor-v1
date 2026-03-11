@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, MarketData } from '../types';
-import { compareTeams, saveMatchupAnalysis } from '../services/geminiService';
+import { compareTeams, saveMatchupAnalysis, fetchGameWithMomentum } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
 import { calculateDeterministicPace } from '../lib/nbaUtils';
 import { toast } from 'sonner';
@@ -187,8 +187,9 @@ export const useTeamComparisonData = ({
         const calcMomentum = (record: GameResult[]) => {
             const rec = [...(record || [])].slice(-5);
             return rec.reduce((acc, res, i) => {
+                const rStr = typeof res === 'object' && res !== null ? (res as any).result : res;
                 const weight = Math.pow(2, i + 1);
-                return acc + (res === 'V' ? weight : -weight);
+                return acc + (rStr === 'V' ? weight : -weight);
             }, 0);
         };
 
@@ -233,8 +234,27 @@ export const useTeamComparisonData = ({
             fetchLock.current = matchupKey;
             setLoading(true);
             try {
+                // Find prediction ID to fetch momentum
+                const { data: predData } = await supabase
+                    .from('game_predictions')
+                    .select('id')
+                    .eq('home_team', teamA.name)
+                    .eq('away_team', teamB.name)
+                    .maybeSingle();
+
+                let momentumData = {
+                    home_record: teamA.record,
+                    away_record: teamB.record,
+                    momentum_data: { home_vs_away: [] }
+                };
+
+                if (predData?.id) {
+                    const fetchedMomentum = await fetchGameWithMomentum(predData.id);
+                    if (fetchedMomentum) momentumData = fetchedMomentum;
+                }
+
                 // Ensure array copies or original objects are resolved
-                const result = await compareTeams(teamA, teamB, playerStats, [...injuriesA, ...injuriesB], marketData);
+                const result = await compareTeams(teamA, teamB, playerStats, [...injuriesA, ...injuriesB], marketData, momentumData);
                 setAnalysis(result);
                 await saveMatchupAnalysis(teamA.id, teamB.id, { ...result, result: 'pending' });
                 setSavedToCloud(true);
