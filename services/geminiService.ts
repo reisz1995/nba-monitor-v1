@@ -5,9 +5,12 @@ import { calculateDeterministicPace } from "../lib/nbaUtils";
 import { toast } from "sonner";
 import { withRetry } from "../lib/resilience";
 
-// Module-level singleton — avoids re-instantiation on every call
+// Motor GenAI Isolado - Evita re-instanciação
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
+// ==========================================
+// 1. FORMATADORES DE MATRIZ (PARSERS)
+// ==========================================
 export const formatStandingsForAI = (data: Partial<ESPNData>[]): string => {
   if (!data || data.length === 0) return "Sem dados de classificação.";
   let output = "TIME|V|D|%|PTS+|PTS-|SEQ\n";
@@ -53,13 +56,48 @@ export const formatInjuriesForAI = (injuries: UnavailablePlayer[]): string => {
   return output;
 };
 
-const cleanJsonOutput = (text: string): string => {
-  if (!text) return "[]";
-  let clean = text.trim();
-  clean = clean.replace(/^```json\s*/i, "").replace(/^```\s*/i, "");
-  clean = clean.replace(/\s*```$/, "");
-  return clean;
+const extractSources = (response: GenerateContentResponse): Source[] => {
+  const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  const sources: Source[] = [];
+  chunks.forEach((chunk: any) => {
+    if (chunk.web?.uri && chunk.web?.title) {
+      if (!sources.find(s => s.url === chunk.web.uri)) {
+        sources.push({ title: chunk.web.title, url: chunk.web.uri });
+      }
+    }
+  });
+  return sources;
 };
+
+// ==========================================
+// 2. DIRETRIZES DO ESTATÍSTICO CHEFE (CORE INSTRUCTION)
+// ==========================================
+const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub". Operação estrita, brutalista e puramente matemática. Não narre jogos. Emita sentenças técnicas e frias.
+
+DIRETRIZES ESTRATÉGICAS UNIFICADAS (MATRIZ V3.0):
+
+[VETOR 1: RITMO E COLISÃO (PACE)]
+- Nunca analise Over/Under usando apenas médias nominais. Use o Fator Cinético.
+- HYPER_KINETIC: Linhas abaixo de 225.5 são alvos prioritários para OVER.
+- SLOW_GRIND / STATIC_TRENCH: Repudie o OVER. Total baixo favorece sempre o Underdog.
+
+[VETOR 2: MOMENTO TERMODINÂMICO (PRIORIDADE ALFA)]
+- DRENO TÉRMICO: Se uma equipa possui 'result': 'D' nos últimos 3 jogos do Momentum, aplique uma severa penalização de confiança (-25%).
+- DOMÍNIO H2H: Equipas com vitórias recentes esmagadoras no H2H (Confronto Direto) sobrepujam métricas de Pace isoladas.
+
+[VETOR 3: ASSIMETRIA DE MERCADO E UNDERDOG]
+- VALUE BET: Se a sua projeção (Edge) divergir fortemente do Mercado (>= 1.0 pontos no Spread ou Total), classifique o keyFactor como 'VALUE_BET DETECTADO'.
+- Underdog_Casa: Underdogs jogando em casa (+8 a +14) tendem a competir mais. Favorito não costuma vencer por grande margem fora.
+- Favorito_Back_to_Back: Aplique Dreno de Fadiga. Reduza a projeção do favorito em 1 a 2 pontos.
+- Blowout_Regressao: Favorito venceu o último jogo por >35 pontos? O mercado supervaloriza-o. Gere valor no Underdog.
+- Defesa Top: Defesas de elite (PTS sofridos < 109.5) anulam blowouts.
+
+[VETOR 4: INTEGRIDADE FÍSICA]
+- Ausência da Estrela Alfa HW >= 7 (Jokic, SGA, Doncic, etc) causa colapso sistêmico imediato, exceto se a equipa tiver Rating > 4.5.`;
+
+// ==========================================
+// 3. MOTORES DE CÁLCULO E INFERÊNCIA
+// ==========================================
 
 // Função para buscar o jogo e efetuar JOIN seguro com a tabela teams
 export const fetchGameWithMomentum = async (gameId: string) => {
@@ -102,93 +140,14 @@ export const fetchGameWithMomentum = async (gameId: string) => {
   };
 };
 
-const formatTemporalEntropy = (homeRecord: any[], awayRecord: any[], h2hRecord: any[]) => {
-  const summarize = (record: any[]) =>
-    record?.map(g => `[${g.date}] ${g.result} vs ${g.opponent} (${g.score})`).join(' | ') || "";
-
-  return `
-  🧊 MOMENTO TERMODINÂMICO (ENTROPIA TEMPORAL):
-  - Streaks (Casa - Últimos 5): ${summarize(homeRecord) || "Dados N/D"}
-  - Streaks (Visitante - Últimos 5): ${summarize(awayRecord) || "Dados N/D"}
-  - Histórico de Colisões (H2H): ${summarize(h2hRecord) || "Dados N/D"}
-  
-  INSTRUÇÃO ESTRITA DE CONTEXTO TEMPORAL: 
-  Utilize esta matriz temporal para calibrar a regressão final. Equipes em 'Cold Streaks' (D, D, D) apresentam maior entropia e probabilidade de colapso, mesmo quando avaliadas como favoritas no Baseline Matemático. O Histórico H2H dominante sobrepuja métricas de Pace isoladas.
-  `;
-};
-
-const extractSources = (response: GenerateContentResponse): Source[] => {
-  const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  const sources: Source[] = [];
-  chunks.forEach((chunk: any) => {
-    if (chunk.web?.uri && chunk.web?.title) {
-      if (!sources.find(s => s.url === chunk.web.uri)) {
-        sources.push({ title: chunk.web.title, url: chunk.web.uri });
-      }
-    }
-  });
-  return sources;
-};
-
-const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub". Operação estrita e brutalista.
-DIRETRIZES ESTRATÉGICAS (MATRIZ DE IMPACTO V2.1 - UNDERDOG HANDICAP):
-
-1. OBRIGAÇÃO DO RITMO (PACE):
-   - Se o estado for HYPER_KINETIC, linhas abaixo de 225.5 são alvos prioritários para OVER.
-   - Se o estado for SLOW_GRIND, repudie o OVER, mesmo com defesas comprometidas (Total Baixo favorece Underdog).
-
-2. IMPACTO DE ESTRELAS: Se o melhor jogador do time não joga, o impacto é DRÁSTICO, a menos que o time seja "Elite" (Nota > 4.5).
-
-3. MÉTODO HANDICAP POSITIVO (UNDERDOG):
-   - Underdog_Casa: Underdogs jogando em casa (+8 a +14) tendem a competir mais. Favorito não costuma vencer por grande margem fora.
-   - Favorito_Back_to_Back: Reduzir projeção do favorito em 1 a 2 pontos se jogou no dia anterior (Ajuste_Fadiga).
-   - Blowout_Regressao: Se o favorito venceu o último jogo por >20 pontos, o mercado o supervaloriza. Gere valor no Underdog.
-   - Defesa_Top5: Times com defesa forte evitam blowouts e mantêm o jogo competitivo. Favorito +7 vs Underdog -1 indica vantagem real.
-
-4. REGRAS DE OURO COMPLEMENTARES:
-   - Em confrontos equilibrados, prefira sempre sugerir Handicap Positivo (Handicap+).
-   - Diferença entre linha da casa e sua projeção ≥ 2 pontos ≈ 58% chance (Value_Bet).
-
-5. DETECÇÃO DE ASSIMETRIA (EDGE CALCULATION):
-   - Compare a sua projeção matemática com o 'Market_Odds' fornecido no prompt.
-   - Se o Edge (diferença absoluta) for >= 2.0 pontos, classifique a operação como VALUE_BET.
-   - Explique o diferencial na análise e qual lado do mercado está incorrectamente precificado.`;
-
-export const nbaTools: FunctionDeclaration[] = [
-  {
-    name: "get_standings",
-    description: "Retorna a tabela de classificação da NBA.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        time: { type: Type.STRING, description: "Nome do time." },
-        conf: { type: Type.STRING, description: "East ou West." }
-      }
-    }
-  },
-  {
-    name: "get_injuries",
-    description: "Busca a lista de jogadores lesionados.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        team_name: { type: Type.STRING, description: "Nome do time." }
-      }
-    }
-  }
-];
-
 export const saveMatchupAnalysis = async (teamA: Team | number, teamB: Team | number, analysis: MatchupAnalysis) => {
   try {
     const teamAId = typeof teamA === 'number' ? teamA : teamA.id;
     const teamBId = typeof teamB === 'number' ? teamB : teamB.id;
 
     let cleanConfidence = Number(analysis.confidence);
-    if (cleanConfidence <= 1) {
-      cleanConfidence = Math.round(cleanConfidence * 100);
-    } else {
-      cleanConfidence = Math.round(cleanConfidence);
-    }
+    if (cleanConfidence <= 1) cleanConfidence = Math.round(cleanConfidence * 100);
+    else cleanConfidence = Math.round(cleanConfidence);
 
     const { error } = await supabase.from('matchup_analyses').insert({
       team_a_id: teamAId,
@@ -198,40 +157,32 @@ export const saveMatchupAnalysis = async (teamA: Team | number, teamB: Team | nu
       key_factor: analysis.keyFactor,
       detailed_analysis: analysis.detailedAnalysis,
       sources: analysis.sources,
-      result: 'pending', // GARANTIA DE MINÚSCULAS
+      result: 'pending',
       created_at: new Date().toISOString()
     });
 
     if (error) throw error;
   } catch (err) {
     console.error("Erro ao salvar histórico de análise no Supabase:", err);
-    toast.error("Erro ao salvar histórico no banco de dados.");
   }
 };
 
-const fetchComparisonData = async (teamA: Team, teamB: Team) => {
-  return await Promise.all([
+export const compareTeams = async (
+  teamA: Team,
+  teamB: Team,
+  playerStats: PlayerStat[],
+  injuries: UnavailablePlayer[] = [],
+  marketData?: MarketData | null,
+  momentumData?: any
+): Promise<MatchupAnalysis> => {
+
+  // Extração assíncrona da infraestrutura
+  const [dbStats, dbInjuries, dbStandings, dbNotas] = await Promise.all([
     supabase.from('nba_jogadores_stats').select('*').in('time', [teamA.name, teamB.name]),
     supabase.from('nba_injured_players').select('*').in('team_name', [teamA.name, teamB.name]),
     supabase.from('classificacao_nba').select('*').in('time', [teamA.name, teamB.name]),
     supabase.from('tabela_notas').select('*').in('franquia', [teamA.name, teamB.name])
   ]);
-};
-
-const getExpectedPoints = (statsA: any, statsB: any) => {
-  const atkA = Number(statsA.media_pontos_ataque || statsA.pts_ataque || 0);
-  const defA = Number(statsA.media_pontos_defesa || statsA.pts_defesa || 0);
-  const atkB = Number(statsB.media_pontos_ataque || statsB.pts_ataque || 0);
-  const defB = Number(statsB.media_pontos_defesa || statsB.pts_defesa || 0);
-
-  return {
-    projA: atkA > 0 && defB > 0 ? ((atkA + defB) / 2).toFixed(1) : "N/D",
-    projB: atkB > 0 && defA > 0 ? ((atkB + defA) / 2).toFixed(1) : "N/D"
-  };
-};
-
-export const compareTeams = async (teamA: Team, teamB: Team, playerStats: PlayerStat[], injuries: UnavailablePlayer[] = [], marketData?: MarketData | null, momentumData?: any): Promise<MatchupAnalysis> => {
-  const [dbStats, dbInjuries, dbStandings, dbNotas] = await fetchComparisonData(teamA, teamB);
 
   const notaA = Number(dbNotas.data?.find(n => n.franquia === teamA.name)?.nota_ia || teamA.ai_score || 0);
   const notaB = Number(dbNotas.data?.find(n => n.franquia === teamB.name)?.nota_ia || teamB.ai_score || 0);
@@ -240,106 +191,93 @@ export const compareTeams = async (teamA: Team, teamB: Team, playerStats: Player
   const compactInjuries = formatInjuriesForAI(dbInjuries.data || injuries);
   const compactStandings = formatStandingsForAI(dbStandings.data || []);
 
-  const statsA = dbStandings.data?.find(s => s.time === teamA.name) || {};
-  const statsB = dbStandings.data?.find(s => s.time === teamB.name) || {};
-  const { projA, projB } = getExpectedPoints(statsA, statsB);
+  const { matchPace, totalPayload, kineticState, deltaA, deltaB } = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
+
+  // PARSING TERMODINÂMICO (MOMENTUM & H2H)
+  const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
+  const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);
+  const h2hContext = momentumData?.momentum_data?.home_vs_away && momentumData.momentum_data.home_vs_away.length > 0
+    ? JSON.stringify(momentumData.momentum_data.home_vs_away)
+    : "DADOS_H2H_INDISPONIVEIS";
+
+  // EDGE CALCULATION (MERCADO)
+  const projectedSpread = deltaB - deltaA;
+  const marketSpread = marketData?.spread ?? null;
+  let edgeBlock = "Market_Odds: Indisponível";
+  if (marketSpread !== null) {
+    const edge = Math.abs(projectedSpread - marketSpread);
+    const classification = edge >= 3.0 ? "🔴 VALUE_BET DETECTADO" : "⚪ DENTRO DA MARGEM";
+    edgeBlock = `Spread de Mercado: ${marketSpread} | Spread Projetado: ${projectedSpread.toFixed(1)} | Edge: ${edge.toFixed(1)} pts | ${classification}`;
+  }
+
+  const prompt = `ALVO DE COMPUTAÇÃO: ${teamA.name} vs ${teamB.name}.
+
+  [VETOR 1: EFICIÊNCIA ESTRUTURAL]
+  Rating AI ${teamA.name}: ${notaA.toFixed(1)}/5.0
+  Rating AI ${teamB.name}: ${notaB.toFixed(1)}/5.0
+  ${compactStandings}
+
+  [VETOR 2: ALGORITMO CINÉTICO (v2.2)]
+  Pace do Confronto: ${matchPace.toFixed(1)} (${kineticState})
+  Pontuação Base ${teamA.name}: ${deltaA.toFixed(1)}
+  Pontuação Base ${teamB.name}: ${deltaB.toFixed(1)}
+  Total Projetado: ${totalPayload.toFixed(1)}
+
+  [VETOR 3: ASSIMETRIA DE MERCADO]
+  ${edgeBlock}
+  Mercado (Total/ML): Total=${marketData?.total ?? 'N/D'} | ML Away=${marketData?.moneyline_away ?? 'N/D'} | ML Home=${marketData?.moneyline_home ?? 'N/D'}
+
+  [VETOR 4: MOMENTO TERMODINÂMICO]
+  Forma ${teamA.name} (Últimos 5): ${formA}
+  Forma ${teamB.name} (Últimos 5): ${formB}
+  Confronto Direto (H2H): ${h2hContext}
+
+  [VETOR 5: INTEGRIDADE FÍSICA]
+  ${compactInjuries}
+
+  PROCESSE AS DIRETRIZES E RETORNE O JSON STRICT.`;
 
   const schema = {
     type: Type.OBJECT,
     properties: {
-      winner: { type: Type.STRING, description: "Vencedor sugerido ou Handicap (Lembre: prefira +10 ou -5, evite +5.5)" },
-      confidence: { type: Type.NUMBER, description: "Confiança de 0 a 100" },
-      keyFactor: { type: Type.STRING, description: "Justificativa curta baseada nas Regras de Ouro e Underdog Handicap" },
-      detailedAnalysis: { type: Type.STRING, description: "Análise estratégica completa focada no impacto do Defensive Rating, B2B e Underdog Value." }
+      winner: { type: Type.STRING },
+      confidence: { type: Type.NUMBER },
+      keyFactor: { type: Type.STRING },
+      detailedAnalysis: { type: Type.STRING },
+      expectedScoreA: { type: Type.NUMBER },
+      expectedScoreB: { type: Type.NUMBER },
+      projectedPace: { type: Type.NUMBER }
     },
-    required: ["winner", "confidence", "keyFactor", "detailedAnalysis"]
+    required: ["winner", "confidence", "keyFactor", "detailedAnalysis", "expectedScoreA", "expectedScoreB", "projectedPace"]
   };
-
-  const config = {
-    systemInstruction: SYSTEM_INSTRUCTION,
-    responseMimeType: "application/json",
-    responseSchema: schema,
-    temperature: 0.1, // Deterministic: IA atua como calculadora estatística, não gerador de texto
-  };
-
-  const { matchPace, totalPayload, kineticState, deltaA, deltaB } = calculateDeterministicPace(teamA, teamB, {
-    isHomeA: true, // No context de comparação direta, Home/Away depende da UI, mas passamos a análise base
-  });
-
-  // --- EDGE CALCULATION (Vectorial Collision: Projection vs Financial Line) ---
-  const projectedSpread = deltaB - deltaA;
-  const marketSpread = marketData?.spread ?? null;
-  let edgeBlock: string;
-  if (marketSpread !== null) {
-    const edge = Math.abs(projectedSpread - marketSpread);
-    const classification = edge >= 3.0 ? "🔴 VALUE_BET DETECTADO" : "⚪ DENTRO DA MARGEM";
-    edgeBlock = `Market_Odds: Spread de Mercado=${marketSpread} | Spread Projetado=${projectedSpread.toFixed(1)} | Edge=${edge.toFixed(1)} pts | ${classification}`;
-    console.info(`[Edge] ${teamA.name} vs ${teamB.name} → ${edgeBlock}`);
-  } else {
-    edgeBlock = "Market_Odds: Mercado Indisponível (Calcular Fair Spread Isolado)";
-  }
-
-  const homeRecord = momentumData?.home_record || [];
-  const awayRecord = momentumData?.away_record || [];
-  const h2hRecord = momentumData?.momentum_data?.home_vs_away || [];
-  const temporalBlock = formatTemporalEntropy(homeRecord, awayRecord, h2hRecord);
-
-  const prompt = `Analise NBA Confronto: ${teamA.name} vs ${teamB.name}.
-  
-  ${temporalBlock}
-  
-  📊 POWER RANKING / NÍVEL DA EQUIPE (Escala de 2.0 a 5.0):
-  - ${teamA.name}: ${notaA.toFixed(1)}/5.0
-  - ${teamB.name}: ${notaB.toFixed(1)}/5.0
-
-  ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.2 (Ajustado):
-  - Pace do Confronto: ${matchPace.toFixed(1)} (${kineticState})
-  - Pontuação Esperada ${teamA.name}: ${deltaA.toFixed(1)}
-  - Pontuação Esperada ${teamB.name}: ${deltaB.toFixed(1)}
-  - Payload Total Projetado: ${totalPayload.toFixed(1)}
-
-  📡 DETECÇÃO DE ASSIMETRIA DE MERCADO (EDGE CALCULATION):
-  - ${edgeBlock}
-  - Total de Mercado: ${marketData?.total ?? 'N/D'} | ML Away: ${marketData?.moneyline_away ?? 'N/D'} | ML Home: ${marketData?.moneyline_home ?? 'N/D'}
-  - Se Edge >= 3.0: VALUE_BET confirmado. Identifique qual lado do mercado está incorrectamente precificado.
-
-  CLASSIFICAÇÃO E MOMENTUM:
-  ${compactStandings}
-
-  DADOS DOS JOGADORES (ESTRELAS):
-  ${compactStats}
-  
-  RELATÓRIO DE DESFALQUES:
-  ${compactInjuries}
-  
-  APLIQUE AS REGRAS UNDERDOG HANDICAP:
-  - Fator 'kineticState': ${kineticState}. Total Projetado: ${totalPayload.toFixed(1)}.
-  - Se SLOW_GRIND (<98 Pace), a vantagem do Underdog aumenta.
-  - Verifique 'Favorito_Back_to_Back' na SEQ (Streak) do favorito.
-  - Verifique 'Defesa_Top15' nos PTS- (Pontos sofridos) das equipes.
-  - Procure por 'Blowout_Regressao' se o favorito vem de vitória esmagadora.`;
 
   try {
     const response = await withRetry(() => ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
-      config
-    }), { retries: 3 });
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        temperature: 0.1
+      }
+    }), { retries: 2, initialDelay: 500 });
 
-    if (!response.text) throw new Error("Empty response");
-    // Native structured output — no regex cleaning needed
-    const analysis = JSON.parse(response.text);
-    analysis.sources = extractSources(response);
-    analysis.momentumData = momentumData;
-    return analysis;
-  } catch (error: any) {
-    if (error.status === 403) {
-      toast.error("Erro de permissão no Gemini AI.");
-      throw new Error("PERMISSION_DENIED");
-    }
-    console.error("Erro na análise da IA (CompareTeams):", error);
-    toast.error("Erro ao processar análise da IA.");
-    throw error;
+    if (!response.text) throw new Error("COLAPSO_PAYLOAD_NULO");
+    const analysisResult = JSON.parse(response.text);
+    return { ...analysisResult, sources: extractSources(response), momentumData };
+  } catch (error) {
+    console.error("[IA_ENGINE] Colapso na matriz vetorial:", error);
+    return {
+      winner: "N/A",
+      confidence: 0,
+      keyFactor: "ANOMALIA_DE_SISTEMA",
+      detailedAnalysis: "Falha na sincronização termodinâmica. Operação revertida para baseline de segurança.",
+      expectedScoreA: 0,
+      expectedScoreB: 0,
+      projectedPace: 0,
+      result: 'pending'
+    };
   }
 };
 
@@ -357,35 +295,29 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
     }
   };
 
-  const config = {
-    systemInstruction: SYSTEM_INSTRUCTION,
-    responseMimeType: "application/json",
-    responseSchema: schema,
-    temperature: 0.1, // Deterministic statistical reasoning
-  };
-
   try {
-    const prompt = "Gere insights baseados nas Regras de Ouro (Handicaps, Over por Defesa Ruim e Cansaço).";
     const response = await withRetry(() => ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: prompt,
-      config
+      contents: "Gere insights baseados no Momento Termodinâmico, Handicaps Positivos e Cansaço (B2B).",
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        temperature: 0.1
+      }
     }), { retries: 2, initialDelay: 500 });
 
     if (!response.text) throw new Error("EMPTY_PAYLOAD");
-    // Native structured output — no regex cleaning needed
     const insights: Insight[] = JSON.parse(response.text);
     const sources = extractSources(response);
     if (insights.length > 0 && sources.length > 0) insights[0].sources = sources;
     return insights;
   } catch (error) {
-    console.error("[IA_ENGINE] Colapso na matriz de processamento:", error);
-    // Graceful degradation: mantém a UI operacional mesmo com a IA inativa
+    console.error("[IA_ENGINE] Colapso de Insights:", error);
     return [{
       title: "SYSTEM_WARNING: IA OFFLINE",
-      content: "Motor de inferência temporariamente indisponível. Analise os dados brutos no HUD inferior.",
+      content: "Motor temporariamente indisponível. Analise a Matriz no HUD.",
       type: "warning"
     }];
   }
 };
-

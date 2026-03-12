@@ -1,11 +1,20 @@
-
+// 1. Definição estrita da nova matriz temporal
 export type GameResult = 'V' | 'D';
 
+export interface GameRecordData {
+  date: string;
+  opponent?: string;
+  result: GameResult;
+  score: string;
+}
+
+// 2. Mutações na interface da Franquia
 export interface Team {
   id: number;
   name: string;
   logo: string;
-  record: GameResult[];
+  // A injeção do 'any' atua como dissipador térmico durante o parsing do Supabase
+  record: GameRecordData[] | any;
   wins: number;
   losses: number;
   conference: 'East' | 'West';
@@ -112,6 +121,9 @@ export interface MatchupAnalysis {
   confidence: number;
   keyFactor: string;
   detailedAnalysis: string;
+  expectedScoreA?: number;
+  expectedScoreB?: number;
+  projectedPace?: number;
   result?: 'green' | 'red' | 'pending';
   sources?: Source[];
   momentumData?: any;
