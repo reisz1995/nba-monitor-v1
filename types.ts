@@ -61,6 +61,7 @@ export interface PalpiteData {
   confianca: string;
   n_casa: string;
   n_fora: string;
+  handicap_line?: string; // INJEÇÃO: Permitir o trânsito do Handicap para a UI
   user_id?: string;
 }
 
@@ -98,8 +99,8 @@ export interface PredictionIA {
   under_line?: string;
   confidence?: number;
   prediction?: {
-    handicap_line?: string;
-    [key: string]: any;
+  handicap_line?: string;
+  [key: string]: any;
   };
   [key: string]: any;
 }
