@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Team, PalpiteData, NotaData } from '../types';
@@ -96,7 +95,8 @@ export const useTipsDashboardLogic = ({ teams, tipsDateInitial }: UseTipsDashboa
                             palpite_principal: pred.palpite_principal,
                             over_line: pred.over_line,
                             under_line: pred.under_line,
-                            p_combinados: pred.p_combinados,
+                            p_combinados: pred.p_combinados || '-',
+                            handicap_line: pred.handicap_line || '-', // MUTAÇÃO INJETADA
                             confianca: pred.confianca,
                             n_casa: pred.n_casa,
                             n_fora: pred.n_fora
@@ -134,14 +134,25 @@ export const useTipsDashboardLogic = ({ teams, tipsDateInitial }: UseTipsDashboa
                 const teamCasa = findTeamByName(ai.home_team, teams);
                 const teamFora = findTeamByName(ai.away_team, teams);
 
+                // Extrator Termodinâmico Seguro
+                let predictionObj: any = {};
+                try {
+                    predictionObj = typeof ai.prediction === 'string' 
+                        ? JSON.parse(ai.prediction) 
+                        : (ai.prediction || {});
+                } catch (e) {
+                    console.error("[IA_PARSE_ERROR] Falha ao extrair payload:", e);
+                }
+
                 return {
                     data_jogo: isoDate,
                     time_casa: ai.home_team,
                     time_fora: ai.away_team,
-                    palpite_principal: ai.main_pick || '-',
-                    over_line: ai.over_line || '-',
-                    under_line: ai.under_line || '-',
-                    p_combinados: ai.prediction?.total_score || '-',
+                    palpite_principal: ai.main_pick || predictionObj.palpite_principal || '-',
+                    over_line: ai.over_line || predictionObj.linha_seguranca_over || '-',
+                    under_line: ai.under_line || predictionObj.linha_seguranca_under || '-',
+                    p_combinados: '-', // Isolado
+                    handicap_line: ai.handicap_line || predictionObj.handicap_recomendado || '-', // VETOR HABILITADO
                     confianca: ai.confidence ? `${ai.confidence}%` : '-',
                     n_casa: teamCasa ? (tierScores[teamCasa.name] || '-') : '-',
                     n_fora: teamFora ? (tierScores[teamFora.name] || '-') : '-'
@@ -180,6 +191,7 @@ export const useTipsDashboardLogic = ({ teams, tipsDateInitial }: UseTipsDashboa
             over_line: '',
             under_line: '',
             p_combinados: '-',
+            handicap_line: '-', // INICIALIZADOR NEUTRO
             confianca: '',
             n_casa: '-',
             n_fora: '-'
