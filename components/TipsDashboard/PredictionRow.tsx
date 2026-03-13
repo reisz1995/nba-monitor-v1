@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { PalpiteData } from '../../types';
@@ -40,33 +39,36 @@ const PredictionRow: React.FC<PredictionRowProps> = ({
                 <input
                     value={pred.palpite_principal}
                     onChange={(e) => onLocalChange(pred.id!, 'palpite_principal', e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 text-emerald-400 focus:ring-0 font-black py-1 px-2 text-[11px] uppercase tracking-widest"
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 text-emerald-400 focus:ring-0 font-black py-1 px-2 text-[11px] uppercase tracking-widest"
                     placeholder="MAIN PICK"
                 />
             </td>
-            <td className="px-2 py-2 border-r border-slate-800/50">
+            <td className="px-3 py-2 border-r border-slate-800/50">
                 <input
                     value={pred.over_line}
                     onChange={(e) => onLocalChange(pred.id!, 'over_line', e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 focus:border-amber-500 text-amber-500 text-center focus:ring-0 font-bold py-1 text-[11px]"
-                    placeholder="OVER"
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 text-slate-100 text-center focus:ring-0 font-mono font-bold py-1 text-[11px]"
                 />
             </td>
-            <td className="px-2 py-2 border-r border-slate-800/50">
+            <td className="px-3 py-2 border-r border-slate-800/50">
                 <input
                     value={pred.under_line}
                     onChange={(e) => onLocalChange(pred.id!, 'under_line', e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 text-rose-500 text-center focus:ring-0 font-bold py-1 text-[11px]"
-                    placeholder="UNDER"
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 text-slate-100 text-center focus:ring-0 font-mono font-bold py-1 text-[11px]"
                 />
             </td>
-            <td className="px-2 py-2 border-r border-slate-800/50 bg-slate-900/20">
+            
+            {/* === MUTAÇÃO INJETADA: HANDICAP_LINE === */}
+            <td className="px-3 py-2 border-r border-slate-800/50">
                 <input
-                    value={pred.p_combinados}
-                    onChange={(e) => onLocalChange(pred.id!, 'p_combinados', e.target.value)}
-                    className="w-full bg-transparent border-0 text-slate-100 text-center focus:ring-0 font-mono font-bold py-1 text-[11px]"
+                    value={pred.handicap_line || ''}
+                    onChange={(e) => onLocalChange(pred.id!, 'handicap_line', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 text-amber-400 text-center focus:ring-0 font-mono font-black py-1 text-[11px] uppercase tracking-tighter transition-all"
+                    placeholder="AGUARDANDO IA..."
                 />
             </td>
+            {/* ======================================= */}
+
             <td className="px-3 py-2 border-r border-slate-800/50">
                 <div className="relative">
                     <input
@@ -86,7 +88,7 @@ const PredictionRow: React.FC<PredictionRowProps> = ({
                 {!isExporting && (
                     <button
                         onClick={() => onRemove(pred.id!)}
-                        className="text-slate-700 hover:text-red-500 transition-all active:scale-90"
+                        className="text-slate-700 hover:text-red-500 transition-colors"
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
