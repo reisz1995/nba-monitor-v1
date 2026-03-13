@@ -98,7 +98,7 @@ export interface PredictionIA {
   under_line?: string;
   confidence?: number;
   prediction?: {
-    total_score?: string;
+    handicap_line?: string;
     [key: string]: any;
   };
   [key: string]: any;
