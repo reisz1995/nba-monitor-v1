@@ -157,6 +157,7 @@ export const saveMatchupAnalysis = async (teamA: Team | number, teamB: Team | nu
       key_factor: analysis.keyFactor,
       detailed_analysis: analysis.detailedAnalysis,
       sources: analysis.sources,
+      momentum_ma: analysis.momentumData,
       result: 'pending',
       created_at: new Date().toISOString()
     });

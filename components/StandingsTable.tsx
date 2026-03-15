@@ -93,29 +93,42 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ teams, selectedTeams, o
   };
 
   const renderConferenceSection = (title: string, colorClass: string, teams: Team[]) => (
-    <>
-      <div className={`px-4 md:px-6 py-2 bg-white/5 border-y border-white/10 flex items-center justify-between backdrop-blur-md`}>
+    <div className="flex flex-col border-white/10 last:border-l-0 lg:last:border-l">
+      <div className={`px-4 md:px-6 py-2 bg-white/5 border-y border-white/10 flex items-center justify-between backdrop-blur-md sticky top-0 z-10`}>
         <h4 className={`text-[10px] md:text-[11px] font-black ${colorClass} uppercase tracking-[0.2em] md:tracking-[0.3em] italic font-mono`}>{title}</h4>
         <span className="text-[8px] md:text-[9px] text-slate-500 font-black uppercase font-mono tracking-widest">{teams.length}_ENTITIES</span>
       </div>
-      {teams.map((team, idx) => renderTeamRow(team, idx))}
-    </>
+      <div className="flex flex-col">
+        {teams.map((team, idx) => renderTeamRow(team, idx))}
+      </div>
+    </div>
   );
 
   return (
     <div className="bg-black/40 backdrop-blur-xl border-2 border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col glass-morphism">
-      <div className="table-container custom-scrollbar">
+      <div className="table-container custom-scrollbar max-h-[600px] overflow-y-auto">
         <div className="w-full min-w-0">
-          <div className="hidden md:grid sticky top-0 z-20 grid-cols-12 px-6 py-4 bg-black/80 backdrop-blur-md text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/10 shadow-xl font-mono">
-            <div className="col-span-1 border-r border-white/10">#</div>
-            <div className="col-span-7 pl-4">FRANCHISE / CURRENT_FORCE</div>
-            <div className="col-span-4 text-right pr-4 border-l border-white/10 pl-4">ACTION / SEQUENCE</div>
+          <div className="hidden lg:grid sticky top-0 z-30 grid-cols-2 bg-black text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/10 font-mono">
+            <div className="grid grid-cols-12 px-6 py-3 border-r border-white/10">
+              <div className="col-span-1 border-r border-white/10">#</div>
+              <div className="col-span-7 pl-4">EAST_FORCE</div>
+              <div className="col-span-4 text-right pr-4 border-l border-white/10 pl-4">SEQUENCE</div>
+            </div>
+            <div className="grid grid-cols-12 px-6 py-3">
+              <div className="col-span-1 border-r border-white/10">#</div>
+              <div className="col-span-7 pl-4">WEST_FORCE</div>
+              <div className="col-span-4 text-right pr-4 border-l border-white/10 pl-4">SEQUENCE</div>
+            </div>
           </div>
 
-          <div className="flex flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-2">
             {lesteTeams.length > 0 && renderConferenceSection('EASTERN_CONFERENCE', 'text-indigo-400', lesteTeams)}
             {oesteTeams.length > 0 && renderConferenceSection('WESTERN_CONFERENCE', 'text-orange-400', oesteTeams)}
-            {lesteTeams.length === 0 && oesteTeams.length === 0 && teams.map((team, index) => renderTeamRow(team, index))}
+            {lesteTeams.length === 0 && oesteTeams.length === 0 && (
+              <div className="col-span-full">
+                {teams.map((team, index) => renderTeamRow(team, index))}
+              </div>
+            )}
           </div>
         </div>
       </div>

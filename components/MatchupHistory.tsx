@@ -29,6 +29,7 @@ interface AnalysisRecord {
   detailed_analysis: string;
   sources: any[];
   result: 'green' | 'red' | 'pending';
+  momentum_ma?: any;
   created_at: string;
 }
 
@@ -101,7 +102,8 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
         keyFactor: record.key_factor,
         detailedAnalysis: record.detailed_analysis,
         result: record.result,
-        sources: record.sources
+        sources: record.sources,
+        momentumData: record.momentum_ma
       };
       onViewHistory(teamA, teamB, analysis);
     }
@@ -194,9 +196,32 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
                           <span className="text-base font-black uppercase tracking-tighter leading-none mb-1">
                             {teamA?.name} <span className="text-slate-700 text-xs">VS</span> {teamB?.name}
                           </span>
-                          <span className="text-[9px] text-slate-600 font-extrabold uppercase tracking-widest flex items-center gap-2">
+                          <span className="text-[9px] text-slate-600 font-extrabold uppercase tracking-widest flex items-center gap-2 mb-2">
                             <Clock className="w-2.5 h-2.5" /> {new Date(record.created_at).toLocaleDateString('pt-BR')} {new Date(record.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </span>
+
+                          {/* Momentum Preview */}
+                          {record.momentum_ma && (
+                            <div className="flex gap-2 items-center">
+                              <div className="flex -space-x-1">
+                                {(record.momentum_ma.home_record || []).slice(-3).map((g: any, idx: number) => (
+                                  <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+                                    <span className={`text-[7px] font-black ${g.result === 'V' ? 'text-emerald-400' : 'text-rose-400'}`}>{g.result}</span>
+                                    <span className="text-[5px] text-zinc-500 leading-none">{g.score.split('-')[0]}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="w-[1px] h-4 bg-slate-800"></div>
+                              <div className="flex -space-x-1">
+                                {(record.momentum_ma.away_record || []).slice(-3).map((g: any, idx: number) => (
+                                  <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+                                    <span className={`text-[7px] font-black ${g.result === 'V' ? 'text-emerald-400' : 'text-rose-400'}`}>{g.result}</span>
+                                    <span className="text-[5px] text-zinc-500 leading-none">{g.score.split('-')[0]}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>

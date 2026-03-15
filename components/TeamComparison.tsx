@@ -271,6 +271,8 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
               {analysis?.momentumData && (
                 <div className="mt-8 relative z-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
                   <MomentumPanel
+                    teamA={teamA}
+                    teamB={teamB}
                     homeRecord={analysis.momentumData.home_record || []}
                     awayRecord={analysis.momentumData.away_record || []}
                     h2hRecord={analysis.momentumData.momentum_data?.home_vs_away || []}
