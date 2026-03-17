@@ -7,7 +7,7 @@ export const StatBar: React.FC<{ label: string; valA: number; valB: number; isPe
     const displayB = isPercent ? `${valB.toFixed(1)}%` : valB.toFixed(1);
 
     return (
-        <div className="flex flex-col gap-2 w-full font-['Space_Mono']">
+        <div aria-label="Stat Bar" className="flex flex-col gap-2 w-full font-['Space_Mono']">
             <div className="flex justify-between items-end px-1">
                 <span className="text-white font-bold text-lg">{displayA}</span>
                 <span className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">{label}</span>
@@ -26,7 +26,7 @@ export const StatBar: React.FC<{ label: string; valA: number; valB: number; isPe
 };
 
 export const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boolean; weight?: number }> = ({ name, status, isOut, weight }) => (
-    <div className={`flex items-center justify-between p-2 border-2 transition-all w-full font-['Space_Mono'] shadow-[4px_4px_0px_#000] ${isOut
+    <div aria-label="Player Card" className={`flex items-center justify-between p-2 border-2 transition-all w-full font-['Space_Mono'] shadow-[4px_4px_0px_#000] ${isOut
         ? 'bg-rose-500/10 border-rose-500 text-rose-500'
         : status
             ? 'bg-amber-500/10 border-amber-500 text-amber-500'
@@ -51,7 +51,7 @@ export const PlayerCard: React.FC<{ name: string; status?: string; isOut?: boole
 );
 
 export const AdvantageItem: React.FC<{ label: string; valA: string | number; valB: string | number; winner: 'a' | 'b' | 'none'; sub?: string }> = ({ label, valA, valB, winner, sub }) => (
-    <div className="flex flex-col border-r-4 border-white last:border-r-0 px-6 py-4 flex-1 min-w-[150px] bg-black hover:bg-zinc-900 transition-colors group relative overflow-hidden">
+    <div aria-label="Advantage Item" className="flex flex-col border-r-4 border-white last:border-r-0 px-6 py-4 flex-1 min-w-[150px] bg-black hover:bg-zinc-900 transition-colors group relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-zinc-800 group-hover:bg-indigo-500 transition-colors"></div>
         <span className="text-[9px] font-black text-zinc-500 uppercase tracking-tighter mb-6 group-hover:text-zinc-300">{label}</span>
         <div className="flex justify-between items-end mb-4">

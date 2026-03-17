@@ -11,7 +11,19 @@ export default {
             fontFamily: {
                 sans: ['Inter', 'sans-serif'],
                 mono: ['Space Mono', 'monospace'],
+                oswald: ['Oswald', 'sans-serif'],
+                bebas: ['"Bebas Neue"', 'sans-serif'],
             },
+            colors: {
+                nba: {
+                    blue: '#1D428A',
+                    red: '#C8102E',
+                    gold: '#FFD700',
+                    black: '#0A0A0A',
+                    surface: '#141414',
+                    'surface-elevated': '#1E1E1E'
+                }
+            }
         },
     },
     plugins: [],

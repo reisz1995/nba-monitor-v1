@@ -58,7 +58,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   } = useTeamComparisonData({ teamA, teamB, playerStats, unavailablePlayers, initialAnalysis });
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
+    <div aria-label="Team Comparison" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
       <div className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
 
         {/* Header */}

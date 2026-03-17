@@ -101,34 +101,34 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
     if (projections.length === 0) return null;
 
     return (
-        <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <section aria-label="market-projection" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
             <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between flex-wrap gap-6 border-b-4 border-indigo-500/30 pb-6">
+                <div className="flex items-center justify-between flex-wrap gap-6 border-b border-nba-blue/30 pb-6">
                     <div className="flex items-center gap-6">
-                        <div className="bg-indigo-600 p-3 shadow-[4px_4px_0px_0px_rgba(99,102,241,0.2)]">
+                        <div className="bg-nba-blue p-3 shadow-glow-blue">
                             <TrendingUp className="w-8 h-8 text-white" />
                         </div>
                         <div>
-                            <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter leading-none">
-                                Market <span className="text-indigo-400">Projection</span>
+                            <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter leading-none font-oswald">
+                                Market <span className="text-nba-blue">Projection</span>
                             </h3>
-                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3 flex items-center gap-2">
+                            <p className="text-nba-text-secondary text-[10px] font-black uppercase tracking-[0.4em] mt-3 flex items-center gap-2 font-oswald">
                                 <Activity className="w-3 h-3" /> algorithmic_fair_lines_v2.0
                             </p>
                         </div>
                     </div>
 
-                    <div className="hidden md:flex items-center gap-8 px-8 py-4 bg-slate-900/50 border-2 border-slate-800 rounded-sm">
+                    <div className="hidden md:flex items-center gap-8 px-8 py-4 bg-nba-surface-elevated border border-white/5 rounded-sm">
                         <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Global Pace</span>
-                            <span className="text-xl font-mono font-black text-white">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest font-oswald">Global Pace</span>
+                            <span className="text-xl font-bebas text-white">
                                 {(projections.reduce((acc, curr) => acc + Number(curr!.pace), 0) / projections.length).toFixed(1)}
                             </span>
                         </div>
-                        <div className="w-[1px] h-8 bg-slate-800" />
+                        <div className="w-[1px] h-8 bg-white/10" />
                         <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Matrix Load</span>
-                            <span className="text-xl font-mono font-black text-emerald-500">OPTIMIZED</span>
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest font-oswald">Matrix Load</span>
+                            <span className="text-xl font-bebas text-nba-success">OPTIMIZED</span>
                         </div>
                     </div>
                 </div>
@@ -136,11 +136,11 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {projections.map((proj) => (
-                    <div key={proj!.id} className="group relative bg-slate-950 border-2 border-slate-800 p-6 shadow-[15px_15px_0px_0px_rgba(0,0,0,0.3)] hover:border-indigo-500/50 transition-all">
+                    <div key={proj!.id} className="tip-card-featured p-6 group">
                         {/* Kinetic State Badge */}
-                        <div className={`absolute top-0 right-0 px-4 py-1 text-[9px] font-black uppercase tracking-widest border-l-2 border-b-2 ${proj!.state === 'HYPER_KINETIC'
-                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
-                            : 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30'
+                        <div className={`absolute top-0 right-0 px-4 py-1 text-[9px] font-black uppercase tracking-widest border-l border-b ${proj!.state === 'HYPER_KINETIC'
+                            ? 'bg-nba-red/10 text-nba-red border-nba-red/30'
+                            : 'bg-nba-blue/10 text-nba-blue border-nba-blue/30'
                             }`}>
                             {proj!.state}
                         </div>
@@ -159,9 +159,8 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                                 </div>
                             </div>
 
-                            <div className="flex flex-col items-center">
-                                <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">VS</span>
-                                <div className="h-8 w-px bg-slate-800 my-1" />
+                            <div className="flex flex-col items-center justify-center w-16">
+                                <div className="vs-divider">VS</div>
                             </div>
 
                             <div className="flex items-center gap-4 text-right group-hover:-translate-x-2 transition-transform">
@@ -179,65 +178,65 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                         </div>
 
                         {proj!.underdogValue?.hasValue && (
-                            <div className="mb-4 bg-indigo-500/10 border border-indigo-500/30 p-2 flex items-center gap-3">
-                                <Zap className="w-4 h-4 text-indigo-400" />
+                            <div className="mb-4 bg-nba-gold/10 border border-nba-gold/30 p-2 flex items-center gap-3">
+                                <Zap className="w-4 h-4 text-nba-gold" />
                                 <div className="flex flex-wrap gap-2">
                                     {proj!.underdogValue.rules.map((rule: string) => (
-                                        <span key={rule} className="text-[8px] font-black text-indigo-300 uppercase tracking-tighter bg-indigo-500/20 px-1.5 py-0.5 rounded-sm">
+                                        <span key={rule} className="text-[8px] font-black text-nba-gold/80 uppercase tracking-tighter bg-nba-gold/20 px-1.5 py-0.5 rounded-sm">
                                             {rule}
                                         </span>
                                     ))}
                                 </div>
-                                <span className="ml-auto text-[10px] font-black text-indigo-400">VALUE DETECTED</span>
+                                <span className="ml-auto text-[10px] font-black text-nba-gold">VALUE DETECTED</span>
                             </div>
                         )}
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-900/50 p-4 border border-slate-800 rounded-sm relative overflow-hidden group/item">
+                            <div className="bg-nba-surface p-4 border border-white/5 rounded-sm relative overflow-hidden group/item">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <Zap className="w-3 h-3 text-amber-500" />
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Handicap Analysis</span>
+                                    <Zap className="w-3 h-3 text-nba-gold" />
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest font-oswald">Handicap Analysis</span>
                                 </div>
                                 <div className="flex items-baseline justify-between">
                                     <div className="flex flex-col">
-                                        <span className="text-[8px] font-black text-slate-600 uppercase">Fair</span>
-                                        <span className="text-xl font-mono font-black text-white tracking-tighter">{proj!.handicap}</span>
+                                        <span className="text-[8px] font-black text-slate-500 uppercase font-inter">Fair</span>
+                                        <span className="text-xl font-bebas text-white tracking-tighter">{proj!.handicap}</span>
                                     </div>
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[8px] font-black text-slate-600 uppercase">Market</span>
-                                        <span className="text-xl font-mono font-black text-indigo-400 tracking-tighter">
+                                        <span className="text-[8px] font-black text-slate-500 uppercase font-inter">Market</span>
+                                        <span className="odds-display text-xl tracking-tighter text-nba-blue shadow-none" style={{textShadow: 'none'}}>
                                             {proj!.marketSpread !== undefined ? (proj!.marketSpread! > 0 ? `+${proj!.marketSpread}` : proj!.marketSpread) : '--'}
                                         </span>
                                     </div>
                                 </div>
                                 {proj!.spreadEdge && (
-                                    <div className={`mt-2 flex items-center gap-1 text-[10px] font-black ${Number(proj!.spreadEdge) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {Number(proj!.spreadEdge) > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                    <div className={`mt-2 ${Number(proj!.spreadEdge) > 0 ? 'trend-up' : 'trend-down'} text-[12px]`}>
+                                        {Number(proj!.spreadEdge) > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                                         EDGE: {Math.abs(Number(proj!.spreadEdge))} PTS
                                     </div>
                                 )}
                             </div>
 
-                            <div className="bg-slate-900/50 p-4 border border-slate-800 rounded-sm relative overflow-hidden group/item">
+                            <div className="bg-nba-surface p-4 border border-white/5 rounded-sm relative overflow-hidden group/item">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <Target className="w-3 h-3 text-indigo-500" />
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">O/U Analysis</span>
+                                    <Target className="w-3 h-3 text-nba-blue" />
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest font-oswald">O/U Analysis</span>
                                 </div>
                                 <div className="flex items-baseline justify-between">
                                     <div className="flex flex-col">
-                                        <span className="text-[8px] font-black text-slate-600 uppercase">Fair</span>
-                                        <span className="text-xl font-mono font-black text-white tracking-tighter">{proj!.total}</span>
+                                        <span className="text-[8px] font-black text-slate-500 uppercase font-inter">Fair</span>
+                                        <span className="text-xl font-bebas text-white tracking-tighter">{proj!.total}</span>
                                     </div>
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[8px] font-black text-slate-600 uppercase">Market</span>
-                                        <span className="text-xl font-mono font-black text-indigo-400 tracking-tighter">
+                                        <span className="text-[8px] font-black text-slate-500 uppercase font-inter">Market</span>
+                                        <span className="odds-display text-xl tracking-tighter text-nba-blue shadow-none" style={{textShadow: 'none'}}>
                                             {proj!.marketTotal || '--'}
                                         </span>
                                     </div>
                                 </div>
                                 {proj!.totalEdge && (
-                                    <div className={`mt-2 flex items-center gap-1 text-[10px] font-black ${Number(proj!.totalEdge) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {Number(proj!.totalEdge) > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                    <div className={`mt-2 ${Number(proj!.totalEdge) > 0 ? 'trend-up' : 'trend-down'} text-[12px]`}>
+                                        {Number(proj!.totalEdge) > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                                         EDGE: {Math.abs(Number(proj!.totalEdge))} PTS
                                     </div>
                                 )}
@@ -245,30 +244,30 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-4">
-                            <div className="bg-slate-900/30 p-2 border border-slate-800/50 rounded-sm flex justify-between items-center">
+                            <div className="bg-nba-surface-elevated p-2 border border-white/5 rounded-sm flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <Activity className="w-3 h-3 text-slate-600" />
-                                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Pace</span>
+                                    <Activity className="w-3 h-3 text-nba-text-secondary" />
+                                    <span className="text-[8px] font-black text-nba-text-secondary uppercase tracking-widest font-oswald">Pace</span>
                                 </div>
-                                <span className="text-xs font-mono font-black text-slate-400">{proj!.pace}</span>
+                                <span className="text-sm font-bebas text-slate-300">{proj!.pace}</span>
                             </div>
-                            <div className="bg-slate-900/30 p-2 border border-slate-800/50 rounded-sm flex justify-between items-center">
+                            <div className="bg-nba-surface-elevated p-2 border border-white/5 rounded-sm flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <Zap className="w-3 h-3 text-slate-600" />
-                                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Matrix</span>
+                                    <Zap className="w-3 h-3 text-nba-text-secondary" />
+                                    <span className="text-[8px] font-black text-nba-text-secondary uppercase tracking-widest font-oswald">Matrix</span>
                                 </div>
-                                <span className="text-xs font-mono font-black text-slate-400">{proj!.state}</span>
+                                <span className="text-xs font-oswald font-black text-slate-300">{proj!.state}</span>
                             </div>
                         </div>
 
-                        <div className="mt-6 flex items-center justify-between px-2 pt-4 border-t border-slate-800/50">
+                        <div className="mt-6 flex items-center justify-between px-2 pt-4 border-t border-white/5">
                             <div className="flex items-center gap-2">
-                                <Info className="w-3 h-3 text-slate-600" />
-                                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none">
+                                <Info className="w-3 h-3 text-nba-text-secondary" />
+                                <span className="text-[9px] font-black text-nba-text-secondary uppercase tracking-widest leading-none font-oswald">
                                     Projeção: {proj!.projHome} - {proj!.projAway}
                                 </span>
                             </div>
-                            <div className="text-[9px] font-black text-indigo-500/50 uppercase tracking-widest">
+                            <div className="text-[9px] font-black text-nba-blue/50 uppercase tracking-widest font-oswald">
                                 Deterministic Engine v2.0
                             </div>
                         </div>
