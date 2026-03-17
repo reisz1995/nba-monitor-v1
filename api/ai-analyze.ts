@@ -1,7 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
-// Server-side only — never sent to the browser bundle.
-// GEMINI_API_KEY (no VITE_ prefix) is read from process.env at runtime.
 const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub". Operação estrita, brutalista e puramente matemática. Não narre jogos. Emita sentenças técnicas e frias.
 
 DIRETRIZES ESTRATÉGICAS UNIFICADAS (MATRIZ V3.0):
@@ -52,20 +50,41 @@ const INSIGHTS_SCHEMA = {
     },
 };
 
+/** Reads full body from a Node.js IncomingMessage stream if req.body is unavailable. */
+async function parseBody(req: any): Promise<any> {
+    // Vercel with Next.js runtime parses automatically; raw Node runtime does not.
+    if (req.body !== undefined) return req.body;
+
+    return new Promise((resolve, reject) => {
+        let raw = '';
+        req.on('data', (chunk: Buffer) => { raw += chunk.toString(); });
+        req.on('end', () => {
+            try { resolve(JSON.parse(raw)); } catch { resolve({}); }
+        });
+        req.on('error', reject);
+    });
+}
+
 export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Método não permitido.' });
     }
 
+    // Guard: API key must be present (server-side only)
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        console.error('[ai-analyze] GEMINI_API_KEY não configurada no ambiente servidor.');
-        return res.status(500).json({ error: 'Configuração do servidor incompleta.' });
+        console.error('[ai-analyze] FATAL: GEMINI_API_KEY ausente. Configure em Vercel → Settings → Environment Variables.');
+        return res.status(500).json({
+            error: 'Configuração do servidor incompleta.',
+            hint: 'GEMINI_API_KEY não encontrada nas variáveis de ambiente do servidor.',
+        });
     }
 
-    const { mode, prompt } = req.body ?? {};
+    const body = await parseBody(req);
+    const { mode, prompt } = body ?? {};
+
     if (!mode || !prompt) {
-        return res.status(400).json({ error: 'Campos obrigatórios: mode, prompt.' });
+        return res.status(400).json({ error: 'Campos obrigatórios ausentes: mode, prompt.' });
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -89,7 +108,15 @@ export default async function handler(req: any, res: any) {
 
         return res.status(200).json({ text: response.text });
     } catch (error: any) {
-        console.error('[ai-analyze] Falha na inferência:', error);
-        return res.status(500).json({ error: 'Colapso na inferência do motor IA.', details: error.message });
+        // Log full error server-side for Vercel function logs
+        console.error('[ai-analyze] Falha na inferência:', {
+            message: error.message,
+            status: error.status,
+            stack: error.stack?.slice(0, 500),
+        });
+        return res.status(500).json({
+            error: 'Colapso na inferência do motor IA.',
+            details: error.message,
+        });
     }
 }
