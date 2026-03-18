@@ -1,4 +1,14 @@
 import { GoogleGenAI, Type } from '@google/genai';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+// Initialize Upstash Redis for Rate Limiting
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, '1 m'), // 10 requests per minute per IP
+  analytics: true,
+  prefix: 'nba_monitor_ratelimit',
+});
 
 const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub". Operação estrita, brutalista e puramente matemática. Não narre jogos. Emita sentenças técnicas e frias.
 
@@ -68,6 +78,19 @@ async function parseBody(req: any): Promise<any> {
 export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Método não permitido.' });
+    }
+
+    // Rate limiting
+    const identifier = req.headers['x-forwarded-for'] || 'anonymous';
+    const { success, limit, remaining } = await ratelimit.limit(identifier as string);
+    
+    res.setHeader('X-RateLimit-Limit', limit.toString());
+    res.setHeader('X-RateLimit-Remaining', remaining.toString());
+    
+    if (!success) {
+        return res.status(429).json({ 
+            error: 'Limite de requisições excedido. Tente novamente em 1 minuto.' 
+        });
     }
 
     // Guard: API key must be present (server-side only)

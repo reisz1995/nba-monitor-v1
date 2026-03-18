@@ -131,12 +131,20 @@ export const getPlayerWeight = (pts: number): number => Math.floor((pts || 0) / 
  */
 export const findTeamByName = (name: string, teams: any[]): any | null => {
     if (!name) return null;
-    const clean = name.toLowerCase().trim();
+    const clean = normalizeTeamName(name);
     return teams.find(t =>
-        t.name.toLowerCase() === clean ||
-        t.name.toLowerCase().includes(clean) ||
-        clean.includes(t.name.toLowerCase())
+        normalizeTeamName(t.name) === clean ||
+        normalizeTeamName(t.name).includes(clean) ||
+        clean.includes(normalizeTeamName(t.name))
     );
+};
+
+/**
+ * Normaliza o nome do time (remove acentos e espaços extras).
+ */
+export const normalizeTeamName = (name: string): string => {
+    if (!name) return '';
+    return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 };
 
 /**

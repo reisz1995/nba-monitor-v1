@@ -1,13 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { Team, MatchupAnalysis } from './types';
 import StandingsTable from './components/StandingsTable';
-import TeamComparison from './components/TeamComparison';
+import StandingsSkeleton from './components/skeletons/StandingsSkeleton';
 import ESPNTable from './components/ESPNTable';
 import Scoreboard from './components/Scoreboard';
 import UnavailablePlayers from './components/UnavailablePlayers';
-import MatchupHistory from './components/MatchupHistory';
 import TipsDashboard from './components/TipsDashboard';
+
+const TeamComparison = lazy(() => import('./components/TeamComparison'));
+const MatchupHistory = lazy(() => import('./components/MatchupHistory'));
 
 import { useNBAData } from './hooks/useNBAData';
 import { Toaster } from 'sonner';
@@ -103,7 +105,7 @@ const App: React.FC = () => {
               </div>
 
               {loading.teams && teams.length === 0 ? (
-                <div className="h-64 bg-nba-surface animate-pulse rounded-sm border border-nba-surface-elevated" />
+                <StandingsSkeleton />
               ) : (
                 <div className="space-y-16">
                   <section>
@@ -166,34 +168,40 @@ const App: React.FC = () => {
             dbPredictions={dbPredictions}
           />
         ) : (
-          <MatchupHistory
-            teams={teams}
-            onViewHistory={handleViewHistory}
-          />
+          <Suspense fallback={<div className="h-64 bg-nba-surface animate-pulse border border-nba-surface-elevated rounded-sm" />}>
+            <MatchupHistory
+              teams={teams}
+              onViewHistory={handleViewHistory}
+            />
+          </Suspense>
         )}
       </main>
 
 
 
       {comparisonTeams && (
-        <TeamComparison
-          teamA={comparisonTeams.teamA}
-          teamB={comparisonTeams.teamB}
-          playerStats={playerStats}
-          unavailablePlayers={unavailablePlayers}
-          onClose={() => setSelectedTeamIds([])}
-        />
+        <Suspense fallback={<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center"><div className="w-16 h-16 border-4 border-nba-blue/30 border-t-nba-blue rounded-full animate-spin" /></div>}>
+          <TeamComparison
+            teamA={comparisonTeams.teamA}
+            teamB={comparisonTeams.teamB}
+            playerStats={playerStats}
+            unavailablePlayers={unavailablePlayers}
+            onClose={() => setSelectedTeamIds([])}
+          />
+        </Suspense>
       )}
 
       {historySelection && (
-        <TeamComparison
-          teamA={historySelection.teamA}
-          teamB={historySelection.teamB}
-          playerStats={playerStats}
-          unavailablePlayers={unavailablePlayers}
-          initialAnalysis={historySelection.analysis}
-          onClose={() => setHistorySelection(null)}
-        />
+        <Suspense fallback={<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center"><div className="w-16 h-16 border-4 border-nba-blue/30 border-t-nba-blue rounded-full animate-spin" /></div>}>
+          <TeamComparison
+            teamA={historySelection.teamA}
+            teamB={historySelection.teamB}
+            playerStats={playerStats}
+            unavailablePlayers={unavailablePlayers}
+            initialAnalysis={historySelection.analysis}
+            onClose={() => setHistorySelection(null)}
+          />
+        </Suspense>
       )}
       <Toaster position="top-right" theme="dark" richColors />
     </div>

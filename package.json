@@ -8,27 +8,36 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --experimental-vm-modules node_modules/.bin/vitest run",
-    "test:ui": "node --experimental-vm-modules node_modules/.bin/vitest --ui"
+    "test:ui": "node --experimental-vm-modules node_modules/.bin/vitest --ui",
+    "check-contrast": "node scripts/check-contrast.js"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
+    "@sentry/react": "^10.44.0",
+    "@sentry/tracing": "^7.120.4",
     "@supabase/supabase-js": "^2.48.1",
     "@types/react-router-dom": "^5.3.3",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "cheerio": "^1.2.0",
     "dotenv": "^17.3.1",
     "html-to-image": "^1.11.11",
     "lucide-react": "^0.574.0",
+    "polished": "^4.3.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.13.1",
+    "react-window": "^2.2.7",
     "sonner": "^2.0.7",
-    "swr": "^2.2.5"
+    "swr": "^2.2.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.14.0",
+    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.27",

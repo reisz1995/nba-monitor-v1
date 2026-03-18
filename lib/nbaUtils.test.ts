@@ -1,7 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import { getMomentumScore, parseStreakToRecord, calculateDeterministicPace, calculateUnderdogValue } from './nbaUtils';
+import { getMomentumScore, parseStreakToRecord, calculateDeterministicPace, calculateUnderdogValue, normalizeTeamName } from './nbaUtils';
+import { GameResultSchema, TeamSchema } from './schemas';
 
 describe('nbaUtils', () => {
+    describe('Runtime Validation', () => {
+        it('should reject invalid game result', () => {
+            const result = GameResultSchema.safeParse('X'); // Invalid
+            expect(result.success).toBe(false);
+        });
+
+        it('should handle corrupted Supabase data gracefully', () => {
+            const corruptedData = { id: 'not-a-number', name: 123 }; // Tipos errados
+            const result = TeamSchema.safeParse(corruptedData);
+            expect(result.success).toBe(false);
+        });
+    });
+
+    describe('Edge Cases in Parsing', () => {
+        it('should handle empty streak string', () => {
+            expect(parseStreakToRecord('')).toBeNull();
+        });
+
+        it('should handle international characters in team names', () => {
+            const teamName = 'São Paulo Basketball'; // Acentos
+            const normalized = normalizeTeamName(teamName);
+            expect(normalized).toBeDefined();
+            expect(normalized).toBe('sao paulo basketball');
+        });
+    });
+
     describe('getMomentumScore', () => {
         it('should calculate higher score for more recent wins', () => {
             // Recent win is better than older win

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { GameResult } from '../types';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface MomentumBarProps {
   record: GameResult[];
@@ -9,6 +10,7 @@ interface MomentumBarProps {
 }
 
 const MomentumBar: React.FC<MomentumBarProps> = ({ record, className = "", showLabel = false }) => {
+  const reducedMotion = useReducedMotion();
   const lastFive = record || [];
   let streakCount = 0;
   const lastResultObj = lastFive[lastFive.length - 1];
@@ -66,7 +68,7 @@ const MomentumBar: React.FC<MomentumBarProps> = ({ record, className = "", showL
       {/* Main Intensity Bar */}
       <div className="h-2 w-full bg-black/40 border border-white/10 rounded-sm glass-morphism overflow-hidden">
         <div
-          className={`h-full w-full transition-all duration-700 ${intensityColor}`}
+          className={`h-full w-full ${intensityColor} ${reducedMotion ? '' : 'transition-all duration-700'}`}
           style={glowStyle}
         />
       </div>

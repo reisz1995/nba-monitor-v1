@@ -19,19 +19,7 @@ interface MatchupHistoryProps {
   onViewHistory: (teamA: Team, teamB: Team, analysis: MatchupAnalysis) => void;
 }
 
-interface AnalysisRecord {
-  id: number;
-  team_a_id: number;
-  team_b_id: number;
-  winner: string;
-  confidence: number;
-  key_factor: string;
-  detailed_analysis: string;
-  sources: any[];
-  result: 'green' | 'red' | 'pending';
-  momentum_ma?: any;
-  created_at: string;
-}
+import VirtualizedTable, { AnalysisRecord } from './VirtualizedTable';
 
 const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory }) => {
   const [records, setRecords] = useState<AnalysisRecord[]>([]);
@@ -149,144 +137,24 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
 
       {/* HISTORY TABLE */}
       <div className="bg-slate-950 border-2 border-slate-800 overflow-x-auto shadow-[12px_12px_0px_0px_rgba(0,0,0,0.4)]">
-        <table className="w-full text-left border-collapse min-w-[900px]">
-          <thead>
-            <tr className="bg-slate-900/80 backdrop-blur-md text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b-2 border-slate-800">
-              <th className="px-6 py-4">CONFRONTATION</th>
-              <th className="px-6 py-4">AI SELECTION</th>
-              <th className="px-6 py-4 text-center">RESULT</th>
-              <th className="px-6 py-4 text-center">CONFIDENCE</th>
-              <th className="px-6 py-4 text-center">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="py-20 text-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <Zap className="w-8 h-8 text-indigo-500 animate-pulse" />
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-500">Decrypting Archives...</span>
-                  </div>
-                </td>
-              </tr>
-            ) : records.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="py-20 text-center italic text-slate-700 uppercase font-black tracking-widest text-xs">
-                  No analysis records found in database.
-                </td>
-              </tr>
-            ) : (
-              records.map((record) => {
-                const teamA = getTeam(record.team_a_id);
-                const teamB = getTeam(record.team_b_id);
-
-                return (
-                  <tr key={record.id} onClick={() => handleItemClick(record)} className="border-b border-slate-900 hover:bg-white/[0.02] transition-all group cursor-pointer">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-5">
-                        <div className="flex items-center -space-x-4">
-                          <div className="w-12 h-12 bg-slate-900 border-2 border-slate-800 p-2 transform -rotate-3 group-hover:rotate-0 transition-transform shadow-lg overflow-hidden flex items-center justify-center">
-                            <img src={teamA?.logo} className="max-w-full max-h-full object-contain" alt="" />
-                          </div>
-                          <div className="w-12 h-12 bg-slate-900 border-2 border-slate-800 p-2 transform rotate-6 group-hover:rotate-0 transition-transform shadow-lg z-10 overflow-hidden flex items-center justify-center">
-                            <img src={teamB?.logo} className="max-w-full max-h-full object-contain" alt="" />
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-base font-black uppercase tracking-tighter leading-none mb-1">
-                            {teamA?.name} <span className="text-slate-700 text-xs">VS</span> {teamB?.name}
-                          </span>
-                          <span className="text-[9px] text-slate-600 font-extrabold uppercase tracking-widest flex items-center gap-2 mb-2">
-                            <Clock className="w-2.5 h-2.5" /> {new Date(record.created_at).toLocaleDateString('pt-BR')} {new Date(record.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-
-                          {/* Momentum Preview */}
-                          {record.momentum_ma && (
-                            <div className="flex gap-2 items-center">
-                              <div className="flex -space-x-1">
-                                {(record.momentum_ma.home_record || []).slice(-3).map((g: any, idx: number) => (
-                                  <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
-                                    <span className={`text-[7px] font-black ${g.result === 'V' ? 'text-emerald-400' : 'text-rose-400'}`}>{g.result}</span>
-                                    <span className="text-[5px] text-zinc-500 leading-none">{g.score.split('-')[0]}</span>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="w-[1px] h-4 bg-slate-800"></div>
-                              <div className="flex -space-x-1">
-                                {(record.momentum_ma.away_record || []).slice(-3).map((g: any, idx: number) => (
-                                  <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
-                                    <span className={`text-[7px] font-black ${g.result === 'V' ? 'text-emerald-400' : 'text-rose-400'}`}>{g.result}</span>
-                                    <span className="text-[5px] text-zinc-500 leading-none">{g.score.split('-')[0]}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1 max-w-[320px]">
-                        <span className="text-sm font-black text-indigo-400 italic uppercase leading-none border-l-2 border-indigo-500/30 pl-3">
-                          {record.winner}
-                        </span>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase leading-tight pl-3 line-clamp-2">
-                          {record.key_factor}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={(e) => updateStatus(e, record.id, 'green')}
-                          className={`w-10 h-10 border-2 transition-all flex items-center justify-center ${record.result === 'green'
-                            ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]'
-                            : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-emerald-500/50'
-                            }`}
-                        >
-                          <CheckCircle2 className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={(e) => updateStatus(e, record.id, 'red')}
-                          className={`w-10 h-10 border-2 transition-all flex items-center justify-center ${record.result === 'red'
-                            ? 'bg-rose-600/20 border-rose-500 text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.3)]'
-                            : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-rose-500/50'
-                            }`}
-                        >
-                          <XCircle className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={(e) => updateStatus(e, record.id, 'pending')}
-                          className={`w-10 h-10 border-2 transition-all flex items-center justify-center ${record.result === 'pending'
-                            ? 'bg-amber-600/20 border-amber-500 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)]'
-                            : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-amber-500/50'
-                            }`}
-                        >
-                          <Clock className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="inline-block px-3 py-1 bg-slate-900 border border-slate-800 rounded-sm">
-                        <span className="text-base font-black text-white italic">
-                          {record.confidence}<span className="text-[10px] text-slate-600 not-italic ml-0.5 font-sans">%</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={(e) => deleteRecord(e, record.id)}
-                        className="p-2 text-slate-800 hover:text-rose-500 transition-colors transform hover:scale-110"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+        {loading ? (
+          <div className="py-20 text-center flex flex-col items-center gap-4">
+            <Zap className="w-8 h-8 text-indigo-500 animate-pulse" />
+            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Decrypting Archives...</span>
+          </div>
+        ) : (records.length === 0 || teams.length === 0) ? (
+          <div className="py-20 text-center italic text-slate-700 uppercase font-black tracking-widest text-xs">
+            {records.length === 0 ? "No analysis records found in database." : "Waiting for team data integrity..."}
+          </div>
+        ) : (
+          <VirtualizedTable
+            records={records}
+            teams={teams}
+            onItemClick={handleItemClick}
+            onUpdateStatus={updateStatus}
+            onDeleteRecord={deleteRecord}
+          />
+        )}
       </div>
 
     </div>

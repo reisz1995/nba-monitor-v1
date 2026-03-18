@@ -1,52 +1,14 @@
+import { Team as TeamValidated, GameRecordData as GameRecordDataValidated, PlayerStat as PlayerStatValidated } from './lib/schemas';
+
 // 1. Definição estrita da nova matriz temporal
 export type GameResult = 'V' | 'D';
 
-export interface GameRecordData {
-  date: string;
-  opponent?: string;
-  result: GameResult;
-  score: string;
-}
+export type GameRecordData = GameRecordDataValidated;
 
 // 2. Mutações na interface da Franquia
-export interface Team {
-  id: number;
-  name: string;
-  logo: string;
-  // A injeção do 'any' atua como dissipador térmico durante o parsing do Supabase
-  record: GameRecordData[] | any;
-  wins: number;
-  losses: number;
-  conference: 'East' | 'West';
-  ai_score?: number;
-  stats?: {
-    media_pontos_ataque: number;
-    media_pontos_defesa: number;
-    aproveitamento: number;
-    ultimos_5_espn?: string;
-    ai_score?: number;
-  };
-  espnData?: ESPNData;
-  tanking?: boolean;
-}
+export type Team = TeamValidated; // ✅ Type-safe com runtime validation
 
-export interface PlayerStat {
-  id: number;
-  nome: string;
-  time: string;
-  posicao?: string;
-  pontos: number;
-  rebotes: number;
-  assistencias: number;
-  min?: string;
-  created_at?: string;
-  player_name?: string;
-  team_name?: string;
-  position?: string;
-  pts?: number;
-  reb?: number;
-  ast?: number;
-}
+export type PlayerStat = PlayerStatValidated;
 
 export interface PalpiteData {
   id?: number;
