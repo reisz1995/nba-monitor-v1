@@ -1,9 +1,8 @@
 import React, { memo } from 'react';
-import { List } from 'react-window';
+import { List, RowComponentProps } from 'react-window';
 import { Team } from '../types';
 import { Clock, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 
-// Extract AnalysisRecord from MatchupHistory
 export interface AnalysisRecord {
   id: number;
   team_a_id: number;
@@ -43,8 +42,17 @@ const HistoryRow = memo(({
   onDeleteRecord: (e: React.MouseEvent, id: number) => void;
   style: React.CSSProperties;
 }) => {
-  const teamA = teams.find(t => t.id === record.team_a_id);
-  const teamB = teams.find(t => t.id === record.team_b_id);
+  // ✅ Proteção crucial no início
+  if (!record || !Array.isArray(teams)) {
+    return <div style={style} className="h-full bg-slate-950/50" />;
+  }
+
+  const teamA = teams.find(t => t?.id === record.team_a_id);
+  const teamB = teams.find(t => t?.id === record.team_b_id);
+
+  if (!teamA || !teamB) {
+    return <div style={style} className="h-full bg-slate-950/50" />;
+  }
 
   return (
     <div
@@ -69,23 +77,27 @@ const HistoryRow = memo(({
             <Clock className="w-2.5 h-2.5" /> {new Date(record.created_at).toLocaleDateString('pt-BR')} {new Date(record.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </span>
 
-          {record.momentum_ma && (
+          {record.momentum_ma && typeof record.momentum_ma === 'object' && !Array.isArray(record.momentum_ma) && (
             <div className="flex gap-2 items-center">
               <div className="flex -space-x-1">
                 {(record.momentum_ma.home_record || []).slice(-3).map((g: any, idx: number) => (
-                  <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
-                    <span className={`text-[7px] font-black font-mono ${g.result === 'V' ? 'text-emerald-400' : 'text-rose-400'}`}>{g.result}</span>
-                    <span className="text-[5px] text-zinc-500 leading-none font-mono">{g.score.split('-')[0]}</span>
-                  </div>
+                  g && (
+                    <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+                      <span className={`text-[7px] font-black font-mono ${g.result === 'V' ? 'text-emerald-400' : 'text-rose-400'}`}>{g.result || '?'}</span>
+                      <span className="text-[5px] text-zinc-500 leading-none font-mono">{g.score?.split('-')[0] || '-'}</span>
+                    </div>
+                  )
                 ))}
               </div>
               <div className="w-[1px] h-4 bg-slate-800"></div>
               <div className="flex -space-x-1">
                 {(record.momentum_ma.away_record || []).slice(-3).map((g: any, idx: number) => (
-                  <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
-                    <span className={`text-[7px] font-black font-mono ${g.result === 'V' ? 'text-emerald-400' : 'text-rose-400'}`}>{g.result}</span>
-                    <span className="text-[5px] text-zinc-500 leading-none font-mono">{g.score.split('-')[0]}</span>
-                  </div>
+                  g && (
+                    <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+                      <span className={`text-[7px] font-black font-mono ${g.result === 'V' ? 'text-emerald-400' : 'text-rose-400'}`}>{g.result || '?'}</span>
+                      <span className="text-[5px] text-zinc-500 leading-none font-mono">{g.score?.split('-')[0] || '-'}</span>
+                    </div>
+                  )
                 ))}
               </div>
             </div>
@@ -155,20 +167,20 @@ const HistoryRow = memo(({
          prevProps.record.result === nextProps.record.result;
 });
 
-interface VirtualizedRowProps {
-  index: number;
-  style: React.CSSProperties;
-  data: {
-    records: AnalysisRecord[];
-    teams: Team[];
-    onItemClick: (record: AnalysisRecord) => void;
-    onUpdateStatus: (e: React.MouseEvent, id: number, status: 'green' | 'red' | 'pending') => void;
-    onDeleteRecord: (e: React.MouseEvent, id: number) => void;
-  };
+interface RowData {
+  records: AnalysisRecord[];
+  teams: Team[];
+  onItemClick: (record: AnalysisRecord) => void;
+  onUpdateStatus: (e: React.MouseEvent, id: number, status: 'green' | 'red' | 'pending') => void;
+  onDeleteRecord: (e: React.MouseEvent, id: number) => void;
 }
 
-const Row = memo(({ index, style, data }: VirtualizedRowProps) => {
-  const { records, teams, onItemClick, onUpdateStatus, onDeleteRecord } = data;
+const Row = memo(({ index, style, records, teams, onItemClick, onUpdateStatus, onDeleteRecord }: RowComponentProps<RowData>) => {
+  // ✅ Proteção contra arrays inválidos
+  if (!Array.isArray(records) || !Array.isArray(teams)) {
+    return null;
+  }
+  
   const record = records[index];
 
   if (!record) return null;
@@ -195,13 +207,22 @@ const VirtualizedTable = memo(({
   height = 600
 }: VirtualizedTableProps) => {
   
-  const itemData = React.useMemo(() => ({
-    records,
-    teams,
+  // ✅ Garantir arrays válidos
+  const safeRecords = Array.isArray(records) ? records : [];
+  const safeTeams = Array.isArray(teams) ? teams : [];
+  
+  const rowProps = React.useMemo(() => ({
+    records: safeRecords,
+    teams: safeTeams,
     onItemClick,
     onUpdateStatus,
     onDeleteRecord
-  }), [records, teams, onItemClick, onUpdateStatus, onDeleteRecord]);
+  }), [safeRecords, safeTeams, onItemClick, onUpdateStatus, onDeleteRecord]);
+
+  // ✅ Proteção: não renderizar List se dados inválidos
+  if (!Array.isArray(records) || !Array.isArray(teams)) {
+    return <div className="py-20 text-center text-slate-500">Carregando dados...</div>;
+  }
 
   return (
     <div className="w-full min-w-[900px]">
@@ -214,14 +235,13 @@ const VirtualizedTable = memo(({
       </div>
       <List
         height={height}
-        itemCount={records.length}
-        itemSize={rowHeight}
-        width={900} // Usando número para garantir compatibilidade, o container pai tem overflow-x-auto
-        itemData={itemData}
+        rowCount={safeRecords.length}
+        rowHeight={rowHeight}
+        width={900}
+        rowProps={rowProps}
+        rowComponent={Row}
         className="custom-scrollbar"
-      >
-        {Row}
-      </List>
+      />
     </div>
   );
 });

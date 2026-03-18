@@ -142,9 +142,13 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
             <Zap className="w-8 h-8 text-indigo-500 animate-pulse" />
             <span className="text-xs font-black uppercase tracking-widest text-slate-500">Decrypting Archives...</span>
           </div>
-        ) : (!Array.isArray(records) || records.length === 0 || !Array.isArray(teams) || teams.length === 0) ? (
+        ) : !Array.isArray(records) || records.length === 0 ? (
           <div className="py-20 text-center italic text-slate-700 uppercase font-black tracking-widest text-xs">
-            {records.length === 0 ? "No analysis records found in database." : "Waiting for team data integrity..."}
+            No analysis records found in database.
+          </div>
+        ) : !Array.isArray(teams) || teams.length === 0 ? (
+          <div className="py-20 text-center italic text-slate-700 uppercase font-black tracking-widest text-xs">
+            Waiting for team data integrity...
           </div>
         ) : (
           <VirtualizedTable
