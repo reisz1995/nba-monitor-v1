@@ -186,8 +186,8 @@ const Row = memo(({ index, style, data }: VirtualizedRowProps) => {
 });
 
 const VirtualizedTable = memo(({
-  records,
-  teams,
+  records = [],
+  teams = [],
   onItemClick,
   onUpdateStatus,
   onDeleteRecord,

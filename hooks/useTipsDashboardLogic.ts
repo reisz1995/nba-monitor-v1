@@ -63,7 +63,7 @@ export const useTipsDashboardLogic = ({ teams, tipsDateInitial }: UseTipsDashboa
     const handleSaveAllNotas = async () => {
         setIsSavingNotas(true);
         try {
-            const entries = Object.entries(tierScores);
+            const entries = Object.entries(tierScores || {});
             for (const [franquia, nota_ia] of entries) {
                 const existing = dbNotas.find(n => n.franquia === franquia);
                 if (existing) {

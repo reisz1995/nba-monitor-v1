@@ -70,10 +70,10 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
   const getTeam = (id: number) => teams.find(t => t.id === id);
 
   const stats = {
-    total: records.length,
-    green: records.filter(r => r.result === 'green').length,
-    red: records.filter(r => r.result === 'red').length,
-    pending: records.filter(r => r.result === 'pending').length,
+    total: Array.isArray(records) ? records.length : 0,
+    green: Array.isArray(records) ? records.filter(r => r.result === 'green').length : 0,
+    red: Array.isArray(records) ? records.filter(r => r.result === 'red').length : 0,
+    pending: Array.isArray(records) ? records.filter(r => r.result === 'pending').length : 0,
   };
 
   const winRate = stats.green + stats.red > 0
@@ -91,7 +91,7 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
         detailedAnalysis: record.detailed_analysis,
         result: record.result,
         sources: record.sources,
-        momentumData: record.momentum_ma
+        momentumData: record.momentum_ma || {} // ✅ Falback de segurança
       };
       onViewHistory(teamA, teamB, analysis);
     }
@@ -142,7 +142,7 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
             <Zap className="w-8 h-8 text-indigo-500 animate-pulse" />
             <span className="text-xs font-black uppercase tracking-widest text-slate-500">Decrypting Archives...</span>
           </div>
-        ) : (records.length === 0 || teams.length === 0) ? (
+        ) : (!Array.isArray(records) || records.length === 0 || !Array.isArray(teams) || teams.length === 0) ? (
           <div className="py-20 text-center italic text-slate-700 uppercase font-black tracking-widest text-xs">
             {records.length === 0 ? "No analysis records found in database." : "Waiting for team data integrity..."}
           </div>
