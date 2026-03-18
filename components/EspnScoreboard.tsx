@@ -110,8 +110,8 @@ const EspnScoreboard: React.FC = () => {
                 ) : (
                     games.map(game => {
                         const comp = game.competitions[0];
-                        const home = comp.competitors.find(c => c.homeAway === 'home');
-                        const away = comp.competitors.find(c => c.homeAway === 'away');
+                        const home = comp?.competitors.find(c => c.homeAway === 'home');
+                        const away = comp?.competitors.find(c => c.homeAway === 'away');
                         const isCompleted = game.status.type.completed;
                         const isLive = game.status.type.state === 'in';
 

@@ -120,7 +120,7 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
     const streakMatch = streakStr.match(/([WL])(\d+)/);
     if (streakMatch) {
       const type = streakMatch[1];
-      const count = Math.min(parseInt(streakMatch[2], 10), 5);
+      const count = Math.min(parseInt(streakMatch[2] || '0', 10), 5);
       const result: GameResult = (type === 'W' || type === 'V') ? 'V' : 'D';
       const opposite: GameResult = result === 'V' ? 'D' : 'V';
       games = new Array(5).fill(opposite);
@@ -147,7 +147,7 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
     );
   };
 
-  const findTeamStats = (espnTeamName: string | undefined) => {
+  const findTeamStats = (espnTeamName: string | null | undefined) => {
     if (!espnTeamName) return null;
     return teams.find(t =>
       t.name.toLowerCase() === espnTeamName.toLowerCase() ||
@@ -157,6 +157,7 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
 
   const dynamicColumns = useMemo(() => {
     if (data.length === 0) return [];
+    if (data.length === 0 || !data[0]) return [];
     const keys = Object.keys(data[0]).filter(key => !['id', 'created_at'].includes(key));
     const priority = ['time', 'nome', 'equipe', 'vitorias', 'derrotas', 'aproveitamento', 'ultimos_5'];
     const otherKeys = keys.filter(k => !priority.includes(k));

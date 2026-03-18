@@ -133,8 +133,8 @@ export default async function handler(req: any, res: any) {
                 // 4. Build game objects (pairs: away[i], home[i+1])
                 const games: any[] = [];
                 for (let i = 0; i + 1 < allTeams.length; i += 2) {
-                    const awayTeam = normalizeTeamName(allTeams[i]);
-                    const homeTeam = normalizeTeamName(allTeams[i + 1]);
+                    const awayTeam = normalizeTeamName(allTeams[i] || '');
+                    const homeTeam = normalizeTeamName(allTeams[i + 1] || '');
                     const matchup = `${awayTeam} @ ${homeTeam}`;
 
                     games.push({

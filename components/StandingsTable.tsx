@@ -73,7 +73,7 @@ const TeamRow = memo(({
             />
           </div>
 
-          <MomentumBar record={record} className="w-8 md:w-10" />
+          <MomentumBar record={record as GameResult[]} className="w-8 md:w-10" />
 
           <div className="flex flex-col min-w-0">
             <span className="text-white font-black text-xs md:text-base tracking-tighter uppercase italic group-hover:text-indigo-400 transition-colors truncate font-mono">

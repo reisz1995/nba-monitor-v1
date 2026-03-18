@@ -32,7 +32,10 @@ const App: React.FC = () => {
   const toggleTeamSelection = (id: number) => {
     setSelectedTeamIds(prev => {
       if (prev.includes(id)) return prev.filter(tid => tid !== id);
-      if (prev.length >= 2) return [prev[1], id];
+      if (prev.length >= 2) {
+        const nextId = prev[1];
+        return nextId !== undefined ? [nextId, id] : [id];
+      }
       return [...prev, id];
     });
   };
