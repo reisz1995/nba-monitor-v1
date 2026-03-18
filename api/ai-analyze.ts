@@ -3,12 +3,28 @@ import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
 // Initialize Upstash Redis for Rate Limiting
-const ratelimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(10, '1 m'), // 10 requests per minute per IP
-  analytics: true,
-  prefix: 'nba_monitor_ratelimit',
-});
+let ratelimit: Ratelimit | null = null;
+
+try {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (redisUrl && redisToken) {
+    ratelimit = new Ratelimit({
+      redis: new Redis({
+        url: redisUrl,
+        token: redisToken,
+      }),
+      limiter: Ratelimit.slidingWindow(10, '1 m'), // 10 requests per minute per IP
+      analytics: true,
+      prefix: 'nba_monitor_ratelimit',
+    });
+  } else {
+    console.warn('[Upstash-Redis] Variáveis de ambiente ausentes. Rate limiting desativado.');
+  }
+} catch (e) {
+  console.error('[Upstash-Redis] Falha ao inicializar Ratelimit:', e);
+}
 
 const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub". Operação estrita, brutalista e puramente matemática. Não narre jogos. Emita sentenças técnicas e frias.
 
@@ -80,17 +96,24 @@ export default async function handler(req: any, res: any) {
         return res.status(405).json({ error: 'Método não permitido.' });
     }
 
-    // Rate limiting
-    const identifier = req.headers['x-forwarded-for'] || 'anonymous';
-    const { success, limit, remaining } = await ratelimit.limit(identifier as string);
-    
-    res.setHeader('X-RateLimit-Limit', limit.toString());
-    res.setHeader('X-RateLimit-Remaining', remaining.toString());
-    
-    if (!success) {
-        return res.status(429).json({ 
-            error: 'Limite de requisições excedido. Tente novamente em 1 minuto.' 
-        });
+    // Rate limiting (only if Upstash is configured)
+    if (ratelimit) {
+        try {
+            const identifier = req.headers['x-forwarded-for'] || 'anonymous';
+            const { success, limit, remaining } = await ratelimit.limit(identifier as string);
+            
+            res.setHeader('X-RateLimit-Limit', limit.toString());
+            res.setHeader('X-RateLimit-Remaining', remaining.toString());
+            
+            if (!success) {
+                return res.status(429).json({ 
+                    error: 'Limite de requisições excedido. Tente novamente em 1 minuto.' 
+                });
+            }
+        } catch (error) {
+            console.error('[Upstash-Redis] Erro durante rate limit check:', error);
+            // Non-blocking: continue even if rate limit check fails due to Redis issues
+        }
     }
 
     // Guard: API key must be present (server-side only)
