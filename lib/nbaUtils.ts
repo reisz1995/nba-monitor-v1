@@ -1,5 +1,5 @@
 
-import { GameResult, Team } from '../types';
+import { GameResult, Team, GameRecordData } from '../types';
 
 export interface PaceOptions {
     isHomeA?: boolean;
@@ -25,6 +25,13 @@ export const calculateDeterministicPace = (entityA: Team, entityB: Team, options
     const estimatedPaceA = offRtgA / 1.05;
     const estimatedPaceB = offRtgB / 1.05;
     let matchPace = (estimatedPaceA + estimatedPaceB) / 2.0;
+
+    // --- NOVO: INTEGRAÇÃO PACE V2 (Últimos 5 jogos + 2 H2H) ---
+    // Tentamos calcular o Pace v2 baseado nos registros reais das equipes
+    const paceV2 = calculateMatchupPaceV2(entityA, entityB);
+    if (paceV2.matchPace > 0) {
+        matchPace = paceV2.matchPace;
+    }
 
     // Cálculo de Eficiência Cruzada: Ataque da Entidade vs Defesa do Oponente
     let projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
@@ -209,5 +216,70 @@ export const calculateUnderdogValue = (teamA: Team, teamB: Team, analysis: any, 
         hasValue: rules.length >= 2,
         rules,
         edge: edge.toFixed(1)
+    };
+};
+
+/**
+ * Converte uma string de score "112-105" no total de pontos (217).
+ */
+export const parseScoreToTotal = (score: string): number => {
+    if (!score) return 0;
+    const parts = score.split(/[-\s:]+/);
+    if (parts.length < 2) return 0;
+    const pts1 = parseInt(parts[0], 10);
+    const pts2 = parseInt(parts[1], 10);
+    if (isNaN(pts1) || isNaN(pts2)) return 0;
+    return pts1 + pts2;
+};
+
+/**
+ * ALGORITMO PACE V2: Ritmo de Confronto baseado em histórico recente.
+ * Calcula o ritmo médio dos últimos 5 jogos de cada time e dos últimos 2 H2H.
+ */
+export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
+    const PACE_FACTOR = 1.05;
+
+    const getGamePace = (score: string) => parseScoreToTotal(score) / (2 * PACE_FACTOR);
+
+    // 1. Média do Pace nos últimos 5 jogos do Time A
+    const last5A = (teamA.record || []).slice(-5);
+    const avgPace5A = last5A.length > 0 
+        ? last5A.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5A.length 
+        : 0;
+
+    // 2. Média do Pace nos últimos 5 jogos do Time B
+    const last5B = (teamB.record || []).slice(-5);
+    const avgPace5B = last5B.length > 0 
+        ? last5B.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5B.length 
+        : 0;
+
+    // 3. Média dos últimos 2 H2H (Confrontos Diretos)
+    const normB = normalizeTeamName(teamB.name);
+    const h2hGames = (teamA.record || []).filter(g => 
+        g.opponent && normalizeTeamName(g.opponent).includes(normB)
+    ).slice(-2);
+
+    let avgPaceH2H = 0;
+    let hasH2H = h2hGames.length > 0;
+
+    if (hasH2H) {
+        avgPaceH2H = h2hGames.reduce((sum, g) => sum + getGamePace(g.score), 0) / h2hGames.length;
+    } else if (avgPace5A > 0 && avgPace5B > 0) {
+        // Fallback: se não houver H2H, usamos a média dos últimos 5 dos dois times
+        avgPaceH2H = (avgPace5A + avgPace5B) / 2;
+    }
+
+    // 4. Cálculo Final: Média ponderada (ou simples conforme interpretado)
+    let finalPace = 0;
+    if (avgPace5A > 0 && avgPace5B > 0 && avgPaceH2H > 0) {
+        finalPace = (avgPace5A + avgPace5B + avgPaceH2H) / 3;
+    }
+
+    return {
+        matchPace: finalPace,
+        avgPace5A,
+        avgPace5B,
+        avgPaceH2H,
+        hasH2H
     };
 };

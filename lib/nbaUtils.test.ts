@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getMomentumScore, parseStreakToRecord, calculateDeterministicPace, calculateUnderdogValue, normalizeTeamName } from './nbaUtils';
+import { getMomentumScore, parseStreakToRecord, calculateDeterministicPace, calculateUnderdogValue, normalizeTeamName, parseScoreToTotal, calculateMatchupPaceV2 } from './nbaUtils';
 import { GameResultSchema, TeamSchema } from './schemas';
 
 describe('nbaUtils', () => {
@@ -175,6 +175,59 @@ describe('nbaUtils', () => {
 
         it('should return null if marketSpread is null', () => {
             expect(calculateUnderdogValue(teamA, teamB, analysis, null)).toBe(null);
+        });
+    });
+
+    describe('Pace V2 Logic', () => {
+        it('should parse score string to total correctly', () => {
+            expect(parseScoreToTotal('112-105')).toBe(217);
+            expect(parseScoreToTotal('100 - 90')).toBe(190);
+            expect(parseScoreToTotal('95:85')).toBe(180);
+            expect(parseScoreToTotal('')).toBe(0);
+        });
+
+        it('should calculate Pace V2 correctly with H2H', () => {
+            const teamA = {
+                name: 'Lakers',
+                record: [
+                    { opponent: 'Celtics', score: '110-100' }, // H2H 1: 210 -> Pace 100
+                    { opponent: 'Warriors', score: '120-110' }, // Pace 109.5
+                    { opponent: 'Celtics', score: '105-105' }, // H2H 2: 210 -> Pace 100
+                ]
+            } as any;
+
+            const teamB = {
+                name: 'Celtics',
+                record: []
+            } as any;
+
+            const paceV2 = calculateMatchupPaceV2(teamA, teamB);
+            
+            // H2H Avg = 100
+            // Last 5 A (3 games): (100 + 109.5 + 100) / 3 = 103.166...
+            // Last 5 B (0 games): 0 (Not realistic in real app but for test)
+            // If B has 0 games, result might be skewed, let's fix test data
+            
+            teamB.record = [{ opponent: 'Lakers', score: '100-110' }]; // Pace 100
+
+            const result = calculateMatchupPaceV2(teamA, teamB);
+            expect(result.hasH2H).toBe(true);
+            expect(result.avgPaceH2H).toBe(100);
+        });
+
+        it('should fallback to Avg 5 if no H2H', () => {
+            const teamA = {
+                name: 'Lakers',
+                record: [{ opponent: 'Warriors', score: '105-105' }] // Pace 100
+            } as any;
+            const teamB = {
+                name: 'Celtics',
+                record: [{ opponent: 'Bulls', score: '110-110' }] // Pace 104.76
+            } as any;
+
+            const result = calculateMatchupPaceV2(teamA, teamB);
+            expect(result.hasH2H).toBe(false);
+            expect(result.avgPaceH2H).toBeCloseTo((100 + 104.7619) / 2, 4);
         });
     });
 });
