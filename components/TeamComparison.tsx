@@ -57,6 +57,8 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
     advantageMatrix
   } = useTeamComparisonData({ teamA, teamB, playerStats, unavailablePlayers, initialAnalysis });
 
+  const databallrEnhanced = bettingLines.databallrEnhanced;
+
   return (
     <div aria-label="Team Comparison" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
       <div className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
@@ -66,12 +68,20 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
           <div className="flex items-center gap-3">
             <div className="w-4 h-4 bg-black animate-ping"></div>
             <h2 className="text-xs font-bold uppercase tracking-widest">
-              NBA_DETERMINISTIC_HUB v2.0 // PACE_CALIBRATED
+              NBA_DETERMINISTIC_HUB v3.0 // PACE_CALIBRATED
             </h2>
           </div>
-          <button onClick={onClose} className="border-2 border-black p-1 hover:bg-black hover:text-white transition-colors">
-            <span className="font-bold text-xl px-2">X</span>
-          </button>
+          <div className="flex items-center gap-3">
+            {databallrEnhanced && (
+              <span className="flex items-center gap-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 border-2 border-black">
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block"></span>
+                DATABALLR 14d
+              </span>
+            )}
+            <button onClick={onClose} className="border-2 border-black p-1 hover:bg-black hover:text-white transition-colors">
+              <span className="font-bold text-xl px-2">X</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-16">
@@ -288,7 +298,9 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
 
         {/* Footer */}
         <div className="px-8 py-4 border-t-4 border-white flex justify-between items-center bg-zinc-900 text-slate-500 font-bold text-[8px]">
-          <span className="uppercase tracking-[0.5em]">System_NBA_v2.0 // Latency: 42ms // Status: Operational</span>
+          <span className="uppercase tracking-[0.5em]">
+            System_NBA_v3.0 // Motor: {databallrEnhanced ? 'DATABALLR_ENHANCED' : 'ESPN_FALLBACK'} // Status: Operational
+          </span>
           <div className="flex gap-4">
             <button className="flex items-center gap-2 hover:text-white transition-colors">
               <Download className="w-3 h-3" /> EXPORT_DATA

@@ -10,36 +10,144 @@ export interface PaceOptions {
 }
 
 /**
- * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v2.2 (RECALIBRADO)
- * Projeção rigorosa de pontuação minimizando a elasticidade do fator Underdog.
+ * Input de métricas avançadas do Databallr (últimos 14 dias).
+ * Todas as props são opcionais — quando ausentes, o motor usa fallback ESPN/PPG.
  */
-export const calculateDeterministicPace = (entityA: Team, entityB: Team, options?: PaceOptions) => {
-    // Fallback tático caso o rawEspnPayload sofra latência
-    const offRtgA = entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || 110.0;
-    const defRtgA = entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || 110.0;
+export interface DataballrInput {
+    /** Offensive Rating: pontos marcados por 100 posses */
+    ortg?: number;
+    /** Defensive Rating: pontos sofridos por 100 posses */
+    drtg?: number;
+    /** Posses por 48 minutos (pode ser nulo se pipeline não preencheu) */
+    pace?: number | null;
+    /** True Shooting % × 100 */
+    o_ts?: number;
+    /** Turnover Ratio (% de posses que terminam em erro) */
+    o_tov?: number;
+    /** Offensive Rebound % */
+    orb?: number;
+    /** Defensive Rebound % */
+    drb?: number;
+    /** Net Rating = ortg - drtg */
+    net_rating?: number;
+    /** Ataque relativo à média da liga */
+    offense_rating?: number;
+    /** Defesa relativa à média da liga */
+    defense_rating?: number;
+}
 
-    const offRtgB = entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || 110.0;
-    const defRtgB = entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || 110.0;
+// Liga NBA 2025-26: valores de referência para normalização
+const LEAGUE_AVG_ORTG = 115.5;
+const LEAGUE_AVG_PACE = 99.7;
+const LEAGUE_AVG_TOV  = 14.8;
 
-    // Derivação do Pace baseada na relação Ataque/Defesa (Ajuste Médico de 1.05x para posses)
-    const estimatedPaceA = offRtgA / 1.05;
-    const estimatedPaceB = offRtgB / 1.05;
-    let matchPace = (estimatedPaceA + estimatedPaceB) / 2.0;
+/**
+ * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v3.0 (DATABALLR_ENHANCED)
+ *
+ * Quando stats do Databallr estiverem disponíveis, usa ORTG/DRTG reais como base
+ * de eficiência cruzada, calculando posses por 48min como proxy de pace.
+ * Fallback automático para PPG ESPN quando dados estiverem ausentes.
+ */
+export const calculateDeterministicPace = (
+    entityA: Team,
+    entityB: Team,
+    options?: PaceOptions,
+    databallrA?: DataballrInput | null,
+    databallrB?: DataballrInput | null
+) => {
+    const hasDataballr = !!(databallrA?.ortg && databallrB?.ortg);
 
-    // --- NOVO: INTEGRAÇÃO PACE V2 (Últimos 5 jogos + 2 H2H) ---
-    // Tentamos calcular o Pace v2 baseado nos registros reais das equipes
-    const paceV2 = calculateMatchupPaceV2(entityA, entityB);
-    if (paceV2.matchPace > 0) {
-        matchPace = paceV2.matchPace;
+    // ─── FONTE DE RATINGS ────────────────────────────────────────────────────
+    // V3.0: usa ORTG/DRTG quando disponível, caso contrário PPG ESPN
+    const offRtgA = hasDataballr ? databallrA!.ortg! : (entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    const defRtgA = hasDataballr ? databallrA!.drtg! : (entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+    const offRtgB = hasDataballr ? databallrB!.ortg! : (entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    const defRtgB = hasDataballr ? databallrB!.drtg! : (entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+
+    // ─── CÁLCULO DO PACE ─────────────────────────────────────────────────────
+    // Prioridade 1: campo `pace` real do Databallr (quando preenchido pelo pipeline)
+    // Prioridade 2: pace estimado via ORTG como proxy de velocidade ofensiva
+    // Prioridade 3: cálculo histórico via Pace V2 (últimos 5 jogos + H2H)
+    // Prioridade 4: fallback PPG / 1.05
+    let matchPace: number;
+
+    if (hasDataballr && databallrA!.pace && databallrB!.pace) {
+        // Pace real disponível: média ponderada 40/40/20 com H2H
+        const paceA = databallrA!.pace!;
+        const paceB = databallrB!.pace!;
+        const paceV2 = calculateMatchupPaceV2(entityA, entityB);
+        const h2hPace = paceV2.matchPace > 0 ? paceV2.matchPace : (paceA + paceB) / 2;
+        matchPace = paceA * 0.4 + paceB * 0.4 + h2hPace * 0.2;
+    } else if (hasDataballr) {
+        // Estimativa: ORTG / PACE_FACTOR é empiricamente mais preciso que PPG bruto
+        const estimatedPaceA = offRtgA / 1.05;
+        const estimatedPaceB = offRtgB / 1.05;
+        const estimatedAvg = (estimatedPaceA + estimatedPaceB) / 2.0;
+        // Faz regressão suave em direção à média da liga (evita extremos nos dados)
+        matchPace = estimatedAvg * 0.75 + LEAGUE_AVG_PACE * 0.25;
+        const paceV2 = calculateMatchupPaceV2(entityA, entityB);
+        if (paceV2.matchPace > 0) {
+            matchPace = matchPace * 0.6 + paceV2.matchPace * 0.4;
+        }
+    } else {
+        // Fallback original: pace V2 histórico ou PPG / 1.05
+        const estimatedPaceA = offRtgA / 1.05;
+        const estimatedPaceB = offRtgB / 1.05;
+        matchPace = (estimatedPaceA + estimatedPaceB) / 2.0;
+        const paceV2 = calculateMatchupPaceV2(entityA, entityB);
+        if (paceV2.matchPace > 0) matchPace = paceV2.matchPace;
     }
 
-    // Cálculo de Eficiência Cruzada: Ataque da Entidade vs Defesa do Oponente
-    let projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
-    let projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
+    // ─── CÁLCULO DO PLACAR PROJETADO ─────────────────────────────────────────
+    // Eficiência cruzada: (Ataque do Time) vs (Defesa do Oponente)
+    let projectedScoreA: number;
+    let projectedScoreB: number;
 
-    // --- REGRAS & AJUSTES SITUACIONAIS ---
+    if (hasDataballr) {
+        // V3.0: usa ORTG real → converte em pontos esperados via pace
+        // Fórmula: pontos = (ORTG / 100) × pace
+        // Mas moderamos com a defesa do adversário para cruzamento real
+        const effA = (offRtgA + (200 - defRtgB)) / 2; // eficiência cruzada
+        const effB = (offRtgB + (200 - defRtgA)) / 2;
+        projectedScoreA = (effA / 100) * matchPace;
+        projectedScoreB = (effB / 100) * matchPace;
 
-    // 1. Ajuste_Casa (+3 pontos para o time da casa)
+        // Ajuste de qualidade de posse via True Shooting % (TS%)
+        // TS% acima de 58% dá bônus; abaixo penaliza levemente
+        const tsAvgLeague = 58.0;
+        if (databallrA!.o_ts) {
+            const tsBonusA = (databallrA!.o_ts - tsAvgLeague) * 0.15;
+            projectedScoreA += tsBonusA;
+        }
+        if (databallrB!.o_ts) {
+            const tsBonusB = (databallrB!.o_ts - tsAvgLeague) * 0.15;
+            projectedScoreB += tsBonusB;
+        }
+
+        // Penalidade por turnover acima da média da liga (~14.8%)
+        if (databallrA!.o_tov && databallrA!.o_tov > LEAGUE_AVG_TOV) {
+            projectedScoreA -= (databallrA!.o_tov - LEAGUE_AVG_TOV) * 0.3;
+        }
+        if (databallrB!.o_tov && databallrB!.o_tov > LEAGUE_AVG_TOV) {
+            projectedScoreB -= (databallrB!.o_tov - LEAGUE_AVG_TOV) * 0.3;
+        }
+
+        // Bônus de rebote ofensivo (segunda chance): OReb% acima de 26% gera possibilidade extra
+        if (databallrA!.orb && databallrA!.orb > 26) {
+            projectedScoreA += (databallrA!.orb - 26) * 0.2;
+        }
+        if (databallrB!.orb && databallrB!.orb > 26) {
+            projectedScoreB += (databallrB!.orb - 26) * 0.2;
+        }
+    } else {
+        // Fallback original
+        projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
+        projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
+    }
+
+    // ─── AJUSTES SITUACIONAIS ─────────────────────────────────────────────────
+
+    // 1. Vantagem de quadra (+1.5 pts base para o time da casa)
     if (options?.isHomeA) {
         projectedScoreA += 1.5;
         projectedScoreB -= 1.5;
@@ -48,18 +156,18 @@ export const calculateDeterministicPace = (entityA: Team, entityB: Team, options
         projectedScoreA -= 1.5;
     }
 
-    // 2. Ajuste_Fadiga (B2B reduz projeção em ~2.0 pontos, marginalmente menos agressivo para não punir favoritos cegamente)
+    // 2. Fadiga Back-to-Back (~2.0 pts de queda)
     if (options?.isB2BA) projectedScoreA -= 2.0;
     if (options?.isB2BB) projectedScoreB -= 2.0;
 
-    // 3. Blowout_Regressao (Vitória anterior >20 reduz projeção em 1.5 pontos)
+    // 3. Regressão pós-blowout (vitória anterior >20 pts)
     if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1.5;
     if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1.5;
 
-    // 4. Jogo_Ritmo_Lento (Pace < 98) - Compressão de vantagem do favorito severamente reduzida de 5% para 2%
+    // 4. Jogo lento: comprime a vantagem do favorito em 2%
     if (matchPace < 98) {
         const spread = projectedScoreA - projectedScoreB;
-        const adjustment = spread * 0.02; // Vector 1: Redução do peso Underdog
+        const adjustment = spread * 0.02;
         projectedScoreA -= adjustment / 2;
         projectedScoreB += adjustment / 2;
     }
@@ -71,7 +179,8 @@ export const calculateDeterministicPace = (entityA: Team, entityB: Team, options
         totalPayload,
         deltaA: projectedScoreA,
         deltaB: projectedScoreB,
-        kineticState: matchPace > 102.5 ? 'HYPER_KINETIC' : (matchPace < 98 ? 'SLOW_GRIND' : 'STATIC_TRENCH')
+        kineticState: matchPace > 102.5 ? 'HYPER_KINETIC' : (matchPace < 98 ? 'SLOW_GRIND' : 'STATIC_TRENCH'),
+        databallrEnhanced: hasDataballr,
     };
 };
 

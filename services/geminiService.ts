@@ -1,9 +1,33 @@
 import { Type } from "@google/genai";
 import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer, MarketData } from "../types";
 import { supabase } from "../lib/supabase";
-import { calculateDeterministicPace } from "../lib/nbaUtils";
+import { calculateDeterministicPace, DataballrInput } from "../lib/nbaUtils";
 import { toast } from "sonner";
 import { withRetry } from "../lib/resilience";
+
+/**
+ * Formata as métricas Databallr como bloco de texto para o prompt da IA.
+ * Retorna string compacta tipo: ORTG=X | DRTG=X | NET=X | ...
+ */
+const formatDataballrTensor = (
+  label: string,
+  d: DataballrInput | null | undefined
+): string => {
+  if (!d?.ortg) return `[${label}] Tensor Databallr 14d: INDISPONÍVEL — usar PPG ESPN como fallback`;
+  const parts: string[] = [
+    `ORTG=${d.ortg.toFixed(1)}`,
+    `DRTG=${d.drtg?.toFixed(1) ?? 'N/D'}`,
+    `NET=${d.net_rating?.toFixed(1) ?? 'N/D'}`,
+    d.pace ? `PACE=${d.pace.toFixed(1)}` : 'PACE=est.',
+    `TS%=${d.o_ts?.toFixed(1) ?? 'N/D'}`,
+    `TOV%=${d.o_tov?.toFixed(1) ?? 'N/D'}`,
+    `OReb%=${d.orb?.toFixed(1) ?? 'N/D'}`,
+    `DReb%=${d.drb?.toFixed(1) ?? 'N/D'}`,
+    `Atq.Rel=${d.offense_rating?.toFixed(1) ?? 'N/D'}`,
+    `Def.Rel=${d.defense_rating?.toFixed(1) ?? 'N/D'}`,
+  ];
+  return `[${label} — Databallr 14d] ${parts.join(' | ')}`;
+};
 
 // ==========================================
 // 1. FORMATADORES DE MATRIZ (PARSERS)
@@ -154,7 +178,9 @@ export const compareTeams = async (
   playerStats: PlayerStat[],
   injuries: UnavailablePlayer[] = [],
   marketData?: MarketData | null,
-  momentumData?: any
+  momentumData?: any,
+  databallrA?: DataballrInput | null,
+  databallrB?: DataballrInput | null
 ): Promise<MatchupAnalysis> => {
 
   const [dbStats, dbInjuries, dbStandings, dbNotas] = await Promise.all([
@@ -171,7 +197,8 @@ export const compareTeams = async (
   const compactInjuries = formatInjuriesForAI(dbInjuries.data || injuries);
   const compactStandings = formatStandingsForAI(dbStandings.data || []);
 
-  const { matchPace, totalPayload, kineticState, deltaA, deltaB } = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
+  const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced } =
+    calculateDeterministicPace(teamA, teamB, { isHomeA: true }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
   const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);
@@ -188,14 +215,19 @@ export const compareTeams = async (
     edgeBlock = `Spread de Mercado: ${marketSpread} | Spread Projetado: ${projectedSpread.toFixed(1)} | Edge: ${edge.toFixed(1)} pts | ${classification}`;
   }
 
-  const prompt = `ALVO DE COMPUTAÇÃO: ${teamA.name} vs ${teamB.name}.
+  // VETOR 6: formata tensores Databallr para o contexto da IA
+  const tensorA = formatDataballrTensor(`CASA ${teamA.name}`, databallrA);
+  const tensorB = formatDataballrTensor(`FORA ${teamB.name}`, databallrB);
+  const databallrModeTag = databallrEnhanced ? 'DATABALLR_ENHANCED_v3' : 'ESPN_FALLBACK_v2';
+
+  const prompt = `ALVO DE COMPUTAÇÃO: ${teamA.name} vs ${teamB.name}. MODO: ${databallrModeTag}
 
   [VETOR 1: EFICIÊNCIA ESTRUTURAL]
   Rating AI ${teamA.name}: ${notaA.toFixed(1)}/5.0
   Rating AI ${teamB.name}: ${notaB.toFixed(1)}/5.0
   ${compactStandings}
 
-  [VETOR 2: ALGORITMO CINÉTICO (v2.2)]
+  [VETOR 2: ALGORITMO CINÉTICO (v3.0)]
   Pace do Confronto: ${matchPace.toFixed(1)} (${kineticState})
   Pontuação Base ${teamA.name}: ${deltaA.toFixed(1)}
   Pontuação Base ${teamB.name}: ${deltaB.toFixed(1)}
@@ -212,6 +244,14 @@ export const compareTeams = async (
 
   [VETOR 5: INTEGRIDADE FÍSICA]
   ${compactInjuries}
+
+  [VETOR 6: TENSOR DE EFICIÊNCIA DATABALLR (14 dias)]
+  Instruções: Use este vetor como fonte primária de verdade para eficiência ofensiva/defensiva.
+  ORTG = pontos marcados por 100 posses | DRTG = pontos sofridos por 100 posses | NET = saldo de dominância
+  TS% = aproveitamento real de arremessos | TOV% = % posses desperdiçadas | OReb% = rebotes ofensivos
+  Atq.Rel e Def.Rel = performance relativa à média da liga no período de 14 dias.
+  ${tensorA}
+  ${tensorB}
 
   PROCESSE AS DIRETRIZES E RETORNE O JSON STRICT.`;
 

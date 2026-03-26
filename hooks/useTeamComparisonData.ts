@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, MarketData } from '../types';
 import { compareTeams, saveMatchupAnalysis, fetchGameWithMomentum } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
-import { calculateDeterministicPace } from '../lib/nbaUtils';
+import { calculateDeterministicPace, DataballrInput } from '../lib/nbaUtils';
+import { fetchDataballrFullStats, findDataballrStatsByName } from '../services/databallrService';
 import { toast } from 'sonner';
 
 interface UseTeamComparisonDataProps {
@@ -28,6 +29,8 @@ export const useTeamComparisonData = ({
         a: teamA.ai_score || 0,
         b: teamB.ai_score || 0
     });
+    const [databallrA, setDataballrA] = useState<DataballrInput | null>(null);
+    const [databallrB, setDataballrB] = useState<DataballrInput | null>(null);
 
     useEffect(() => {
         const fetchTeamNotas = async () => {
@@ -48,6 +51,55 @@ export const useTeamComparisonData = ({
         };
         fetchTeamNotas();
     }, [teamA.name, teamB.name, teamA.ai_score, teamB.ai_score]);
+
+    // Busca as métricas avançadas do Databallr (últimos 14 dias) para os dois times
+    useEffect(() => {
+        const fetchDataballrStats = async () => {
+            try {
+                const allStats = await fetchDataballrFullStats();
+                if (allStats.length === 0) return;
+                const sA = findDataballrStatsByName(teamA.name, allStats);
+                const sB = findDataballrStatsByName(teamB.name, allStats);
+                if (sA) {
+                    setDataballrA({
+                        ortg: Number(sA.ortg) || undefined,
+                        drtg: Number(sA.drtg) || undefined,
+                        pace: sA.pace ? Number(sA.pace) : null,
+                        o_ts: Number(sA.o_ts) || undefined,
+                        o_tov: Number(sA.o_tov) || undefined,
+                        orb: Number(sA.orb) || undefined,
+                        drb: Number(sA.drb) || undefined,
+                        net_rating: Number(sA.net_rating) || undefined,
+                        offense_rating: Number(sA.offense_rating) || undefined,
+                        defense_rating: Number(sA.defense_rating) || undefined,
+                    });
+                    console.info(`[Databallr] ✅ Stats carregadas para ${teamA.name}: ORTG=${sA.ortg} | DRTG=${sA.drtg} | NET=${sA.net_rating}`);
+                } else {
+                    console.warn(`[Databallr] ⚠️ Nenhuma stat encontrada para "${teamA.name}"`);
+                }
+                if (sB) {
+                    setDataballrB({
+                        ortg: Number(sB.ortg) || undefined,
+                        drtg: Number(sB.drtg) || undefined,
+                        pace: sB.pace ? Number(sB.pace) : null,
+                        o_ts: Number(sB.o_ts) || undefined,
+                        o_tov: Number(sB.o_tov) || undefined,
+                        orb: Number(sB.orb) || undefined,
+                        drb: Number(sB.drb) || undefined,
+                        net_rating: Number(sB.net_rating) || undefined,
+                        offense_rating: Number(sB.offense_rating) || undefined,
+                        defense_rating: Number(sB.defense_rating) || undefined,
+                    });
+                    console.info(`[Databallr] ✅ Stats carregadas para ${teamB.name}: ORTG=${sB.ortg} | DRTG=${sB.drtg} | NET=${sB.net_rating}`);
+                } else {
+                    console.warn(`[Databallr] ⚠️ Nenhuma stat encontrada para "${teamB.name}"`);
+                }
+            } catch (e) {
+                console.error('[Databallr] Falha ao buscar full stats:', e);
+            }
+        };
+        fetchDataballrStats();
+    }, [teamA.name, teamB.name]);
 
     // Busca odds da nba_odds_matrix — tolerante a falhas com maybeSingle()
     // Se o cron job ainda não correu ou não há linhas abertas, oddsData será null
@@ -153,7 +205,9 @@ export const useTeamComparisonData = ({
         const impactA = calculateHWImpact(allPlayersA, injuriesA);
         const impactB = calculateHWImpact(allPlayersB, injuriesB);
 
-        const { matchPace, totalPayload, deltaA, deltaB, kineticState } = calculateDeterministicPace(teamA, teamB);
+        const { matchPace, totalPayload, deltaA, deltaB, kineticState, databallrEnhanced } = calculateDeterministicPace(
+            teamA, teamB, undefined, databallrA, databallrB
+        );
         let projA = deltaA;
         let projB = deltaB;
 
@@ -169,6 +223,7 @@ export const useTeamComparisonData = ({
             defesaB: defB,
             aproveitamentoA: aprA,
             aproveitamentoB: aprB,
+            databallrEnhanced,
             projectedA: projA,
             projectedB: projB,
             totalProjected: projA + projB,
@@ -181,7 +236,7 @@ export const useTeamComparisonData = ({
             spread: spread > 0 ? `+${spread.toFixed(1)}` : spread.toFixed(1),
             favorite: spread < 0 ? teamA.name : teamB.name
         };
-    }, [teamA, teamB, injuriesA, injuriesB, playerStats]);
+    }, [teamA, teamB, injuriesA, injuriesB, playerStats, databallrA, databallrB]);
 
     const advantageMatrix = useMemo(() => {
         const calcMomentum = (record: GameResult[]) => {
@@ -254,7 +309,12 @@ export const useTeamComparisonData = ({
                 }
 
                 // Ensure array copies or original objects are resolved
-                const result = await compareTeams(teamA, teamB, playerStats, [...injuriesA, ...injuriesB], marketData, momentumData);
+                const result = await compareTeams(
+                    teamA, teamB, playerStats,
+                    [...injuriesA, ...injuriesB],
+                    marketData, momentumData,
+                    databallrA, databallrB
+                );
                 setAnalysis(result);
                 await saveMatchupAnalysis(teamA.id, teamB.id, { ...result, result: 'pending' });
                 setSavedToCloud(true);
@@ -289,6 +349,8 @@ export const useTeamComparisonData = ({
         bettingLines,
         advantageMatrix,
         getPlayerWeight,
-        marketData
+        marketData,
+        databallrA,
+        databallrB,
     };
 };
