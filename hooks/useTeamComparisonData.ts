@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, MarketData } from '../types';
 import { compareTeams, saveMatchupAnalysis, fetchGameWithMomentum } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
-import { calculateDeterministicPace, DataballrInput } from '../lib/nbaUtils';
+import { calculateProjectedScores, DataballrInput } from '../lib/nbaUtils';
 import { fetchDataballrFullStats, findDataballrStatsByName } from '../services/databallrService';
 import { toast } from 'sonner';
 
@@ -205,7 +205,7 @@ export const useTeamComparisonData = ({
         const impactA = calculateHWImpact(allPlayersA, injuriesA);
         const impactB = calculateHWImpact(allPlayersB, injuriesB);
 
-        const { matchPace, totalPayload, deltaA, deltaB, kineticState, databallrEnhanced } = calculateDeterministicPace(
+        const { matchPace, totalPayload, deltaA, deltaB, kineticState, databallrEnhanced } = calculateProjectedScores(
             teamA, teamB, undefined, databallrA, databallrB
         );
         let projA = deltaA;

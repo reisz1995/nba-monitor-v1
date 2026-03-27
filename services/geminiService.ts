@@ -1,7 +1,7 @@
 import { Type } from "@google/genai";
 import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer, MarketData } from "../types";
 import { supabase } from "../lib/supabase";
-import { calculateDeterministicPace, DataballrInput } from "../lib/nbaUtils";
+import { calculateProjectedScores, DataballrInput } from "../lib/nbaUtils";
 import { toast } from "sonner";
 import { withRetry } from "../lib/resilience";
 
@@ -198,7 +198,7 @@ export const compareTeams = async (
   const compactStandings = formatStandingsForAI(dbStandings.data || []);
 
   const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced } =
-    calculateDeterministicPace(teamA, teamB, { isHomeA: true }, databallrA, databallrB);
+    calculateProjectedScores(teamA, teamB, { isHomeA: true }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
   const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);

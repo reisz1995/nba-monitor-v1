@@ -39,7 +39,7 @@ export interface DataballrInput {
 // Liga NBA 2025-26: valores de referência para normalização
 const LEAGUE_AVG_ORTG = 115.5;
 const LEAGUE_AVG_PACE = 99.7;
-const LEAGUE_AVG_TOV  = 14.8;
+const LEAGUE_AVG_TOV = 14.8;
 
 /**
  * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v3.0 (DATABALLR_ENHANCED)
@@ -48,7 +48,56 @@ const LEAGUE_AVG_TOV  = 14.8;
  * de eficiência cruzada, calculando posses por 48min como proxy de pace.
  * Fallback automático para PPG ESPN quando dados estiverem ausentes.
  */
+
+// Sub-rotina de estabilização: Mescla a temporada completa com os últimos 14 dias
+const getFallbackPace = (team: Team): number => {
+    const offRtg = team.espnData?.pts || team.stats?.media_pontos_ataque || 115.5;
+    return offRtg / 1.05;
+};
+
+const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number => {
+    // 1. Captura a âncora macro (Temporada)
+    // Assuma que 'team.pace' ou sua função de fallback retorna o Pace da ESPN
+    const seasonPace = team.pace || getFallbackPace(team);
+
+    // 2. Captura a âncora micro (14 Dias)
+    const recentPace = databallr?.pace;
+
+    // 3. Executa a média aritmética se ambos os vetores existirem
+    if (recentPace && recentPace > 0) {
+        return (seasonPace + recentPace) / 2;
+    }
+
+    // Fallback de segurança: Se o Databallr falhar, retorna apenas a temporada
+    return seasonPace;
+};
+
 export const calculateDeterministicPace = (
+    teamA: Team,
+    teamB: Team,
+    databallrA?: DataballrInput | null,
+    databallrB?: DataballrInput | null
+): number => {
+    // 1. Extração da Identidade Híbrida de cada equipe
+    const blendedPaceA = getBlendedPace(teamA, databallrA);
+    const blendedPaceB = getBlendedPace(teamB, databallrB);
+
+    // 2. Fusão Termodinâmica do Confronto
+    let projectedPace = (blendedPaceA + blendedPaceB) / 2;
+
+    // 3. Grampo Térmico (Clamp) - Limites da Realidade Física da NBA
+    const MIN_PACE = 90.0;  // Jogo extremamente lento/truncado
+    const MAX_PACE = 105.0; // Jogo em transição frenética
+
+    const clampedPace = Math.max(MIN_PACE, Math.min(MAX_PACE, projectedPace));
+
+    console.log(`[SYS-OP] Híbrido A: ${blendedPaceA.toFixed(1)} | Híbrido B: ${blendedPaceB.toFixed(1)}`);
+    console.log(`[SYS-OP] Pace Projetado (Clamped): ${clampedPace.toFixed(2)}`);
+
+    return clampedPace;
+};
+
+export const calculateProjectedScores = (
     entityA: Team,
     entityB: Team,
     options?: PaceOptions,
@@ -65,38 +114,7 @@ export const calculateDeterministicPace = (
     const defRtgB = hasDataballr ? databallrB!.drtg! : (entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
 
     // ─── CÁLCULO DO PACE ─────────────────────────────────────────────────────
-    // Prioridade 1: campo `pace` real do Databallr (quando preenchido pelo pipeline)
-    // Prioridade 2: pace estimado via ORTG como proxy de velocidade ofensiva
-    // Prioridade 3: cálculo histórico via Pace V2 (últimos 5 jogos + H2H)
-    // Prioridade 4: fallback PPG / 1.05
-    let matchPace: number;
-
-    if (hasDataballr && databallrA!.pace && databallrB!.pace) {
-        // Pace real disponível: média ponderada 40/40/20 com H2H
-        const paceA = databallrA!.pace!;
-        const paceB = databallrB!.pace!;
-        const paceV2 = calculateMatchupPaceV2(entityA, entityB);
-        const h2hPace = paceV2.matchPace > 0 ? paceV2.matchPace : (paceA + paceB) / 2;
-        matchPace = paceA * 0.4 + paceB * 0.4 + h2hPace * 0.2;
-    } else if (hasDataballr) {
-        // Estimativa: ORTG / PACE_FACTOR é empiricamente mais preciso que PPG bruto
-        const estimatedPaceA = offRtgA / 1.05;
-        const estimatedPaceB = offRtgB / 1.05;
-        const estimatedAvg = (estimatedPaceA + estimatedPaceB) / 2.0;
-        // Faz regressão suave em direção à média da liga (evita extremos nos dados)
-        matchPace = estimatedAvg * 0.75 + LEAGUE_AVG_PACE * 0.25;
-        const paceV2 = calculateMatchupPaceV2(entityA, entityB);
-        if (paceV2.matchPace > 0) {
-            matchPace = matchPace * 0.6 + paceV2.matchPace * 0.4;
-        }
-    } else {
-        // Fallback original: pace V2 histórico ou PPG / 1.05
-        const estimatedPaceA = offRtgA / 1.05;
-        const estimatedPaceB = offRtgB / 1.05;
-        matchPace = (estimatedPaceA + estimatedPaceB) / 2.0;
-        const paceV2 = calculateMatchupPaceV2(entityA, entityB);
-        if (paceV2.matchPace > 0) matchPace = paceV2.matchPace;
-    }
+    const matchPace = calculateDeterministicPace(entityA, entityB, databallrA, databallrB);
 
     // ─── CÁLCULO DO PLACAR PROJETADO ─────────────────────────────────────────
     // Eficiência cruzada: (Ataque do Time) vs (Defesa do Oponente)
@@ -352,19 +370,19 @@ export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
 
     // 1. Média do Pace nos últimos 5 jogos do Time A
     const last5A = (teamA.record || []).slice(-5);
-    const avgPace5A = last5A.length > 0 
-        ? last5A.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5A.length 
+    const avgPace5A = last5A.length > 0
+        ? last5A.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5A.length
         : 0;
 
     // 2. Média do Pace nos últimos 5 jogos do Time B
     const last5B = (teamB.record || []).slice(-5);
-    const avgPace5B = last5B.length > 0 
-        ? last5B.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5B.length 
+    const avgPace5B = last5B.length > 0
+        ? last5B.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5B.length
         : 0;
 
     // 3. Média dos últimos 2 H2H (Confrontos Diretos)
     const normB = normalizeTeamName(teamB.name);
-    const h2hGames = (teamA.record || []).filter(g => 
+    const h2hGames = (teamA.record || []).filter(g =>
         g.opponent && normalizeTeamName(g.opponent).includes(normB)
     ).slice(-2);
 

@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { TrendingUp, Target, Activity, Zap, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Team, PalpiteData } from '../../types';
-import { calculateDeterministicPace, findTeamByName, calculateUnderdogValue } from '../../lib/nbaUtils';
+import { calculateProjectedScores, findTeamByName, calculateUnderdogValue } from '../../lib/nbaUtils';
 import { supabase } from '../../lib/supabase';
 
 interface MarketOdds {
@@ -54,7 +54,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 const isB2BHome = p.n_casa?.includes('B2B') || false; // Mock or extracted from string if available
                 const isB2BAway = p.n_fora?.includes('B2B') || false;
 
-                const analysis = calculateDeterministicPace(teamCasa, teamFora, {
+                const analysis = calculateProjectedScores(teamCasa, teamFora, {
                     isHomeA: true,
                     isB2BA: isB2BHome,
                     isB2BB: isB2BAway
@@ -204,7 +204,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                                     </div>
                                     <div className="flex flex-col items-end">
                                         <span className="text-[8px] font-black text-slate-500 uppercase font-inter">Market</span>
-                                        <span className="odds-display text-xl tracking-tighter text-nba-blue shadow-none" style={{textShadow: 'none'}}>
+                                        <span className="odds-display text-xl tracking-tighter text-nba-blue shadow-none" style={{ textShadow: 'none' }}>
                                             {proj!.marketSpread !== undefined ? (proj!.marketSpread! > 0 ? `+${proj!.marketSpread}` : proj!.marketSpread) : '--'}
                                         </span>
                                     </div>
@@ -229,7 +229,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                                     </div>
                                     <div className="flex flex-col items-end">
                                         <span className="text-[8px] font-black text-slate-500 uppercase font-inter">Market</span>
-                                        <span className="odds-display text-xl tracking-tighter text-nba-blue shadow-none" style={{textShadow: 'none'}}>
+                                        <span className="odds-display text-xl tracking-tighter text-nba-blue shadow-none" style={{ textShadow: 'none' }}>
                                             {proj!.marketTotal || '--'}
                                         </span>
                                     </div>

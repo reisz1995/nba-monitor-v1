@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getMomentumScore, parseStreakToRecord, calculateDeterministicPace, calculateUnderdogValue, normalizeTeamName, parseScoreToTotal, calculateMatchupPaceV2 } from './nbaUtils';
+import { getMomentumScore, parseStreakToRecord, calculateProjectedScores, calculateUnderdogValue, normalizeTeamName, parseScoreToTotal, calculateMatchupPaceV2 } from './nbaUtils';
 import { GameResultSchema, TeamSchema } from './schemas';
 
 describe('nbaUtils', () => {
@@ -94,13 +94,13 @@ describe('nbaUtils', () => {
         });
     });
 
-    describe('calculateDeterministicPace Adjustments', () => {
+    describe('calculateProjectedScores Adjustments', () => {
         const teamA = { name: 'Lakers', stats: { media_pontos_ataque: 110, media_pontos_defesa: 110 } } as any;
         const teamB = { name: 'Celtics', stats: { media_pontos_ataque: 110, media_pontos_defesa: 110 } } as any;
 
         it('should apply home advantage (+3 net)', () => {
-            const resultHomeA = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
-            const resultHomeB = calculateDeterministicPace(teamA, teamB, { isHomeA: false });
+            const resultHomeA = calculateProjectedScores(teamA, teamB, { isHomeA: true });
+            const resultHomeB = calculateProjectedScores(teamA, teamB, { isHomeA: false });
 
             // Difference should be 3 points in favor of home team
             expect(resultHomeA.deltaA - resultHomeA.deltaB).toBeCloseTo(3);
@@ -108,16 +108,16 @@ describe('nbaUtils', () => {
         });
 
         it('should apply B2B fatigue (-2.0)', () => {
-            const base = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
-            const b2b = calculateDeterministicPace(teamA, teamB, { isHomeA: true, isB2BA: true });
+            const base = calculateProjectedScores(teamA, teamB, { isHomeA: true });
+            const b2b = calculateProjectedScores(teamA, teamB, { isHomeA: true, isB2BA: true });
 
             expect(b2b.deltaA).toBeLessThan(base.deltaA);
             expect(base.deltaA - b2b.deltaA).toBeCloseTo(2.0);
         });
 
         it('should apply Blowout Regression (-1.5)', () => {
-            const base = calculateDeterministicPace(teamA, teamB, { isHomeA: true });
-            const regression = calculateDeterministicPace(teamA, teamB, { isHomeA: true, lastMarginA: 25 });
+            const base = calculateProjectedScores(teamA, teamB, { isHomeA: true });
+            const regression = calculateProjectedScores(teamA, teamB, { isHomeA: true, lastMarginA: 25 });
 
             expect(regression.deltaA).toBeLessThan(base.deltaA);
             expect(base.deltaA - regression.deltaA).toBeCloseTo(1.5);
@@ -202,12 +202,12 @@ describe('nbaUtils', () => {
             } as any;
 
             const paceV2 = calculateMatchupPaceV2(teamA, teamB);
-            
+
             // H2H Avg = 100
             // Last 5 A (3 games): (100 + 109.5 + 100) / 3 = 103.166...
             // Last 5 B (0 games): 0 (Not realistic in real app but for test)
             // If B has 0 games, result might be skewed, let's fix test data
-            
+
             teamB.record = [{ opponent: 'Lakers', score: '100-110' }]; // Pace 100
 
             const result = calculateMatchupPaceV2(teamA, teamB);
