@@ -95,8 +95,8 @@ describe('nbaUtils', () => {
     });
 
     describe('calculateProjectedScores Adjustments', () => {
-        const teamA = { name: 'Lakers', stats: { media_pontos_ataque: 110, media_pontos_defesa: 110 } } as any;
-        const teamB = { name: 'Celtics', stats: { media_pontos_ataque: 110, media_pontos_defesa: 110 } } as any;
+        const teamA = { name: 'Lakers', stats: { media_pontos_ataque: 115, media_pontos_defesa: 115 } } as any;
+        const teamB = { name: 'Celtics', stats: { media_pontos_ataque: 115, media_pontos_defesa: 115 } } as any;
 
         it('should apply home advantage (+3 net)', () => {
             const resultHomeA = calculateProjectedScores(teamA, teamB, { isHomeA: true });
@@ -190,25 +190,16 @@ describe('nbaUtils', () => {
             const teamA = {
                 name: 'Lakers',
                 record: [
-                    { opponent: 'Celtics', score: '110-100' }, // H2H 1: 210 -> Pace 100
-                    { opponent: 'Warriors', score: '120-110' }, // Pace 109.5
-                    { opponent: 'Celtics', score: '105-105' }, // H2H 2: 210 -> Pace 100
+                    { opponent: 'Celtics', score: '115-116' }, // H2H 1: 231 -> Pace 100
+                    { opponent: 'Warriors', score: '126-127' }, // Pace 109.5
+                    { opponent: 'Celtics', score: '116-115' }, // H2H 2: 231 -> Pace 100
                 ]
             } as any;
 
             const teamB = {
                 name: 'Celtics',
-                record: []
+                record: [{ opponent: 'Lakers', score: '115-116' }] // Pace 100
             } as any;
-
-            const paceV2 = calculateMatchupPaceV2(teamA, teamB);
-
-            // H2H Avg = 100
-            // Last 5 A (3 games): (100 + 109.5 + 100) / 3 = 103.166...
-            // Last 5 B (0 games): 0 (Not realistic in real app but for test)
-            // If B has 0 games, result might be skewed, let's fix test data
-
-            teamB.record = [{ opponent: 'Lakers', score: '100-110' }]; // Pace 100
 
             const result = calculateMatchupPaceV2(teamA, teamB);
             expect(result.hasH2H).toBe(true);
@@ -218,11 +209,11 @@ describe('nbaUtils', () => {
         it('should fallback to Avg 5 if no H2H', () => {
             const teamA = {
                 name: 'Lakers',
-                record: [{ opponent: 'Warriors', score: '105-105' }] // Pace 100
+                record: [{ opponent: 'Warriors', score: '115-116' }] // Pace 100
             } as any;
             const teamB = {
                 name: 'Celtics',
-                record: [{ opponent: 'Bulls', score: '110-110' }] // Pace 104.76
+                record: [{ opponent: 'Bulls', score: '121-121' }] // Pace 104.76
             } as any;
 
             const result = calculateMatchupPaceV2(teamA, teamB);

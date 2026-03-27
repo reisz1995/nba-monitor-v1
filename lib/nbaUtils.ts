@@ -52,7 +52,7 @@ const LEAGUE_AVG_TOV = 14.8;
 // Sub-rotina de estabilização: Mescla a temporada completa com os últimos 14 dias
 const getFallbackPace = (team: Team): number => {
     const offRtg = team.espnData?.pts || team.stats?.media_pontos_ataque || 115.5;
-    return offRtg / 1.05;
+    return offRtg / (LEAGUE_AVG_ORTG / 100);
 };
 
 const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number => {
@@ -125,8 +125,8 @@ export const calculateProjectedScores = (
         // V3.0: usa ORTG real → converte em pontos esperados via pace
         // Fórmula: pontos = (ORTG / 100) × pace
         // Mas moderamos com a defesa do adversário para cruzamento real
-        const effA = (offRtgA + (200 - defRtgB)) / 2; // eficiência cruzada
-        const effB = (offRtgB + (200 - defRtgA)) / 2;
+        const effA = (offRtgA + defRtgB) / 2; // eficiência cruzada corrigida
+        const effB = (offRtgB + defRtgA) / 2;
         projectedScoreA = (effA / 100) * matchPace;
         projectedScoreB = (effB / 100) * matchPace;
 
@@ -364,7 +364,7 @@ export const parseScoreToTotal = (score: string): number => {
  * Calcula o ritmo médio dos últimos 5 jogos de cada time e dos últimos 2 H2H.
  */
 export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
-    const PACE_FACTOR = 1.05;
+    const PACE_FACTOR = LEAGUE_AVG_ORTG / 100;
 
     const getGamePace = (score: string) => parseScoreToTotal(score) / (2 * PACE_FACTOR);
 
