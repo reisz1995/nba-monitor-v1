@@ -54,7 +54,8 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
     keyPlayersA,
     keyPlayersB,
     bettingLines,
-    advantageMatrix
+    advantageMatrix,
+    marketData
   } = useTeamComparisonData({ teamA, teamB, playerStats, unavailablePlayers, initialAnalysis });
 
   const databallrEnhanced = bettingLines.databallrEnhanced;
@@ -159,8 +160,14 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                     <span className="text-[10px] font-black text-black bg-white px-3 py-1 uppercase">
                       {bettingLines.favorite} {bettingLines.spread}
                     </span>
-                    <span className="text-[10px] font-black text-white bg-indigo-500 px-3 py-1 uppercase skew-x-[-10deg]">
-                      {bettingLines.totalProjected > 225.5 ? 'HIGH_SCORE_EXPECTED' : 'DEFENSIVE_BATTLE'}
+                    <span className={`text-[10px] font-black px-3 py-1 uppercase skew-x-[-10deg] ${marketData?.total
+                        ? (bettingLines.totalProjected > marketData.total ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
+                        : (bettingLines.totalProjected > 225.5 ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-white')
+                      }`}>
+                      {marketData?.total
+                        ? (bettingLines.totalProjected > marketData.total ? `PREV_OVER ${marketData.total}` : `PREV_UNDER ${marketData.total}`)
+                        : (bettingLines.totalProjected > 225.5 ? 'HIGH_SCORE_EXPECTED' : 'DEFENSIVE_BATTLE')
+                      }
                     </span>
                   </div>
                 </div>
@@ -280,15 +287,15 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
 
               {analysis?.momentumData && (
                 <div className="mt-8 relative z-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {analysis && (
-                  <MomentumPanel
-                    teamA={teamA}
-                    teamB={teamB}
-                    homeRecord={analysis.momentumData?.home_record || []}
-                    awayRecord={analysis.momentumData?.away_record || []}
-                    h2hRecord={analysis.momentumData?.momentum_data?.home_vs_away || []}
-                  />
-                )}
+                  {analysis && (
+                    <MomentumPanel
+                      teamA={teamA}
+                      teamB={teamB}
+                      homeRecord={analysis.momentumData?.home_record || []}
+                      awayRecord={analysis.momentumData?.away_record || []}
+                      h2hRecord={analysis.momentumData?.momentum_data?.home_vs_away || []}
+                    />
+                  )}
                 </div>
               )}
             </div>
