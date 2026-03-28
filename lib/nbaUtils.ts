@@ -63,9 +63,9 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
     // 2. Captura a âncora micro (14 Dias)
     const recentPace = databallr?.pace;
 
-    // 3. Executa a média aritmética se ambos os vetores existirem
+    // 3. Executa a média ponderada se ambos os vetores existirem (80% Recente, 20% Temporada)
     if (recentPace && recentPace > 0) {
-        return (seasonPace + recentPace) / 2;
+        return (recentPace * 0.8) + (seasonPace * 0.2);
     }
 
     // Fallback de segurança: Se o Databallr falhar, retorna apenas a temporada
@@ -107,11 +107,18 @@ export const calculateProjectedScores = (
     const hasDataballr = !!(databallrA?.ortg && databallrB?.ortg);
 
     // ─── FONTE DE RATINGS ────────────────────────────────────────────────────
-    // V3.0: usa ORTG/DRTG quando disponível, caso contrário PPG ESPN
-    const offRtgA = hasDataballr ? databallrA!.ortg! : (entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-    const defRtgA = hasDataballr ? databallrA!.drtg! : (entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
-    const offRtgB = hasDataballr ? databallrB!.ortg! : (entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-    const defRtgB = hasDataballr ? databallrB!.drtg! : (entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+    // V3.0 (Weighted): média ponderada entre 14 dias Databallr (80%) e Temporada ESPN (20%)
+    let offRtgA = entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG;
+    let defRtgA = entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG;
+    let offRtgB = entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG;
+    let defRtgB = entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG;
+
+    if (hasDataballr) {
+        if (databallrA!.ortg) offRtgA = (databallrA!.ortg * 0.8) + (offRtgA * 0.2);
+        if (databallrA!.drtg) defRtgA = (databallrA!.drtg * 0.8) + (defRtgA * 0.2);
+        if (databallrB!.ortg) offRtgB = (databallrB!.ortg * 0.8) + (offRtgB * 0.2);
+        if (databallrB!.drtg) defRtgB = (databallrB!.drtg * 0.8) + (defRtgB * 0.2);
+    }
 
     // ─── CÁLCULO DO PACE ─────────────────────────────────────────────────────
     const matchPace = calculateDeterministicPace(entityA, entityB, databallrA, databallrB);
