@@ -108,10 +108,10 @@ export const calculateProjectedScores = (
 
     // ─── FONTE DE RATINGS ────────────────────────────────────────────────────
     // V3.0 (Weighted): média ponderada entre 14 dias Databallr (80%) e Temporada ESPN (20%)
-    let offRtgA = entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG;
-    let defRtgA = entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG;
-    let offRtgB = entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG;
-    let defRtgB = entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG;
+    let offRtgA: number = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    let defRtgA: number = Number(entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+    let offRtgB: number = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    let defRtgB: number = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
 
     if (hasDataballr) {
         if (databallrA!.ortg) offRtgA = (databallrA!.ortg * 0.8) + (offRtgA * 0.2);
@@ -200,13 +200,13 @@ export const calculateProjectedScores = (
     // 5. Filtro de Defesa (Penalidade/Bônus baseados na Defesa do oponente)
     // Team B's defense affects Team A's projection
     if (defRtgB >= 119) {
-        projectedScoreA += 20;
+        projectedScoreA += 10;
     } else if (defRtgB >= 115 && defRtgB <= 118.99) {
         projectedScoreA += 10;
     } else if (defRtgB >= 109 && defRtgB <= 114.99) {
-        projectedScoreA -= 10;
+        projectedScoreA -= 5;
     } else if (defRtgB >= 105 && defRtgB <= 108.99) {
-        projectedScoreA -= 20;
+        projectedScoreA -= 15;
     }
 
     // Team A's defense affects Team B's projection
@@ -215,9 +215,9 @@ export const calculateProjectedScores = (
     } else if (defRtgA >= 115 && defRtgA <= 118.99) {
         projectedScoreB += 10;
     } else if (defRtgA >= 109 && defRtgA <= 114.99) {
-        projectedScoreB -= 10;
+        projectedScoreB -= 5;
     } else if (defRtgA >= 105 && defRtgA <= 108.99) {
-        projectedScoreB -= 20;
+        projectedScoreB -= 15;
     }
 
     const totalPayload = projectedScoreA + projectedScoreB;
