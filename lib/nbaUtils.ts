@@ -86,8 +86,8 @@ export const calculateDeterministicPace = (
     let projectedPace = (blendedPaceA + blendedPaceB) / 2;
 
     // 3. Grampo Térmico (Clamp) - Limites da Realidade Física da NBA
-    const MIN_PACE = 90.0;  // Jogo extremamente lento/truncado
-    const MAX_PACE = 105.0; // Jogo em transição frenética
+    const MIN_PACE = 98.0;  // Jogo extremamente lento/truncado
+    const MAX_PACE = 108.0; // Jogo em transição frenética
 
     const clampedPace = Math.max(MIN_PACE, Math.min(MAX_PACE, projectedPace));
 
@@ -188,6 +188,29 @@ export const calculateProjectedScores = (
         const adjustment = spread * 0.02;
         projectedScoreA -= adjustment / 2;
         projectedScoreB += adjustment / 2;
+    }
+
+    // 5. Filtro de Defesa (Penalidade/Bônus baseados na Defesa do oponente)
+    // Team B's defense affects Team A's projection
+    if (defRtgB >= 119) {
+        projectedScoreA += 20;
+    } else if (defRtgB >= 115 && defRtgB <= 118.99) {
+        projectedScoreA += 10;
+    } else if (defRtgB >= 109 && defRtgB <= 114.99) {
+        projectedScoreA -= 10;
+    } else if (defRtgB >= 105 && defRtgB <= 108.99) {
+        projectedScoreA -= 20;
+    }
+
+    // Team A's defense affects Team B's projection
+    if (defRtgA >= 119) {
+        projectedScoreB += 20;
+    } else if (defRtgA >= 115 && defRtgA <= 118.99) {
+        projectedScoreB += 10;
+    } else if (defRtgA >= 109 && defRtgA <= 114.99) {
+        projectedScoreB -= 10;
+    } else if (defRtgA >= 105 && defRtgA <= 108.99) {
+        projectedScoreB -= 20;
     }
 
     const totalPayload = projectedScoreA + projectedScoreB;
