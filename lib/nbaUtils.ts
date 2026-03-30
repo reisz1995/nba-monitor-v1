@@ -205,6 +205,13 @@ export const calculateProjectedScores = (
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
+    const seasonAvgA = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    const seasonAvgB = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+
+    // ─── TRAVA DE SEGURANÇA (MIN -20 PTS VS MÉDIA) ───────────────────────────
+    projectedScoreA = Math.max(projectedScoreA, seasonAvgA - 20);
+    projectedScoreB = Math.max(projectedScoreB, seasonAvgB - 20);
+
     const totalPayload = projectedScoreA + projectedScoreB;
 
     return {
