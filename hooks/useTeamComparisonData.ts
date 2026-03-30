@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, MarketData } from '../types';
 import { compareTeams, saveMatchupAnalysis, fetchGameWithMomentum } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
-import { calculateProjectedScores, DataballrInput } from '../lib/nbaUtils';
+import { calculateProjectedScores, DataballrInput, getStandardTeamName } from '../lib/nbaUtils';
 import { fetchDataballrFullStats, findDataballrStatsByName } from '../services/databallrService';
 import { toast } from 'sonner';
 
@@ -110,7 +110,7 @@ export const useTeamComparisonData = ({
                 const { data: oddsData } = await supabase
                     .from('nba_odds_matrix')
                     .select('*')
-                    .eq('matchup', `${teamB.name} @ ${teamA.name}`)
+                    .eq('matchup', `${getStandardTeamName(teamB.name)} @ ${getStandardTeamName(teamA.name)}`)
                     .maybeSingle();
                 setMarketData(oddsData ?? null);
             } catch (e) {

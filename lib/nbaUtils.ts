@@ -304,11 +304,23 @@ export const findTeamByName = (name: string, teams: any[]): any | null => {
 };
 
 /**
+ * Retorna o nome padronizado do time para busca em fontes externas (odds/mercado).
+ * Ex: "LA Clippers" -> "Los Angeles Clippers"
+ */
+export const getStandardTeamName = (name: string): string => {
+    if (!name) return '';
+    const n = name.trim();
+    if (n === 'LA Clippers') return 'Los Angeles Clippers';
+    return n;
+};
+
+/**
  * Normaliza o nome do time (remove acentos e espaços extras).
  */
 export const normalizeTeamName = (name: string): string => {
     if (!name) return '';
-    return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const standard = getStandardTeamName(name);
+    return standard.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 };
 
 /**

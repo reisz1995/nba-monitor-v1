@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { TrendingUp, Target, Activity, Zap, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Team, PalpiteData } from '../../types';
-import { calculateProjectedScores, findTeamByName, calculateUnderdogValue } from '../../lib/nbaUtils';
+import { calculateProjectedScores, findTeamByName, calculateUnderdogValue, getStandardTeamName } from '../../lib/nbaUtils';
 import { supabase } from '../../lib/supabase';
 
 interface MarketOdds {
@@ -63,7 +63,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 const fairHandicapNum = Number((analysis.deltaB - analysis.deltaA).toFixed(1));
                 const fairHandicapLabel = fairHandicapNum > 0 ? `+${fairHandicapNum}` : fairHandicapNum.toString();
 
-                const matchup = `${teamFora.name} @ ${teamCasa.name}`;
+                const matchup = `${getStandardTeamName(teamFora.name)} @ ${getStandardTeamName(teamCasa.name)}`;
                 const market = marketOdds[matchup];
 
                 // Edge calculation
