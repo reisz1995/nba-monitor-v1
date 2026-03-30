@@ -100,7 +100,10 @@ export const calculateDeterministicPace = (
 export const calculateProjectedScores = (
     entityA: Team,
     entityB: Team,
-    options?: PaceOptions,
+    options?: PaceOptions & {
+        injuriesA?: { nome: string, isOut: boolean, weight: number }[],
+        injuriesB?: { nome: string, isOut: boolean, weight: number }[]
+    },
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null
 ) => {
@@ -130,49 +133,29 @@ export const calculateProjectedScores = (
 
     if (hasDataballr) {
         // V3.0: usa ORTG real → converte em pontos esperados via pace
-        // Fórmula: pontos = (ORTG / 100) × pace
-        // Mas moderamos com a defesa do adversário para cruzamento real
-        const effA = (offRtgA + defRtgB) / 2; // eficiência cruzada corrigida
+        const effA = (offRtgA + defRtgB) / 2;
         const effB = (offRtgB + defRtgA) / 2;
         projectedScoreA = (effA / 100) * matchPace;
         projectedScoreB = (effB / 100) * matchPace;
 
-        // Ajuste de qualidade de posse via True Shooting % (TS%)
-        // TS% acima de 58% dá bônus; abaixo penaliza levemente
+        // Ajuste TS%
         const tsAvgLeague = 58.0;
-        if (databallrA!.o_ts) {
-            const tsBonusA = (databallrA!.o_ts - tsAvgLeague) * 0.15;
-            projectedScoreA += tsBonusA;
-        }
-        if (databallrB!.o_ts) {
-            const tsBonusB = (databallrB!.o_ts - tsAvgLeague) * 0.15;
-            projectedScoreB += tsBonusB;
-        }
+        if (databallrA!.o_ts) projectedScoreA += (databallrA!.o_ts - tsAvgLeague) * 0.15;
+        if (databallrB!.o_ts) projectedScoreB += (databallrB!.o_ts - tsAvgLeague) * 0.15;
 
-        // Penalidade por turnover acima da média da liga (~14.8%)
-        if (databallrA!.o_tov && databallrA!.o_tov > LEAGUE_AVG_TOV) {
-            projectedScoreA -= (databallrA!.o_tov - LEAGUE_AVG_TOV) * 0.3;
-        }
-        if (databallrB!.o_tov && databallrB!.o_tov > LEAGUE_AVG_TOV) {
-            projectedScoreB -= (databallrB!.o_tov - LEAGUE_AVG_TOV) * 0.3;
-        }
+        // Penalidade TOV
+        if (databallrA!.o_tov && databallrA!.o_tov > LEAGUE_AVG_TOV) projectedScoreA -= (databallrA!.o_tov - LEAGUE_AVG_TOV) * 0.3;
+        if (databallrB!.o_tov && databallrB!.o_tov > LEAGUE_AVG_TOV) projectedScoreB -= (databallrB!.o_tov - LEAGUE_AVG_TOV) * 0.3;
 
-        // Bônus de rebote ofensivo (segunda chance): OReb% acima de 26% gera possibilidade extra
-        if (databallrA!.orb && databallrA!.orb > 26) {
-            projectedScoreA += (databallrA!.orb - 26) * 0.2;
-        }
-        if (databallrB!.orb && databallrB!.orb > 26) {
-            projectedScoreB += (databallrB!.orb - 26) * 0.2;
-        }
+        // Bônus OReb
+        if (databallrA!.orb && databallrA!.orb > 26) projectedScoreA += (databallrA!.orb - 26) * 0.2;
+        if (databallrB!.orb && databallrB!.orb > 26) projectedScoreB += (databallrB!.orb - 26) * 0.2;
     } else {
-        // Fallback original
         projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
         projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
     }
 
     // ─── AJUSTES SITUACIONAIS ─────────────────────────────────────────────────
-
-    // 1. Vantagem de quadra (+1.5 pts base para o time da casa)
     if (options?.isHomeA) {
         projectedScoreA += 1.5;
         projectedScoreB -= 1.5;
@@ -181,15 +164,13 @@ export const calculateProjectedScores = (
         projectedScoreA -= 1.5;
     }
 
-    // 2. Fadiga Back-to-Back (~2.0 pts de queda)
     if (options?.isB2BA) projectedScoreA -= 2.0;
     if (options?.isB2BB) projectedScoreB -= 2.0;
 
-    // 3. Regressão pós-blowout (vitória anterior >20 pts)
     if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1.5;
     if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1.5;
 
-    // 4. Jogo lento: comprime a vantagem do favorito em 2%
+    // Jogo lento
     if (matchPace < 98) {
         const spread = projectedScoreA - projectedScoreB;
         const adjustment = spread * 0.02;
@@ -197,28 +178,32 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 2;
     }
 
-    // 5. Filtro de Defesa (Penalidade/Bônus baseados na Defesa do oponente)
-    // Team B's defense affects Team A's projection
-    if (defRtgB >= 119) {
-        projectedScoreA += 10;
-    } else if (defRtgB >= 115 && defRtgB <= 118.99) {
-        projectedScoreA += 10;
-    } else if (defRtgB >= 109 && defRtgB <= 114.99) {
-        projectedScoreA -= 5;
-    } else if (defRtgB >= 105 && defRtgB <= 108.99) {
-        projectedScoreA -= 15;
-    }
+    // Filtro de Defesa
+    if (defRtgB >= 119) projectedScoreA += 10;
+    else if (defRtgB >= 115) projectedScoreA += 10;
+    else if (defRtgB >= 109) projectedScoreA -= 5;
+    else if (defRtgB <= 108.99) projectedScoreA -= 15;
 
-    // Team A's defense affects Team B's projection
-    if (defRtgA >= 119) {
-        projectedScoreB += 20;
-    } else if (defRtgA >= 115 && defRtgA <= 118.99) {
-        projectedScoreB += 10;
-    } else if (defRtgA >= 109 && defRtgA <= 114.99) {
-        projectedScoreB -= 5;
-    } else if (defRtgA >= 105 && defRtgA <= 108.99) {
-        projectedScoreB -= 15;
-    }
+    if (defRtgA >= 119) projectedScoreB += 20;
+    else if (defRtgA >= 115) projectedScoreB += 10;
+    else if (defRtgA >= 109) projectedScoreB -= 5;
+    else if (defRtgA <= 108.99) projectedScoreB -= 15;
+
+    // ─── AJUSTE DE INTEGRIDADE FÍSICA (HW PENALTY V3.1) ──────────────────────
+    const calculatePenalty = (injuries?: { isOut: boolean, weight: number }[]) => {
+        let p = 0;
+        (injuries || []).forEach(inj => {
+            if (inj.isOut) {
+                if (inj.weight >= 9) p += (inj.weight * 2.0) + 5;
+                else if (inj.weight >= 8) p += (inj.weight * 1.5);
+                else p += inj.weight;
+            }
+        });
+        return p;
+    };
+
+    projectedScoreA -= calculatePenalty(options?.injuriesA);
+    projectedScoreB -= calculatePenalty(options?.injuriesB);
 
     const totalPayload = projectedScoreA + projectedScoreB;
 

@@ -185,37 +185,51 @@ export const useTeamComparisonData = ({
         const allPlayersA = playerStats.filter(p => rosterFilter(p.time || p.team_name || '', teamA));
         const allPlayersB = playerStats.filter(p => rosterFilter(p.time || p.team_name || '', teamB));
 
-        const calculateHWImpact = (players: PlayerStat[], injuries: { nome: string, isOut: boolean }[]) => {
-            let activeHW = 0;
-            let penalty = 0;
-            players.forEach(player => {
+        const mapInjuries = (players: PlayerStat[], injuries: { nome: string, isOut: boolean }[]) => {
+            return players.map(player => {
                 const weight = getPlayerWeight(player.pontos || player.pts || 0);
                 const injury = injuries.find(inj =>
                     inj.nome.toLowerCase() === (player.nome || player.player_name || '').toLowerCase()
                 );
-                if (injury) {
-                    // Penalidade apenas para OUT com HW >= 9
-                    if (injury.isOut && weight >= 9) {
-                        penalty += weight;
-                    }
-                } else {
-                    activeHW += weight;
-                }
+                return {
+                    nome: player.nome || player.player_name || '',
+                    isOut: !!injury?.isOut,
+                    weight
+                };
             });
-            return { activeHW, penalty };
         };
 
-        const impactA = calculateHWImpact(allPlayersA, injuriesA);
-        const impactB = calculateHWImpact(allPlayersB, injuriesB);
+        const mappedInjuriesA = mapInjuries(allPlayersA, injuriesA);
+        const mappedInjuriesB = mapInjuries(allPlayersB, injuriesB);
 
         const { matchPace, totalPayload, deltaA, deltaB, kineticState, databallrEnhanced } = calculateProjectedScores(
-            teamA, teamB, undefined, databallrA, databallrB
+            teamA, teamB, {
+            isHomeA: true,
+            injuriesA: mappedInjuriesA,
+            injuriesB: mappedInjuriesB
+        }, databallrA, databallrB
         );
         let projA = deltaA;
         let projB = deltaB;
 
-        projA -= impactA.penalty;
-        projB -= impactB.penalty;
+        // VETOR DE HARMONIA V3.1 (Ajuste solicitado pelo usuário: 4 a 8 pontos)
+        // Se a IA ("Estatístico Chefe") já gerou uma análise e o vencedor diverge do favorito matemático,
+        // aplicamos um ajuste de 6.0 pontos para reduzir a discrepância visual.
+        if (analysis && analysis.winner !== "N/A" && !loading) {
+            const mathFavorite = projA > projB ? teamA.name : teamB.name;
+            const aiWinner = analysis.winner;
+
+            // Se a IA e a Matemática divergem
+            if (aiWinner.toLowerCase().includes(teamA.name.toLowerCase()) && mathFavorite === teamB.name) {
+                projA += 6.0;
+                projB -= 6.0;
+                console.info(`[HARMONY] Ajuste de +6.0 para ${teamA.name} alinhado com IA.`);
+            } else if (aiWinner.toLowerCase().includes(teamB.name.toLowerCase()) && mathFavorite === teamA.name) {
+                projB += 6.0;
+                projA -= 6.0;
+                console.info(`[HARMONY] Ajuste de +6.0 para ${teamB.name} alinhado com IA.`);
+            }
+        }
 
         const spread = projB - projA;
 
@@ -232,14 +246,14 @@ export const useTeamComparisonData = ({
             totalProjected: projA + projB,
             matchPace,
             kineticState,
-            penaltyA: impactA.penalty,
-            penaltyB: impactB.penalty,
-            activeHWA: impactA.activeHW,
-            activeHWB: impactB.activeHW,
+            penaltyA: 0, // Agora embutido na projeção
+            penaltyB: 0,
+            activeHWA: mappedInjuriesA.reduce((sum, p) => sum + (p.isOut ? 0 : p.weight), 0),
+            activeHWB: mappedInjuriesB.reduce((sum, p) => sum + (p.isOut ? 0 : p.weight), 0),
             spread: spread > 0 ? `+${spread.toFixed(1)}` : spread.toFixed(1),
             favorite: spread < 0 ? teamA.name : teamB.name
         };
-    }, [teamA, teamB, injuriesA, injuriesB, playerStats, databallrA, databallrB]);
+    }, [teamA, teamB, injuriesA, injuriesB, playerStats, databallrA, databallrB, analysis, loading]);
 
     const advantageMatrix = useMemo(() => {
         const calcMomentum = (record: GameResult[]) => {

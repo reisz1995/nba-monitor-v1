@@ -197,8 +197,28 @@ export const compareTeams = async (
   const compactInjuries = formatInjuriesForAI(dbInjuries.data || injuries);
   const compactStandings = formatStandingsForAI(dbStandings.data || []);
 
+  const getPlayerWeight = (pts: number) => Math.floor((pts || 0) / 3);
+  const mapInjToHW = (teamName: string, allInjuries: UnavailablePlayer[], allStats: PlayerStat[]) => {
+    const teamStats = allStats.filter(s => (s.time || s.team_name || '').toLowerCase().includes(teamName.toLowerCase()));
+    return teamStats.map(s => {
+      const inj = allInjuries.find(i => (i.player_name || i.nome || '').toLowerCase() === (s.player_name || s.nome || '').toLowerCase());
+      return {
+        nome: s.player_name || s.nome || '',
+        isOut: !!(inj?.injury_status || inj?.gravidade || '').toUpperCase().includes('OUT'),
+        weight: getPlayerWeight(s.pontos || s.pts || 0)
+      };
+    });
+  };
+
+  const injuriesA = mapInjToHW(teamA.name, dbInjuries.data || injuries, dbStats.data || playerStats);
+  const injuriesB = mapInjToHW(teamB.name, dbInjuries.data || injuries, dbStats.data || playerStats);
+
   const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced } =
-    calculateProjectedScores(teamA, teamB, { isHomeA: true }, databallrA, databallrB);
+    calculateProjectedScores(teamA, teamB, {
+      isHomeA: true,
+      injuriesA,
+      injuriesB
+    }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
   const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);

@@ -43,7 +43,33 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
         fetchMarketOdds();
     }, []);
 
+    const [allInjuries, setAllInjuries] = useState<any[]>([]);
+    const [allStats, setAllStats] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const { data: injData } = await supabase.from('nba_injured_players').select('*');
+            const { data: statsData } = await supabase.from('nba_jogadores_stats').select('*');
+            if (injData) setAllInjuries(injData);
+            if (statsData) setAllStats(statsData);
+        };
+        fetchData();
+    }, []);
+
     const projections = useMemo(() => {
+        const getPlayerWeight = (pts: number) => Math.floor((pts || 0) / 3);
+        const mapInjToHW = (teamName: string) => {
+            const teamStats = allStats.filter(s => (s.time || s.team_name || '').toLowerCase().includes(teamName.toLowerCase()));
+            return teamStats.map(s => {
+                const inj = allInjuries.find(i => (i.player_name || i.nome || '').toLowerCase() === (s.player_name || s.nome || '').toLowerCase());
+                return {
+                    nome: s.player_name || s.nome || '',
+                    isOut: !!(inj?.injury_status || inj?.gravidade || '').toUpperCase().includes('OUT'),
+                    weight: getPlayerWeight(s.pontos || s.pts || 0)
+                };
+            });
+        };
+
         return predictions
             .map(p => {
                 const teamCasa = findTeamByName(p.time_casa, teams);
@@ -51,13 +77,18 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
 
                 if (!teamCasa || !teamFora) return null;
 
-                const isB2BHome = p.n_casa?.includes('B2B') || false; // Mock or extracted from string if available
+                const isB2BHome = p.n_casa?.includes('B2B') || false;
                 const isB2BAway = p.n_fora?.includes('B2B') || false;
+
+                const injuriesA = mapInjToHW(teamCasa.name);
+                const injuriesB = mapInjToHW(teamFora.name);
 
                 const analysis = calculateProjectedScores(teamCasa, teamFora, {
                     isHomeA: true,
                     isB2BA: isB2BHome,
-                    isB2BB: isB2BAway
+                    isB2BB: isB2BAway,
+                    injuriesA,
+                    injuriesB
                 });
 
                 const fairHandicapNum = Number((analysis.deltaB - analysis.deltaA).toFixed(1));
