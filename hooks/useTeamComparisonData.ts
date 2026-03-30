@@ -194,7 +194,8 @@ export const useTeamComparisonData = ({
                     inj.nome.toLowerCase() === (player.nome || player.player_name || '').toLowerCase()
                 );
                 if (injury) {
-                    if (injury.isOut && weight >= 8) {
+                    // Penalidade apenas para OUT com HW >= 9
+                    if (injury.isOut && weight >= 9) {
                         penalty += weight;
                     }
                 } else {

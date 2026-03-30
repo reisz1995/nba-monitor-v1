@@ -6,24 +6,24 @@ import { Redis } from '@upstash/redis';
 let ratelimit: Ratelimit | null = null;
 
 try {
-  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-  if (redisUrl && redisToken) {
-    ratelimit = new Ratelimit({
-      redis: new Redis({
-        url: redisUrl,
-        token: redisToken,
-      }),
-      limiter: Ratelimit.slidingWindow(10, '1 m'), // 10 requests per minute per IP
-      analytics: true,
-      prefix: 'nba_monitor_ratelimit',
-    });
-  } else {
-    console.warn('[Upstash-Redis] Variáveis de ambiente ausentes. Rate limiting desativado.');
-  }
+    if (redisUrl && redisToken) {
+        ratelimit = new Ratelimit({
+            redis: new Redis({
+                url: redisUrl,
+                token: redisToken,
+            }),
+            limiter: Ratelimit.slidingWindow(10, '1 m'), // 10 requests per minute per IP
+            analytics: true,
+            prefix: 'nba_monitor_ratelimit',
+        });
+    } else {
+        console.warn('[Upstash-Redis] Variáveis de ambiente ausentes. Rate limiting desativado.');
+    }
 } catch (e) {
-  console.error('[Upstash-Redis] Falha ao inicializar Ratelimit:', e);
+    console.error('[Upstash-Redis] Falha ao inicializar Ratelimit:', e);
 }
 
 const SYSTEM_INSTRUCTION = `Role: Você é o "Estatístico Chefe do NBA Hub". Operação estrita, brutalista e puramente matemática. Não narre jogos. Emita sentenças técnicas e frias.
@@ -47,7 +47,7 @@ DIRETRIZES ESTRATÉGICAS UNIFICADAS (MATRIZ V3.0):
 - Defesa Top: Defesas de elite (PTS sofridos < 109.5) anulam blowouts.
 
 [VETOR 4: INTEGRIDADE FÍSICA]
-- Ausência da Estrela Alfa HW >= 7 (Jokic, SGA, Doncic, etc) causa colapso sistêmico imediato, exceto se a equipa tiver Rating > 4.5.`;
+- Ausência da Estrela Alfa HW >= 9 (Jokic, SGA, Doncic, etc) causa colapso sistêmico imediato, exceto se a equipa tiver Rating > 4.5.`;
 
 const COMPARE_SCHEMA = {
     type: Type.OBJECT,
@@ -101,13 +101,13 @@ export default async function handler(req: any, res: any) {
         try {
             const identifier = req.headers['x-forwarded-for'] || 'anonymous';
             const { success, limit, remaining } = await ratelimit.limit(identifier as string);
-            
+
             res.setHeader('X-RateLimit-Limit', limit.toString());
             res.setHeader('X-RateLimit-Remaining', remaining.toString());
-            
+
             if (!success) {
-                return res.status(429).json({ 
-                    error: 'Limite de requisições excedido. Tente novamente em 1 minuto.' 
+                return res.status(429).json({
+                    error: 'Limite de requisições excedido. Tente novamente em 1 minuto.'
                 });
             }
         } catch (error) {

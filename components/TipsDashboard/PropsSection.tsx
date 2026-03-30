@@ -38,8 +38,8 @@ const PropsSection: React.FC<PropsSectionProps> = ({
                         const weight = getPlayerWeight(player.pontos);
 
                         let penalty = 0;
-                        if (injury) {
-                            penalty = injury.isOut ? weight : (weight / 2);
+                        if (injury && injury.isOut && weight >= 9) {
+                            penalty = weight;
                         }
 
                         const adjustedPoints = Math.max(0, player.pontos - penalty);
