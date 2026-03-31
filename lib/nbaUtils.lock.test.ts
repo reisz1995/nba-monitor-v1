@@ -15,22 +15,23 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
     } as any;
 
     it('deve travar o placar em no máximo 20 pontos abaixo da média da temporada', () => {
-        // Simular cenário de desastre: 2 lesões peso 9 (HW 9)
-        // Cada lesão HW 9 remove (9 * 2) + 2 = 20 pontos.
-        // Total de penalidade: 40 pontos.
-        // Média do Lakers: 115. Placar sem trava seria ~75.
+        // Simular cenário de desastre: Vários desfalques pesados
+        // HW 9 + HW 9 + HW 5 = 23 pontos de penalidade nominal.
+        // Defesa de elite (pts_contra 108) = -15 pontos.
+        // Total: -38 pontos.
+        // Média do Lakers: 115. Sem trava seria 77.
         // Com a trava (-20 pts): deve ser 95.
 
         const injuriesA = [
-            { nome: 'LeBron James', isOut: true, weight: 9 },
-            { nome: 'Anthony Davis', isOut: true, weight: 9 }
+            { nome: 'Jogador A', isOut: true, weight: 9 },
+            { nome: 'Jogador B', isOut: true, weight: 9 },
+            { nome: 'Jogador C', isOut: true, weight: 5 }
         ];
 
         const result = calculateProjectedScores(teamA, teamB, { injuriesA });
 
-        // Média 115 - 20 = 95
+        // Floor: 115 - 20 = 95
         expect(result.deltaA).toBe(95);
-        expect(result.deltaA).toBeGreaterThan(75);
     });
 
     it('não deve interferir se o placar estiver dentro da margem de 20 pontos', () => {
@@ -47,15 +48,25 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
 
         const result = calculateProjectedScores(teamA, neutralTeamB, { injuriesA });
 
-        // Média 115. Sem a trava agressiva, o placar ficaria na casa dos 105-110.
+        // Média 115. Penalidade nominal 5 pts. Resultado ~110.
         // Deve permanecer acima de 95 (o piso).
         expect(result.deltaA).toBeGreaterThan(95);
         expect(result.deltaA).toBeLessThan(115);
     });
 
     it('deve travar ambos os times se necessário', () => {
-        const injuriesA = [{ nome: 'Star A', isOut: true, weight: 10 }]; // -22 pts
-        const injuriesB = [{ nome: 'Star B', isOut: true, weight: 10 }]; // -22 pts
+        // Para forçar o lock sem o multiplicador, precisamos de mais peso
+        const injuriesA = [
+            { nome: 'Star A1', isOut: true, weight: 10 },
+            { nome: 'Star A2', isOut: true, weight: 10 },
+            { nome: 'Star A3', isOut: true, weight: 5 }
+        ]; // -25 pts
+
+        const injuriesB = [
+            { nome: 'Star B1', isOut: true, weight: 10 },
+            { nome: 'Star B2', isOut: true, weight: 10 },
+            { nome: 'Star B3', isOut: true, weight: 5 }
+        ]; // -25 pts
 
         // Média A: 115 -> Floor 95
         // Média B: 118 -> Floor 98

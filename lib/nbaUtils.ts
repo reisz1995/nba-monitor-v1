@@ -194,13 +194,8 @@ export const calculateProjectedScores = (
         let p = 0;
         (injuries || []).forEach(inj => {
             if (inj.isOut) {
-                if (inj.weight >= 9) {
-                    // "Colapso Sistêmico" v3.2: 2.0x + 2 pts fixos
-                    p += (inj.weight * 2.0) + 2;
-                } else {
-                    // Impacto nominal para HW < 9 (incluindo HW >= 8)
-                    p += inj.weight;
-                }
+                // Simplificado: impacto nominal direto (sem multiplicadores de colapso)
+                p += inj.weight;
             }
         });
         return p;
