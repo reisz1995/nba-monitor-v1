@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer } from '../types';
 import MomentumBar from './MomentumBar';
 import MomentumPanel from './MomentumPanel';
 import { useTeamComparisonData } from '../hooks/useTeamComparisonData';
 import { StatBar, PlayerCard, AdvantageItem } from './ComparisonStats';
 import { X, Trophy, TrendingUp, AlertTriangle, Info, Target, Download, Share2, Activity, Zap } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { toast } from 'sonner';
 
 export const EdgeDisplay = ({ keyFactor }: { keyFactor: string }) => {
   if (!keyFactor) return null;
@@ -59,10 +61,37 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   } = useTeamComparisonData({ teamA, teamB, playerStats, unavailablePlayers, initialAnalysis });
 
   const databallrEnhanced = bettingLines.databallrEnhanced;
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleExport = useCallback(async () => {
+    if (!contentRef.current) return;
+
+    const toastId = toast.loading('Gerando imagem...');
+
+    try {
+      const dataUrl = await toPng(contentRef.current, {
+        cacheBust: true,
+        backgroundColor: '#111',
+        style: {
+          borderRadius: '0'
+        }
+      });
+
+      const link = document.createElement('a');
+      link.download = `nba-matchup-${teamA.name.replace(/\s+/g, '-')}-vs-${teamB.name.replace(/\s+/g, '-')}.png`;
+      link.href = dataUrl;
+      link.click();
+
+      toast.success('Imagem exportada com sucesso!', { id: toastId });
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Erro ao exportar imagem.', { id: toastId });
+    }
+  }, [teamA.name, teamB.name]);
 
   return (
     <div aria-label="Team Comparison" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
-      <div className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
+      <div ref={contentRef} className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
 
         {/* Header */}
         <div className="px-8 py-4 border-b-4 border-white flex justify-between items-center bg-white text-black">
@@ -161,8 +190,8 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                       {bettingLines.favorite} {bettingLines.spread}
                     </span>
                     <span className={`text-[10px] font-black px-3 py-1 uppercase skew-x-[-10deg] ${marketData?.total
-                        ? (bettingLines.totalProjected > marketData.total ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
-                        : (bettingLines.totalProjected > 225.5 ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-white')
+                      ? (bettingLines.totalProjected > marketData.total ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
+                      : (bettingLines.totalProjected > 225.5 ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-white')
                       }`}>
                       {marketData?.total
                         ? (bettingLines.totalProjected > marketData.total ? `PREV_OVER ${marketData.total}` : `PREV_UNDER ${marketData.total}`)
@@ -309,7 +338,10 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
             System_NBA_v3.0 // Motor: {databallrEnhanced ? 'DATABALLR_ENHANCED' : 'ESPN_FALLBACK'} // Status: Operational
           </span>
           <div className="flex gap-4">
-            <button className="flex items-center gap-2 hover:text-white transition-colors">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 hover:text-white transition-colors"
+            >
               <Download className="w-3 h-3" /> EXPORT_DATA
             </button>
             <button className="flex items-center gap-2 hover:text-white transition-colors">
