@@ -189,6 +189,37 @@ export const calculateProjectedScores = (
     else if (defRtgA >= 109) projectedScoreB -= 2;
     else if (defRtgA <= 108.99) projectedScoreB -= 6;
 
+    // ─── PENALIDADE/BÔNUS NOTAS DIFERENTES (v3.2) ───────────────────────────
+    // Se um time tem ataque ou defesa superior (diff >= 1), recebe +5 pontos.
+    if (databallrA && databallrB) {
+        const offA = databallrA.offense_rating ?? 0;
+        const offB = databallrB.offense_rating ?? 0;
+        const defA = databallrA.defense_rating ?? 0;
+        const defB = databallrB.defense_rating ?? 0;
+
+        // Bônus de Ataque Superior
+        if (Math.abs(offA - offB) >= 1) {
+            if (offA > offB) {
+                projectedScoreA += 5;
+                console.log(`[NOTAS] +5 para ${entityA.name} (Ataque Superior: ${offA.toFixed(1)} vs ${offB.toFixed(1)})`);
+            } else {
+                projectedScoreB += 5;
+                console.log(`[NOTAS] +5 para ${entityB.name} (Ataque Superior: ${offB.toFixed(1)} vs ${offA.toFixed(1)})`);
+            }
+        }
+
+        // Bônus de Defesa Superior
+        if (Math.abs(defA - defB) >= 1) {
+            if (defA > defB) {
+                projectedScoreA += 5;
+                console.log(`[NOTAS] +5 para ${entityA.name} (Defesa Superior: ${defA.toFixed(1)} vs ${defB.toFixed(1)})`);
+            } else {
+                projectedScoreB += 5;
+                console.log(`[NOTAS] +5 para ${entityB.name} (Defesa Superior: ${defB.toFixed(1)} vs ${defA.toFixed(1)})`);
+            }
+        }
+    }
+
     // ─── AJUSTE DE INTEGRIDADE FÍSICA (HW PENALTY V3.1) ──────────────────────
     const calculatePenalty = (injuries?: { isOut: boolean, weight: number }[]) => {
         let p = 0;
