@@ -14,13 +14,13 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
         espnData: { pts: 118, pts_contra: 108 }
     } as any;
 
-    it('deve travar o placar em no máximo 10 pontos abaixo da média da temporada', () => {
+    it('deve travar o placar em no máximo 15 pontos abaixo da média da temporada', () => {
         // Simular cenário de desastre: Vários desfalques pesados
         // HW 9 + HW 9 + HW 5 = 23 pontos de penalidade nominal.
         // Defesa de elite (pts_contra 108) = -15 pontos.
         // Total: -38 pontos.
         // Média do Lakers: 115. Sem trava seria 77.
-        // Com a trava (-10 pts): deve ser 105.
+        // Com a trava (-15 pts): deve ser 100.
 
         const injuriesA = [
             { nome: 'Jogador A', isOut: true, weight: 9 },
@@ -30,11 +30,11 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
 
         const result = calculateProjectedScores(teamA, teamB, { injuriesA });
 
-        // Floor: 115 - 10 = 105
-        expect(result.deltaA).toBe(105);
+        // Floor: 115 - 15 = 100
+        expect(result.deltaA).toBe(100);
     });
 
-    it('não deve interferir se o placar estiver dentro da margem de 10 pontos', () => {
+    it('não deve interferir se o placar estiver dentro da margem de 15 pontos', () => {
         // Time B com defesa neutra (112 pts_contra) para não derrubar o placar sozinho
         const neutralTeamB = {
             name: 'Celtics',
@@ -49,8 +49,8 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
         const result = calculateProjectedScores(teamA, neutralTeamB, { injuriesA });
 
         // Média 115. Penalidade nominal 5 pts. Resultado ~110.
-        // Deve permanecer acima de 105 (o piso).
-        expect(result.deltaA).toBeGreaterThan(105);
+        // Deve permanecer acima de 100 (o piso).
+        expect(result.deltaA).toBeGreaterThan(100);
         expect(result.deltaA).toBeLessThan(115);
     });
 
@@ -68,12 +68,12 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
             { nome: 'Star B3', isOut: true, weight: 5 }
         ]; // -25 pts
 
-        // Média A: 115 -> Floor 105
-        // Média B: 118 -> Floor 108
+        // Média A: 115 -> Floor 100
+        // Média B: 118 -> Floor 103
 
         const result = calculateProjectedScores(teamA, teamB, { injuriesA, injuriesB });
 
-        expect(result.deltaA).toBe(105);
-        expect(result.deltaB).toBe(108);
+        expect(result.deltaA).toBe(100);
+        expect(result.deltaB).toBe(103);
     });
 });
