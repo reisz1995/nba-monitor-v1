@@ -223,7 +223,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
             {[{ team: teamA, injuries: injuriesA, key: keyPlayersA, side: 'LEFT' }, { team: teamB, injuries: injuriesB, key: keyPlayersB, side: 'RIGHT' }].map((t, idx) => (
               <div key={idx} className="space-y-8">
                 <div className="flex items-center gap-4 border-b-4 border-white pb-4">
-                  <img src={t.team.logo} className="w-16 h-16 object-contain" alt="" />
+                  <img src={t.team.logo} className="w-16 h-16 object-contain" alt="" crossOrigin="anonymous" />
                   <div>
                     <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">{t.team.name}</h3>
                     <div className="flex items-center gap-2">

@@ -86,6 +86,7 @@ export const MomentumPanel: React.FC<MomentumPanelProps> = ({ teamA, teamB, home
                     <img
                       src={teamA.logo}
                       alt="Team A"
+                      crossOrigin="anonymous"
                       className={`w-6 h-6 object-contain ${game.result === 'V' ? 'opacity-100 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'opacity-30 grayscale'}`}
                     />
 
@@ -100,6 +101,7 @@ export const MomentumPanel: React.FC<MomentumPanelProps> = ({ teamA, teamB, home
                     <img
                       src={teamB.logo}
                       alt="Team B"
+                      crossOrigin="anonymous"
                       className={`w-6 h-6 object-contain ${game.result === 'D' ? 'opacity-100 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]' : 'opacity-30 grayscale'}`}
                     />
                   </div>
