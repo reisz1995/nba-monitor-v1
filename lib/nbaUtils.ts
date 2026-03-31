@@ -207,11 +207,11 @@ export const calculateProjectedScores = (
     const seasonAvgA = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
     const seasonAvgB = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
 
-    // ─── TRAVA DE SEGURANÇA PROFISSIONAL (MIN -20 PTS VS MÉDIA) ──────────────
+    // ─── TRAVA DE SEGURANÇA PROFISSIONAL (MIN -10 PTS VS MÉDIA) ──────────────
     // Impede que as penalidades cumulativas (desfalques + fadiga + defesa forte)
     // gerem projeções de placares irreais (ex: 80-90 pts).
-    const scoreFloorA = seasonAvgA - 20;
-    const scoreFloorB = seasonAvgB - 20;
+    const scoreFloorA = seasonAvgA - 10;
+    const scoreFloorB = seasonAvgB - 10;
 
     if (projectedScoreA < scoreFloorA) {
         console.log(`[SAFE-LOCK] Acionado para ${entityA.name}: ${projectedScoreA.toFixed(1)} -> ${scoreFloorA.toFixed(1)}`);
