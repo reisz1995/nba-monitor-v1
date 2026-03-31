@@ -102,7 +102,9 @@ export const calculateProjectedScores = (
     entityB: Team,
     options?: PaceOptions & {
         injuriesA?: { nome: string, isOut: boolean, weight: number }[],
-        injuriesB?: { nome: string, isOut: boolean, weight: number }[]
+        injuriesB?: { nome: string, isOut: boolean, weight: number }[],
+        aiScoreA?: number,
+        aiScoreB?: number
     },
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null
@@ -191,7 +193,11 @@ export const calculateProjectedScores = (
 
     // ─── PENALIDADE/BÔNUS NOTAS DIFERENTES (v3.2) ───────────────────────────
     // Se um time tem ataque ou defesa superior (diff >= 1), recebe +5 pontos.
-    if (databallrA && databallrB) {
+    // TRAVA: Se os POWER_SCORE (aiScore) forem iguais, a penalidade NÃO é aplicada.
+    const effAiA = options?.aiScoreA ?? entityA.ai_score ?? 0;
+    const effAiB = options?.aiScoreB ?? entityB.ai_score ?? 0;
+
+    if (databallrA && databallrB && effAiA !== effAiB) {
         const offA = databallrA.offense_rating ?? 0;
         const offB = databallrB.offense_rating ?? 0;
         const defA = databallrA.defense_rating ?? 0;
