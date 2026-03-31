@@ -63,9 +63,9 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
     // 2. Captura a âncora micro (14 Dias)
     const recentPace = databallr?.pace;
 
-    // 3. Executa a média ponderada se ambos os vetores existirem (80% Recente, 20% Temporada)
+    // 3. Executa a média ponderada se ambos os vetores existirem (60% Recente, 40% Temporada)
     if (recentPace && recentPace > 0) {
-        return (recentPace * 0.8) + (seasonPace * 0.2);
+        return (recentPace * 0.6) + (seasonPace * 0.4);
     }
 
     // Fallback de segurança: Se o Databallr falhar, retorna apenas a temporada
@@ -110,17 +110,17 @@ export const calculateProjectedScores = (
     const hasDataballr = !!(databallrA?.ortg && databallrB?.ortg);
 
     // ─── FONTE DE RATINGS ────────────────────────────────────────────────────
-    // V3.0 (Weighted): média ponderada entre 14 dias Databallr (80%) e Temporada ESPN (20%)
+    // V3.0 (Weighted): média ponderada entre 14 dias Databallr (60%) e Temporada ESPN (40%)
     let offRtgA: number = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
     let defRtgA: number = Number(entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
     let offRtgB: number = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
     let defRtgB: number = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
 
     if (hasDataballr) {
-        if (databallrA!.ortg) offRtgA = (databallrA!.ortg * 0.8) + (offRtgA * 0.2);
-        if (databallrA!.drtg) defRtgA = (databallrA!.drtg * 0.8) + (defRtgA * 0.2);
-        if (databallrB!.ortg) offRtgB = (databallrB!.ortg * 0.8) + (offRtgB * 0.2);
-        if (databallrB!.drtg) defRtgB = (databallrB!.drtg * 0.8) + (defRtgB * 0.2);
+        if (databallrA!.ortg) offRtgA = (databallrA!.ortg * 0.6) + (offRtgA * 0.4);
+        if (databallrA!.drtg) defRtgA = (databallrA!.drtg * 0.6) + (defRtgA * 0.4);
+        if (databallrB!.ortg) offRtgB = (databallrB!.ortg * 0.6) + (offRtgB * 0.4);
+        if (databallrB!.drtg) defRtgB = (databallrB!.drtg * 0.6) + (defRtgB * 0.4);
     }
 
     // ─── CÁLCULO DO PACE ─────────────────────────────────────────────────────
@@ -178,16 +178,16 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 2;
     }
 
-    // Filtro de Defesa
-    if (defRtgB >= 119) projectedScoreA += 10;
-    else if (defRtgB >= 115) projectedScoreA += 10;
-    else if (defRtgB >= 109) projectedScoreA -= 5;
-    else if (defRtgB <= 108.99) projectedScoreA -= 15;
+    // Filtro de Defesa (Ajustes de Pontos Fixos Normalizados)
+    if (defRtgB >= 119) projectedScoreA += 5;
+    else if (defRtgB >= 115) projectedScoreA += 3;
+    else if (defRtgB >= 109) projectedScoreA -= 2;
+    else if (defRtgB <= 108.99) projectedScoreA -= 6;
 
-    if (defRtgA >= 119) projectedScoreB += 20;
-    else if (defRtgA >= 115) projectedScoreB += 10;
-    else if (defRtgA >= 109) projectedScoreB -= 5;
-    else if (defRtgA <= 108.99) projectedScoreB -= 15;
+    if (defRtgA >= 119) projectedScoreB += 5;
+    else if (defRtgA >= 115) projectedScoreB += 3;
+    else if (defRtgA >= 109) projectedScoreB -= 2;
+    else if (defRtgA <= 108.99) projectedScoreB -= 6;
 
     // ─── AJUSTE DE INTEGRIDADE FÍSICA (HW PENALTY V3.1) ──────────────────────
     const calculatePenalty = (injuries?: { isOut: boolean, weight: number }[]) => {
