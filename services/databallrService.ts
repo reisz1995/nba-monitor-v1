@@ -80,13 +80,15 @@ export const fetchDataballrFullStats = async (): Promise<DataballrFullStats[]> =
   }
 
   // Deduplica: mantém apenas o registro mais recente por team_id
-  const seen = new Set<number>();
-  const deduped = data.filter((row: any) => {
-    if (seen.has(row.team_id)) return false;
-    seen.add(row.team_id);
-    return true;
-  }) as DataballrFullStats[];
+  // Como a query já está ordenada por record_date DESC, o primeiro registro encontrado para cada time é o mais recente.
+  const dedupedMap = new Map<number, DataballrFullStats>();
+  data.forEach((row: any) => {
+    if (!dedupedMap.has(row.team_id)) {
+      dedupedMap.set(row.team_id, row as DataballrFullStats);
+    }
+  });
 
+  const deduped = Array.from(dedupedMap.values());
   _cache = deduped;
   _cacheTimestamp = Date.now();
   return deduped;

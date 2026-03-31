@@ -41,6 +41,42 @@ const LEAGUE_AVG_ORTG = 115.5;
 const LEAGUE_AVG_PACE = 99.7;
 const LEAGUE_AVG_TOV = 14.8;
 
+// CONFIGURAÇÃO DE PARÂMETROS DO MOTOR (NBA MONITOR v3.5)
+const NBA_CONFIG = {
+    WEIGHTS: {
+        RECENT: 0.6,    // Pesagem para os últimos 14 dias (Databallr)
+        SEASON: 0.4     // Pesagem para a média da temporada (ESPN)
+    },
+    LIMITS: {
+        MIN_PACE: 98.0,
+        MAX_PACE: 108.0,
+        SCORE_FLOOR_DIFF: 15, // Máximo de queda permitida vs média da temporada
+        ELITE_DEFENSE_THRESHOLD: 109.5,
+        UNDERDOG_VALUE_EDGE: 4.5
+    },
+    ADJUSTMENTS: {
+        HOME_ADVANTAGE: 1.5,
+        B2B_FATIGUE: 2.0,
+        BLOWOUT_REGRESSION: 1.5,
+        TS_VARIANCE_FACTOR: 0.15,
+        TOV_PENALTY_FACTOR: 0.3,
+        OREB_BONUS_FACTOR: 0.2,
+        SUPERIORITY_BONUS: 5.0
+    },
+    THRESHOLDS: {
+        BLOWOUT_MARGIN: 20,
+        OREB_ELITE_PCT: 26,
+        PACE_SLOW_THRESHOLD: 98,
+        PACE_HYPER_THRESHOLD: 102.5
+    },
+    DEFENSE_FILTER: [
+        { min: 119, adj: 5 },
+        { min: 115, adj: 3 },
+        { min: 109, adj: -2 },
+        { max: 108.99, adj: -6 }
+    ]
+};
+
 /**
  * ALGORITMO DE RITMO E COLISÃO ESTATÍSTICA v3.0 (DATABALLR_ENHANCED)
  *
@@ -65,7 +101,7 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
 
     // 3. Executa a média ponderada se ambos os vetores existirem (60% Recente, 40% Temporada)
     if (recentPace && recentPace > 0) {
-        return (recentPace * 0.6) + (seasonPace * 0.4);
+        return (recentPace * NBA_CONFIG.WEIGHTS.RECENT) + (seasonPace * NBA_CONFIG.WEIGHTS.SEASON);
     }
 
     // Fallback de segurança: Se o Databallr falhar, retorna apenas a temporada
@@ -86,10 +122,7 @@ export const calculateDeterministicPace = (
     let projectedPace = (blendedPaceA + blendedPaceB) / 2;
 
     // 3. Grampo Térmico (Clamp) - Limites da Realidade Física da NBA
-    const MIN_PACE = 98.0;  // Jogo extremamente lento/truncado
-    const MAX_PACE = 108.0; // Jogo em transição frenética
-
-    const clampedPace = Math.max(MIN_PACE, Math.min(MAX_PACE, projectedPace));
+    const clampedPace = Math.max(NBA_CONFIG.LIMITS.MIN_PACE, Math.min(NBA_CONFIG.LIMITS.MAX_PACE, projectedPace));
 
     console.log(`[SYS-OP] Híbrido A: ${blendedPaceA.toFixed(1)} | Híbrido B: ${blendedPaceB.toFixed(1)}`);
     console.log(`[SYS-OP] Pace Projetado (Clamped): ${clampedPace.toFixed(2)}`);
@@ -111,25 +144,13 @@ export const calculateProjectedScores = (
 ) => {
     const hasDataballr = !!(databallrA?.ortg && databallrB?.ortg);
 
-    // ─── FONTE DE RATINGS ────────────────────────────────────────────────────
-    // V3.0 (Weighted): média ponderada entre 14 dias Databallr (60%) e Temporada ESPN (40%)
-    let offRtgA: number = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-    let defRtgA: number = Number(entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
-    let offRtgB: number = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-    let defRtgB: number = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+    // 1. Resolver Ratings Base (Weighted 60/40)
+    let { offRtgA, defRtgA, offRtgB, defRtgB } = getInherentRatings(entityA, entityB, hasDataballr, databallrA, databallrB);
 
-    if (hasDataballr) {
-        if (databallrA!.ortg) offRtgA = (databallrA!.ortg * 0.6) + (offRtgA * 0.4);
-        if (databallrA!.drtg) defRtgA = (databallrA!.drtg * 0.6) + (defRtgA * 0.4);
-        if (databallrB!.ortg) offRtgB = (databallrB!.ortg * 0.6) + (offRtgB * 0.4);
-        if (databallrB!.drtg) defRtgB = (databallrB!.drtg * 0.6) + (defRtgB * 0.4);
-    }
-
-    // ─── CÁLCULO DO PACE ─────────────────────────────────────────────────────
+    // 2. Cálculo do Pace
     const matchPace = calculateDeterministicPace(entityA, entityB, databallrA, databallrB);
 
-    // ─── CÁLCULO DO PLACAR PROJETADO ─────────────────────────────────────────
-    // Eficiência cruzada: (Ataque do Time) vs (Defesa do Oponente)
+    // 3. Projeção Inicial via Eficiência Cruzada
     let projectedScoreA: number;
     let projectedScoreB: number;
 
@@ -140,60 +161,134 @@ export const calculateProjectedScores = (
         projectedScoreA = (effA / 100) * matchPace;
         projectedScoreB = (effB / 100) * matchPace;
 
-        // Ajuste TS%
+        // Ajustes finos do Databallr (TS%, TOV, OReb)
         const tsAvgLeague = 58.0;
-        if (databallrA!.o_ts) projectedScoreA += (databallrA!.o_ts - tsAvgLeague) * 0.15;
-        if (databallrB!.o_ts) projectedScoreB += (databallrB!.o_ts - tsAvgLeague) * 0.15;
+        if (databallrA!.o_ts) projectedScoreA += (databallrA!.o_ts - tsAvgLeague) * NBA_CONFIG.ADJUSTMENTS.TS_VARIANCE_FACTOR;
+        if (databallrB!.o_ts) projectedScoreB += (databallrB!.o_ts - tsAvgLeague) * NBA_CONFIG.ADJUSTMENTS.TS_VARIANCE_FACTOR;
 
-        // Penalidade TOV
-        if (databallrA!.o_tov && databallrA!.o_tov > LEAGUE_AVG_TOV) projectedScoreA -= (databallrA!.o_tov - LEAGUE_AVG_TOV) * 0.3;
-        if (databallrB!.o_tov && databallrB!.o_tov > LEAGUE_AVG_TOV) projectedScoreB -= (databallrB!.o_tov - LEAGUE_AVG_TOV) * 0.3;
+        if (databallrA!.o_tov && databallrA!.o_tov > LEAGUE_AVG_TOV) {
+            projectedScoreA -= (databallrA!.o_tov - LEAGUE_AVG_TOV) * NBA_CONFIG.ADJUSTMENTS.TOV_PENALTY_FACTOR;
+        }
+        if (databallrB!.o_tov && databallrB!.o_tov > LEAGUE_AVG_TOV) {
+            projectedScoreB -= (databallrB!.o_tov - LEAGUE_AVG_TOV) * NBA_CONFIG.ADJUSTMENTS.TOV_PENALTY_FACTOR;
+        }
 
-        // Bônus OReb
-        if (databallrA!.orb && databallrA!.orb > 26) projectedScoreA += (databallrA!.orb - 26) * 0.2;
-        if (databallrB!.orb && databallrB!.orb > 26) projectedScoreB += (databallrB!.orb - 26) * 0.2;
+        if (databallrA!.orb && databallrA!.orb > NBA_CONFIG.THRESHOLDS.OREB_ELITE_PCT) {
+            projectedScoreA += (databallrA!.orb - NBA_CONFIG.THRESHOLDS.OREB_ELITE_PCT) * NBA_CONFIG.ADJUSTMENTS.OREB_BONUS_FACTOR;
+        }
+        if (databallrB!.orb && databallrB!.orb > NBA_CONFIG.THRESHOLDS.OREB_ELITE_PCT) {
+            projectedScoreB += (databallrB!.orb - NBA_CONFIG.THRESHOLDS.OREB_ELITE_PCT) * NBA_CONFIG.ADJUSTMENTS.OREB_BONUS_FACTOR;
+        }
     } else {
         projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
         projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
     }
 
-    // ─── AJUSTES SITUACIONAIS ─────────────────────────────────────────────────
+    // 4. Aplicação de Ajustes Situacionais (Mandante, B2B, Blowout, Ritmo Lento)
+    const scores = applySituationalAdjustments(projectedScoreA, projectedScoreB, matchPace, options);
+    projectedScoreA = scores.scoreA;
+    projectedScoreB = scores.scoreB;
+
+    // 5. Filtro de Defesa (Ajustes de Pontos Fixos)
+    projectedScoreA = applyDefensiveAdjustment(projectedScoreA, defRtgB);
+    projectedScoreB = applyDefensiveAdjustment(projectedScoreB, defRtgA);
+
+    // 6. Bônus de Superioridade (v3.2)
+    const superiorityScores = applySuperiorityBonuses(projectedScoreA, projectedScoreB, entityA, entityB, options, databallrA, databallrB);
+    projectedScoreA = superiorityScores.scoreA;
+    projectedScoreB = superiorityScores.scoreB;
+
+    // 7. Penalidades de Integridade Física
+    projectedScoreA -= calculateInjuryPenalty(options?.injuriesA);
+    projectedScoreB -= calculateInjuryPenalty(options?.injuriesB);
+
+    // 8. Trava de Segurança Final
+    projectedScoreA = applyIntegrityFloor(projectedScoreA, entityA);
+    projectedScoreB = applyIntegrityFloor(projectedScoreB, entityB);
+
+    const totalPayload = projectedScoreA + projectedScoreB;
+
+    return {
+        matchPace,
+        totalPayload,
+        deltaA: projectedScoreA,
+        deltaB: projectedScoreB,
+        kineticState: matchPace > NBA_CONFIG.THRESHOLDS.PACE_HYPER_THRESHOLD ? 'HYPER_KINETIC' : (matchPace < NBA_CONFIG.THRESHOLDS.PACE_SLOW_THRESHOLD ? 'SLOW_GRIND' : 'STATIC_TRENCH'),
+        databallrEnhanced: hasDataballr,
+    };
+};
+
+/**
+ * SUB-ROTINAS DE PROJEÇÃO (REATOR ESTATÍSTICO)
+ */
+
+function getInherentRatings(entityA: Team, entityB: Team, hasDataballr: boolean, databallrA?: DataballrInput | null, databallrB?: DataballrInput | null) {
+    let offRtgA = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    let defRtgA = Number(entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+    let offRtgB = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    let defRtgB = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+
+    if (hasDataballr) {
+        if (databallrA?.ortg) offRtgA = (databallrA.ortg * NBA_CONFIG.WEIGHTS.RECENT) + (offRtgA * NBA_CONFIG.WEIGHTS.SEASON);
+        if (databallrA?.drtg) defRtgA = (databallrA.drtg * NBA_CONFIG.WEIGHTS.RECENT) + (defRtgA * NBA_CONFIG.WEIGHTS.SEASON);
+        if (databallrB?.ortg) offRtgB = (databallrB.ortg * NBA_CONFIG.WEIGHTS.RECENT) + (offRtgB * NBA_CONFIG.WEIGHTS.SEASON);
+        if (databallrB?.drtg) defRtgB = (databallrB.drtg * NBA_CONFIG.WEIGHTS.RECENT) + (defRtgB * NBA_CONFIG.WEIGHTS.SEASON);
+    }
+
+    return { offRtgA, defRtgA, offRtgB, defRtgB };
+}
+
+function applySituationalAdjustments(scoreA: number, scoreB: number, matchPace: number, options?: PaceOptions) {
+    let sA = scoreA;
+    let sB = scoreB;
+
+    // Vantagem de Casa
     if (options?.isHomeA) {
-        projectedScoreA += 1.5;
-        projectedScoreB -= 1.5;
+        sA += NBA_CONFIG.ADJUSTMENTS.HOME_ADVANTAGE;
+        sB -= NBA_CONFIG.ADJUSTMENTS.HOME_ADVANTAGE;
     } else {
-        projectedScoreB += 1.5;
-        projectedScoreA -= 1.5;
+        sB += NBA_CONFIG.ADJUSTMENTS.HOME_ADVANTAGE;
+        sA -= NBA_CONFIG.ADJUSTMENTS.HOME_ADVANTAGE;
     }
 
-    if (options?.isB2BA) projectedScoreA -= 2.0;
-    if (options?.isB2BB) projectedScoreB -= 2.0;
+    // Fadiga B2B
+    if (options?.isB2BA) sA -= NBA_CONFIG.ADJUSTMENTS.B2B_FATIGUE;
+    if (options?.isB2BB) sB -= NBA_CONFIG.ADJUSTMENTS.B2B_FATIGUE;
 
-    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1.5;
-    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1.5;
+    // Regressão de Blowout
+    if (options?.lastMarginA && options.lastMarginA > NBA_CONFIG.THRESHOLDS.BLOWOUT_MARGIN) sA -= NBA_CONFIG.ADJUSTMENTS.BLOWOUT_REGRESSION;
+    if (options?.lastMarginB && options.lastMarginB > NBA_CONFIG.THRESHOLDS.BLOWOUT_MARGIN) sB -= NBA_CONFIG.ADJUSTMENTS.BLOWOUT_REGRESSION;
 
-    // Jogo lento
-    if (matchPace < 98) {
-        const spread = projectedScoreA - projectedScoreB;
+    // Ajuste de Jogo Lento
+    if (matchPace < NBA_CONFIG.THRESHOLDS.PACE_SLOW_THRESHOLD) {
+        const spread = sA - sB;
         const adjustment = spread * 0.02;
-        projectedScoreA -= adjustment / 2;
-        projectedScoreB += adjustment / 2;
+        sA -= adjustment / 2;
+        sB += adjustment / 2;
     }
 
-    // Filtro de Defesa (Ajustes de Pontos Fixos Normalizados)
-    if (defRtgB >= 119) projectedScoreA += 5;
-    else if (defRtgB >= 115) projectedScoreA += 3;
-    else if (defRtgB >= 109) projectedScoreA -= 2;
-    else if (defRtgB <= 108.99) projectedScoreA -= 6;
+    return { scoreA: sA, scoreB: sB };
+}
 
-    if (defRtgA >= 119) projectedScoreB += 5;
-    else if (defRtgA >= 115) projectedScoreB += 3;
-    else if (defRtgA >= 109) projectedScoreB -= 2;
-    else if (defRtgA <= 108.99) projectedScoreB -= 6;
+function applyDefensiveAdjustment(score: number, opponentDefRtg: number): number {
+    let newScore = score;
+    for (const rule of NBA_CONFIG.DEFENSE_FILTER) {
+        if (rule.min && opponentDefRtg >= rule.min) {
+            newScore += rule.adj;
+            break;
+        }
+        if (rule.max && opponentDefRtg <= rule.max) {
+            newScore += rule.adj;
+            break;
+        }
+    }
+    return newScore;
+}
 
-    // ─── PENALIDADE/BÔNUS NOTAS DIFERENTES (v3.2) ───────────────────────────
-    // Se um time tem ataque ou defesa superior (diff >= 1), recebe +5 pontos.
-    // TRAVA: Se os POWER_SCORE (aiScore) forem iguais, a penalidade NÃO é aplicada.
+function applySuperiorityBonuses(scoreA: number, scoreB: number, entityA: Team, entityB: Team, options: any, databallrA?: DataballrInput | null, databallrB?: DataballrInput | null) {
+    let sA = scoreA;
+    let sB = scoreB;
+
     const effAiA = options?.aiScoreA ?? entityA.ai_score ?? 0;
     const effAiB = options?.aiScoreB ?? entityB.ai_score ?? 0;
 
@@ -203,73 +298,47 @@ export const calculateProjectedScores = (
         const defA = databallrA.defense_rating ?? 0;
         const defB = databallrB.defense_rating ?? 0;
 
-        // Bônus de Ataque Superior
         if (Math.abs(offA - offB) >= 1) {
             if (offA > offB) {
-                projectedScoreA += 5;
-                console.log(`[NOTAS] +5 para ${entityA.name} (Ataque Superior: ${offA.toFixed(1)} vs ${offB.toFixed(1)})`);
+                sA += NBA_CONFIG.ADJUSTMENTS.SUPERIORITY_BONUS;
+                console.log(`[NOTAS] +5 para ${entityA.name} (Ataque Superior)`);
             } else {
-                projectedScoreB += 5;
-                console.log(`[NOTAS] +5 para ${entityB.name} (Ataque Superior: ${offB.toFixed(1)} vs ${offA.toFixed(1)})`);
+                sB += NBA_CONFIG.ADJUSTMENTS.SUPERIORITY_BONUS;
+                console.log(`[NOTAS] +5 para ${entityB.name} (Ataque Superior)`);
             }
         }
 
-        // Bônus de Defesa Superior
         if (Math.abs(defA - defB) >= 1) {
             if (defA > defB) {
-                projectedScoreA += 5;
-                console.log(`[NOTAS] +5 para ${entityA.name} (Defesa Superior: ${defA.toFixed(1)} vs ${defB.toFixed(1)})`);
+                sA += NBA_CONFIG.ADJUSTMENTS.SUPERIORITY_BONUS;
+                console.log(`[NOTAS] +5 para ${entityA.name} (Defesa Superior)`);
             } else {
-                projectedScoreB += 5;
-                console.log(`[NOTAS] +5 para ${entityB.name} (Defesa Superior: ${defB.toFixed(1)} vs ${defA.toFixed(1)})`);
+                sB += NBA_CONFIG.ADJUSTMENTS.SUPERIORITY_BONUS;
+                console.log(`[NOTAS] +5 para ${entityB.name} (Defesa Superior)`);
             }
         }
     }
+    return { scoreA: sA, scoreB: sB };
+}
 
-    // ─── AJUSTE DE INTEGRIDADE FÍSICA (HW PENALTY V3.1) ──────────────────────
-    const calculatePenalty = (injuries?: { isOut: boolean, weight: number }[]) => {
-        let p = 0;
-        (injuries || []).forEach(inj => {
-            if (inj.isOut) {
-                // Simplificado: impacto nominal direto (sem multiplicadores de colapso)
-                p += inj.weight;
-            }
-        });
-        return p;
-    };
+function calculateInjuryPenalty(injuries?: { isOut: boolean, weight: number }[]): number {
+    let penalty = 0;
+    (injuries || []).forEach(inj => {
+        if (inj.isOut) penalty += inj.weight;
+    });
+    return penalty;
+}
 
-    projectedScoreA -= calculatePenalty(options?.injuriesA);
-    projectedScoreB -= calculatePenalty(options?.injuriesB);
+function applyIntegrityFloor(projectedScore: number, team: Team): number {
+    const seasonAvg = Number(team.espnData?.pts || team.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    const floor = seasonAvg - NBA_CONFIG.LIMITS.SCORE_FLOOR_DIFF;
 
-    const seasonAvgA = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-    const seasonAvgB = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-
-    // ─── TRAVA DE SEGURANÇA PROFISSIONAL (MIN -15 PTS VS MÉDIA) ──────────────
-    // Impede que as penalidades cumulativas (desfalques + fadiga + defesa forte)
-    // gerem projeções de placares irreais (ex: 80-90 pts).
-    const scoreFloorA = seasonAvgA - 15;
-    const scoreFloorB = seasonAvgB - 15;
-
-    if (projectedScoreA < scoreFloorA) {
-        console.log(`[SAFE-LOCK] Acionado para ${entityA.name}: ${projectedScoreA.toFixed(1)} -> ${scoreFloorA.toFixed(1)}`);
-        projectedScoreA = scoreFloorA;
+    if (projectedScore < floor) {
+        console.log(`[SAFE-LOCK] Acionado para ${team.name}: ${projectedScore.toFixed(1)} -> ${floor.toFixed(1)}`);
+        return floor;
     }
-    if (projectedScoreB < scoreFloorB) {
-        console.log(`[SAFE-LOCK] Acionado para ${entityB.name}: ${projectedScoreB.toFixed(1)} -> ${scoreFloorB.toFixed(1)}`);
-        projectedScoreB = scoreFloorB;
-    }
-
-    const totalPayload = projectedScoreA + projectedScoreB;
-
-    return {
-        matchPace,
-        totalPayload,
-        deltaA: projectedScoreA,
-        deltaB: projectedScoreB,
-        kineticState: matchPace > 102.5 ? 'HYPER_KINETIC' : (matchPace < 98 ? 'SLOW_GRIND' : 'STATIC_TRENCH'),
-        databallrEnhanced: hasDataballr,
-    };
-};
+    return projectedScore;
+}
 
 /**
  * Calculates a momentum score based on the weighted recent results.
@@ -410,15 +479,15 @@ export const calculateUnderdogValue = (teamA: Team, teamB: Team, analysis: any, 
     if (isUnderdogA) rules.push('Underdog_Casa');
 
     // Vector 2: Endurecimento de Gatilhos
-    // Defesa de Elite (apenas times permitindo < 109.5 pts ativam a vantagem de underdog defensivo)
+    // Defesa de Elite (apenas times permitindo < elite_threshold pts ativam a vantagem de underdog defensivo)
     const defA = teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 115;
-    if (defA < 109.5) rules.push('Defesa_Forte');
+    if (defA < NBA_CONFIG.LIMITS.ELITE_DEFENSE_THRESHOLD) rules.push('Defesa_Forte');
 
     // Total sufocado para evitar inflações estatísticas
     if (analysis.totalPayload < 210) rules.push('Total_Baixo');
 
     // Vector 3: Exigência Matemática Bruta (A borda necessária salta de 3 para 4.5 pts)
-    if (Math.abs(edge) >= 4.5) rules.push('Value_Bet');
+    if (Math.abs(edge) >= NBA_CONFIG.LIMITS.UNDERDOG_VALUE_EDGE) rules.push('Value_Bet');
 
     return {
         hasValue: rules.length >= 2,
