@@ -15,6 +15,7 @@ interface MarketOdds {
 interface MarketProjectionSectionProps {
     predictions: PalpiteData[];
     teams: Team[];
+    tierScores: Record<string, string>;
 }
 
 const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predictions, teams }) => {
@@ -70,6 +71,17 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
             });
         };
 
+        const sanityCheckMarketSpread = (marketValue: number | null, fairValue: number) => {
+            if (marketValue === null) return null;
+            const currentDiff = Math.abs(marketValue - fairValue);
+            const flipped = -marketValue;
+            const flippedDiff = Math.abs(flipped - fairValue);
+            if (currentDiff > 8 && flippedDiff < currentDiff) {
+                return flipped;
+            }
+            return marketValue;
+        };
+
         return predictions
             .map(p => {
                 const teamCasa = findTeamByName(p.time_casa, teams);
@@ -97,12 +109,17 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 const matchup = `${getStandardTeamName(teamFora.name)} @ ${getStandardTeamName(teamCasa.name)}`;
                 const market = marketOdds[matchup];
 
-                // Edge calculation
-                const marketSpread = market?.spread !== undefined && market?.spread !== null ? market.spread : null;
+                // Sanity Check & Edge calculation
+                const rawMarketSpread = market?.spread !== undefined && market?.spread !== null ? market.spread : null;
+                const marketSpread = sanityCheckMarketSpread(rawMarketSpread, fairHandicapNum);
+
                 const spreadEdge = marketSpread !== null ? (marketSpread - fairHandicapNum).toFixed(1) : null;
                 const totalEdge = market?.total !== undefined && market?.total !== null ? (analysis.totalPayload - market.total).toFixed(1) : null;
 
-                const underdogValue = calculateUnderdogValue(teamCasa, teamFora, analysis, marketSpread);
+                const notaCasa = tierScores[teamCasa.name] || '-';
+                const notaFora = tierScores[teamFora.name] || '-';
+
+                const underdogValue = calculateUnderdogValue(teamCasa, teamFora, analysis, marketSpread, notaCasa, notaFora);
 
                 return {
                     id: p.id,
@@ -118,6 +135,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                     projHome: analysis.deltaA.toFixed(1),
                     projAway: analysis.deltaB.toFixed(1),
                     marketSpread,
+                    isFlipped: rawMarketSpread !== marketSpread,
                     marketTotal: market?.total,
                     spreadEdge,
                     totalEdge,
@@ -127,7 +145,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 };
             })
             .filter(Boolean);
-    }, [predictions, teams, marketOdds]);
+    }, [predictions, teams, marketOdds, tierScores, allInjuries, allStats]);
 
     if (projections.length === 0) return null;
 
@@ -192,6 +210,14 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
 
                             <div className="flex flex-col items-center justify-center w-16">
                                 <div className="vs-divider">VS</div>
+                                <div className="mt-2 flex flex-col items-center gap-1">
+                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-sm ${proj!.underdogValue?.levels?.home?.level === '01' ? 'bg-nba-red text-white' : 'bg-white/10 text-slate-400'}`}>
+                                        {proj!.underdogValue?.levels?.home?.type}
+                                    </span>
+                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-sm ${proj!.underdogValue?.levels?.away?.level === '01' ? 'bg-nba-red text-white' : 'bg-white/10 text-slate-400'}`}>
+                                        {proj!.underdogValue?.levels?.away?.type}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-4 text-right group-hover:-translate-x-2 transition-transform">
@@ -218,7 +244,26 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                                         </span>
                                     ))}
                                 </div>
-                                <span className="ml-auto text-[10px] font-black text-nba-gold">VALUE DETECTED</span>
+                                <div className="ml-auto flex items-center gap-4">
+                                    {proj!.underdogValue.kelly && (
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Kelly 1/4</span>
+                                            <span className="text-sm font-bebas text-nba-gold">
+                                                {(proj!.underdogValue.kelly.quarter * 100).toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    )}
+                                    <span className="text-[10px] font-black text-nba-gold">VALUE DETECTED</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {proj!.isFlipped && (
+                            <div className="mb-4 bg-nba-red/10 border border-nba-red/30 p-2 flex items-center gap-3">
+                                <Info className="w-4 h-4 text-nba-red" />
+                                <span className="text-[10px] font-black text-nba-red uppercase tracking-widest text-center flex-1">
+                                    AVISO: INVERSÃO DE SINAL NO MERCADO DETECTADA E CORRIGIDA (SANITY_CHECK_v2.0)
+                                </span>
                             </div>
                         )}
 
@@ -241,9 +286,16 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                                     </div>
                                 </div>
                                 {proj!.spreadEdge && (
-                                    <div className={`mt-2 ${Number(proj!.spreadEdge) > 0 ? 'trend-up' : 'trend-down'} text-[12px]`}>
-                                        {Number(proj!.spreadEdge) > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                                        EDGE: {Math.abs(Number(proj!.spreadEdge))} PTS
+                                    <div className="flex items-center justify-between mt-2">
+                                        <div className={`${Number(proj!.spreadEdge) > 0 ? 'trend-up' : 'trend-down'} text-[12px] flex items-center gap-1`}>
+                                            {Number(proj!.spreadEdge) > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                                            EDGE: {Math.abs(Number(proj!.spreadEdge))} PTS
+                                        </div>
+                                        {proj!.underdogValue?.kelly && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[7px] font-black text-slate-500 uppercase">FULL KELLY: {(proj!.underdogValue.kelly.full * 100).toFixed(1)}%</span>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

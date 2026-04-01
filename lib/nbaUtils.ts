@@ -87,14 +87,14 @@ const NBA_CONFIG = {
 
 // Sub-rotina de estabilização: Mescla a temporada completa com os últimos 14 dias
 const getFallbackPace = (team: Team): number => {
-    const offRtg = team.espnData?.pts || team.stats?.media_pontos_ataque || 115.5;
+    const offRtg = Number(team.espnData?.pts || team.stats?.media_pontos_ataque || 115.5);
     return offRtg / (LEAGUE_AVG_ORTG / 100);
 };
 
 const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number => {
     // 1. Captura a âncora macro (Temporada)
     // Assuma que 'team.pace' ou sua função de fallback retorna o Pace da ESPN
-    const seasonPace = team.pace || getFallbackPace(team);
+    const seasonPace = (team as any).pace || getFallbackPace(team);
 
     // 2. Captura a âncora micro (14 Dias)
     const recentPace = databallr?.pace;
@@ -359,9 +359,9 @@ export const parseStreakToRecord = (streakStr: string): GameResult[] | null => {
 
     // Handle 'W4' or 'L3' format
     const match = streakStr.match(/([WLVD])(\d+)/i);
-    if (match) {
-        const type = match[1].toUpperCase();
-        const count = Math.min(parseInt(match[2], 10), 5);
+    if (match && match[1] && match[2]) {
+        const type = (match[1] as string).toUpperCase();
+        const count = Math.min(parseInt(match[2] as string, 10), 5);
         const winChar = (type === 'W' || type === 'V') ? 'V' : 'D';
         const lossChar = winChar === 'V' ? 'D' : 'V';
         const record: GameResult[] = new Array(5).fill(lossChar);
@@ -438,7 +438,7 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: any[]
     if (!dbPredictions || !teamName) return { yesterday: false, tomorrow: false };
 
     const [d, m, y] = dateStr.split('/');
-    const current = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    const current = new Date(parseInt(y || '0'), parseInt(m || '1') - 1, parseInt(d || '1'));
 
     const yesterday = new Date(current);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -449,14 +449,14 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: any[]
     const tStr = tomorrow.toISOString().split('T')[0];
 
     const playedYesterday = dbPredictions.some(p =>
-        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
-            p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
+        (p.home_team?.toLowerCase().includes(teamName?.toLowerCase() || '') ||
+            p.away_team?.toLowerCase().includes(teamName?.toLowerCase() || '')) &&
         p.date === yStr
     );
 
     const playsTomorrow = dbPredictions.some(p =>
-        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
-            p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
+        (p.home_team?.toLowerCase().includes(teamName?.toLowerCase() || '') ||
+            p.away_team?.toLowerCase().includes(teamName?.toLowerCase() || '')) &&
         p.date === tStr
     );
 
@@ -464,10 +464,18 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: any[]
 };
 
 /**
- * ALGORITMO DE VALOR DE UNDERDOG RESTRITO
- * Identifica se o confronto possui valor em Underdog baseado em regras endurecidas.
+ * ALGORITMO DE VALOR DE UNDERDOG RESTRITO v3.0
+ * Identifica se o confronto possui valor em Underdog baseado em regras endurecidas
+ * e classificação por Power Ranking (tabela_notas).
  */
-export const calculateUnderdogValue = (teamA: Team, teamB: Team, analysis: any, marketSpread: number | null) => {
+export const calculateUnderdogValue = (
+    teamCasa: Team,
+    teamFora: Team,
+    analysis: any,
+    marketSpread: number | null,
+    notaCasa?: string | null,
+    notaFora?: string | null
+) => {
     if (marketSpread === null) return null;
 
     const rules = [];
@@ -475,24 +483,87 @@ export const calculateUnderdogValue = (teamA: Team, teamB: Team, analysis: any, 
     const fairSpread = analysis.deltaB - analysis.deltaA;
     const edge = marketSpread - fairSpread;
 
+    // 1. Matriz de Classificação por Notas (Power Ranking)
+    const getLevel = (notaStr: string | null | undefined) => {
+        const nota = parseFloat(notaStr || '0');
+        if (nota >= 4.5) return { level: '01', type: 'ELITE', label: 'CONTENDER' };
+        if (nota >= 4.0) return { level: '02', type: 'COMPETITOR', label: 'ELITE' };
+        if (nota >= 3.0) return { level: '03', type: 'MID-TIER', label: 'UNDERDOG' };
+        return { level: '04', type: 'REBUILDING', label: 'AZARAO' };
+    };
+
+    const lvlCasa = getLevel(notaCasa);
+    const lvlFora = getLevel(notaFora);
+
+    // Identifica se o Underdog tem "Pedigree" (Nível 3 ou 4)
+    const dogTarget = isUnderdogA ? lvlCasa : lvlFora;
+    if (dogTarget.level === '03' || dogTarget.level === '04') {
+        rules.push(`${dogTarget.label}_TIER`);
+    }
+
     // Regra: Underdog_Casa
     if (isUnderdogA) rules.push('Underdog_Casa');
 
     // Vector 2: Endurecimento de Gatilhos
-    // Defesa de Elite (apenas times permitindo < elite_threshold pts ativam a vantagem de underdog defensivo)
-    const defA = teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 115;
+    const defA = Number(teamCasa.espnData?.pts_contra || teamCasa.stats?.media_pontos_defesa || 115);
     if (defA < NBA_CONFIG.LIMITS.ELITE_DEFENSE_THRESHOLD) rules.push('Defesa_Forte');
 
-    // Total sufocado para evitar inflações estatísticas
     if (analysis.totalPayload < 210) rules.push('Total_Baixo');
 
     // Vector 3: Exigência Matemática Bruta (A borda necessária salta de 3 para 4.5 pts)
     if (Math.abs(edge) >= NBA_CONFIG.LIMITS.UNDERDOG_VALUE_EDGE) rules.push('Value_Bet');
 
+    // 4. Cálculo de Kelly Criterion se houver Edge
+    let kelly = null;
+    if (Math.abs(edge) > 0) {
+        // Estimar probabilidade de cobertura baseada na diferença entre Fair e Market
+        // P(Cover) = 1 / (1 + 10^( (MarketSpread - FairSpread) / -20 ))?
+        // Vamos usar a probabilidade do Fair Spread vs Market
+        const prob = estimateWinProbability(fairSpread, marketSpread);
+        kelly = calculateKellyCriterion(prob, 1.91); // Odds padrão -110
+    }
+
     return {
         hasValue: rules.length >= 2,
         rules,
-        edge: edge.toFixed(1)
+        edge: edge.toFixed(1),
+        kelly,
+        levels: { home: lvlCasa, away: lvlFora }
+    };
+};
+
+/**
+ * Estima a probabilidade de vitória/cobertura baseada no Fair Line e Market Line.
+ * Baseado no modelo logístico: P = 1 / (1 + 10^(spread / 20))
+ */
+export const estimateWinProbability = (fairLine: number, marketLine: number): number => {
+    // Calculamos a vantagem (Edge) em termos de spread
+    const edge = marketLine - fairLine;
+    // A probabilidade de ganhar em 50/50 é quando marketLine = fairLine
+    // Se fairLine é -5.8 e marketLine é -2.5, temos um edge de +3.3 a nosso favor
+    // Convertendo o Fair Line bruto para probabilidade e ajustando pelo Edge
+    const pFair = 1 / (1 + Math.pow(10, fairLine / 20));
+    return pFair;
+};
+
+/**
+ * Critério de Kelly: f = (bp - q) / b
+ * b = Odds - 1
+ * p = Probabilidade de ganhar
+ * q = Probabilidade de perder
+ */
+export const calculateKellyCriterion = (p: number, odds: number = 1.91) => {
+    const b = odds - 1;
+    const q = 1 - p;
+    const f = (b * p - q) / b;
+
+    if (f <= 0) return null;
+
+    return {
+        full: f,
+        half: f * 0.5,
+        quarter: f * 0.25,
+        tenth: f * 0.10
     };
 };
 
@@ -503,8 +574,8 @@ export const parseScoreToTotal = (score: string): number => {
     if (!score) return 0;
     const parts = score.split(/[-\s:]+/);
     if (parts.length < 2) return 0;
-    const pts1 = parseInt(parts[0], 10);
-    const pts2 = parseInt(parts[1], 10);
+    const pts1 = parseInt(parts[0] || '0', 10);
+    const pts2 = parseInt(parts[1] || '0', 10);
     if (isNaN(pts1) || isNaN(pts2)) return 0;
     return pts1 + pts2;
 };
@@ -533,7 +604,7 @@ export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
     // 3. Média dos últimos 2 H2H (Confrontos Diretos)
     const normB = normalizeTeamName(teamB.name);
     const h2hGames = (teamA.record || []).filter(g =>
-        g.opponent && normalizeTeamName(g.opponent).includes(normB)
+        g.opponent && normalizeTeamName(g.opponent || '').includes(normB)
     ).slice(-2);
 
     let avgPaceH2H = 0;

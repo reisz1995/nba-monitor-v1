@@ -174,6 +174,7 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
       <MarketProjectionSection
         predictions={predictions}
         teams={teams}
+        tierScores={tierScores}
       />
 
       <PredictionsSection
