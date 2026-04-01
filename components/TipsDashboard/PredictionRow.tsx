@@ -57,15 +57,18 @@ const PredictionRow: React.FC<PredictionRowProps> = ({
                     className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 text-slate-100 text-center focus:ring-0 font-mono font-bold py-1 text-[11px]"
                 />
             </td>
-            
+
             {/* === MUTAÇÃO INJETADA: HANDICAP_LINE === */}
-            <td className="px-3 py-2 border-r border-slate-800/50">
-                <input
-                    value={pred.handicap_line || ''}
-                    onChange={(e) => onLocalChange(pred.id!, 'handicap_line', e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 text-amber-400 text-center focus:ring-0 font-mono font-black py-1 text-[11px] uppercase tracking-tighter transition-all"
-                    placeholder="AGUARDANDO IA..."
-                />
+            <td className="px-3 py-2 border-r border-slate-800/50 bg-amber-500/5 transition-colors group-hover:bg-amber-500/10">
+                <div className="relative group/edge">
+                    <input
+                        value={pred.handicap_line || ''}
+                        onChange={(e) => onLocalChange(pred.id!, 'handicap_line', e.target.value)}
+                        className="w-full bg-slate-950 border border-amber-500/30 focus:border-amber-500 text-amber-500 text-center focus:ring-1 focus:ring-amber-500/50 font-mono font-black py-1 text-[11px] uppercase tracking-tighter transition-all shadow-[0_0_10px_rgba(255,191,0,0.1)] focus:shadow-[0_0_15px_rgba(255,191,0,0.3)] placeholder:text-amber-900/40"
+                        placeholder="EDGE_DATA"
+                    />
+                    <div className="absolute inset-0 pointer-events-none border border-amber-500/0 group-hover/edge:border-amber-500/20 transition-all"></div>
+                </div>
             </td>
             {/* ======================================= */}
 

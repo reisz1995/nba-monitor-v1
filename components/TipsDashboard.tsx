@@ -114,14 +114,13 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
       const timeCasa = p.time_casa || 'CASA';
       const timeFora = p.time_fora || 'FORA';
       const palpite = p.palpite_principal && p.palpite_principal !== '-' ? p.palpite_principal : 'A Definir';
-      const overLine = p.over_line && p.over_line !== '-' ? p.over_line : 'N/A';
-      const underLine = p.under_line && p.under_line !== '-' ? p.under_line : 'N/A';
-      const confianca = p.confianca && p.confianca !== '-' ? p.confianca : 'N/A';
+      const handicapEdge = p.handicap_line && p.handicap_line !== '-' ? p.handicap_line : 'N/A';
+      const confId = p.confianca && p.confianca !== '-' ? p.confianca : 'N/A';
 
       text += `*${timeCasa} vs ${timeFora}*\n`;
-      text += `🏆 Palpite: *${palpite}*\n`;
-      text += `📈 Linhas: Over ${overLine} | Under ${underLine}\n`;
-      text += `📊 Confiança: ${confianca}\n\n`;
+      text += `🏆 CORE_PICK: *${palpite}*\n`;
+      text += `🎯 HANDICAP_EDGE: *${handicapEdge}*\n`;
+      text += `📊 CONF_ID: ${confId}\n\n`;
     });
 
     text += `_Gerado por NBA Monitor v3.0_`;

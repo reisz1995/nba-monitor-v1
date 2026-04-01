@@ -118,8 +118,13 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
                             <th className="px-3 py-3 border-r border-white/5 bg-nba-background/40 text-nba-success w-[50%]">CORE_PICK</th>
                             <th className="px-2 py-3 border-r border-white/5 text-center text-nba-gold w-[8%]">OVER_L</th>
                             <th className="px-2 py-3 border-r border-white/5 text-center text-nba-red w-[8%]">UNDER_L</th>
-                            <th className="px-3 py-3 w-50 border-r border-white/5 text-center text-nba-gold font-black tracking-widest uppercase">HANDICAP_EDGE</th>                        
-                            <th className="px-3 py-3 border-r border-white/5 text-center text-nba-red w-[10%]">CONF_IDX</th>
+                            <th className="px-3 py-3 w-50 border-r border-white/5 text-center text-nba-gold font-black tracking-widest uppercase bg-nba-gold/5 shadow-[inset_0_0_15px_rgba(255,215,0,0.05)]">
+                                <span className="flex items-center justify-center gap-2">
+                                    <Zap className="w-3 h-3 animate-pulse" />
+                                    HANDICAP_EDGE
+                                </span>
+                            </th>
+                            <th className="px-3 py-3 border-r border-white/5 text-center text-nba-red w-[10%]">CONF_ID</th>
                             <th className="px-2 py-3 border-r border-white/5 text-center w-[5%]">N_C</th>
                             <th className="px-2 py-3 border-r border-white/5 text-center w-[5%]">N_F</th>
                             <th className="px-2 py-3 text-center w-[3%]">ACT</th>
