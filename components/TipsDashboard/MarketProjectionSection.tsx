@@ -18,7 +18,7 @@ interface MarketProjectionSectionProps {
     tierScores: Record<string, string>;
 }
 
-const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predictions, teams }) => {
+const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predictions, teams, tierScores }) => {
     const [marketOdds, setMarketOdds] = useState<Record<string, MarketOdds>>({});
 
     useEffect(() => {
