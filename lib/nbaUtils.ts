@@ -545,13 +545,11 @@ export const calculateUnderdogValue = (
  * Baseado no modelo logístico: P = 1 / (1 + 10^(spread / 20))
  */
 export const estimateWinProbability = (fairLine: number, marketLine: number): number => {
-    // Calculamos a vantagem (Edge) em termos de spread
-    const edge = marketLine - fairLine;
-    // A probabilidade de ganhar em 50/50 é quando marketLine = fairLine
-    // Se fairLine é -5.8 e marketLine é -2.5, temos um edge de +3.3 a nosso favor
-    // Convertendo o Fair Line bruto para probabilidade e ajustando pelo Edge
-    const pFair = 1 / (1 + Math.pow(10, fairLine / 20));
-    return pFair;
+    // Calculamos a vantagem absoluta (Edge)
+    const edge = Math.abs(marketLine - fairLine);
+    // Convertendo o Edge para probabilidade de cobertura
+    const pCover = 1 / (1 + Math.pow(10, -edge / 20));
+    return pCover;
 };
 
 /**

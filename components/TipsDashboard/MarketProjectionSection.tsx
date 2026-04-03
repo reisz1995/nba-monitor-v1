@@ -281,7 +281,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                                     <div className="flex flex-col items-end">
                                         <span className="text-[8px] font-black text-slate-500 uppercase font-inter">Market</span>
                                         <span className="odds-display text-xl tracking-tighter text-nba-blue shadow-none" style={{ textShadow: 'none' }}>
-                                            {proj!.marketSpread !== undefined ? (proj!.marketSpread! > 0 ? `+${proj!.marketSpread}` : proj!.marketSpread) : '--'}
+                                            {proj!.marketSpread !== undefined && proj!.marketSpread !== null ? (proj!.marketSpread! > 0 ? `+${proj!.marketSpread}` : proj!.marketSpread) : '--'}
                                         </span>
                                     </div>
                                 </div>
