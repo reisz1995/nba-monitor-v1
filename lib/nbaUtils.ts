@@ -48,20 +48,20 @@ const NBA_CONFIG = {
         SEASON: 0.4     // Pesagem para a média da temporada (ESPN)
     },
     LIMITS: {
-        MIN_PACE: 98.0,
-        MAX_PACE: 108.0,
-        SCORE_FLOOR_DIFF: 15, // Máximo de queda permitida vs média da temporada
+        MIN_PACE: 100.5,
+        MAX_PACE: 110.5,
+        SCORE_FLOOR_DIFF: 12, // Máximo de queda permitida vs média da temporada
         ELITE_DEFENSE_THRESHOLD: 109.5,
         UNDERDOG_VALUE_EDGE: 4.5
     },
     ADJUSTMENTS: {
         HOME_ADVANTAGE: 1.5,
         B2B_FATIGUE: 2.0,
-        BLOWOUT_REGRESSION: 1.5,
+        BLOWOUT_REGRESSION: 2.5,
         TS_VARIANCE_FACTOR: 0.15,
         TOV_PENALTY_FACTOR: 0.3,
         OREB_BONUS_FACTOR: 0.2,
-        SUPERIORITY_BONUS: 5.0
+        SUPERIORITY_BONUS: 3.0
     },
     THRESHOLDS: {
         BLOWOUT_MARGIN: 20,
@@ -70,10 +70,10 @@ const NBA_CONFIG = {
         PACE_HYPER_THRESHOLD: 102.5
     },
     DEFENSE_FILTER: [
-        { min: 119, adj: 5 },
-        { min: 115, adj: 3 },
-        { min: 109, adj: -2 },
-        { max: 108.99, adj: -6 }
+        { min: 120, adj: 4 },
+        { min: 117, adj: 2 },
+        { min: 113, adj: 0 },
+        { max: 112.99, adj: -2 }
     ]
 };
 
@@ -119,7 +119,7 @@ export const calculateDeterministicPace = (
     const blendedPaceB = getBlendedPace(teamB, databallrB);
 
     // 2. Fusão Termodinâmica do Confronto
-    let projectedPace = (blendedPaceA + blendedPaceB) / 2;
+    let projectedPace = ((blendedPaceA + blendedPaceB) / 2) + 1.8;
 
     // 3. Grampo Térmico (Clamp) - Limites da Realidade Física da NBA
     const clampedPace = Math.max(NBA_CONFIG.LIMITS.MIN_PACE, Math.min(NBA_CONFIG.LIMITS.MAX_PACE, projectedPace));
@@ -183,6 +183,14 @@ export const calculateProjectedScores = (
         projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
         projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
     }
+
+    // Aplicação de Jogo Frio/Quente da Rodada
+    const LEAGUE_ENVIRONMENT = {
+        avgTotalLastGames: 232 // dinâmico
+    };
+    const environmentBoost = (LEAGUE_ENVIRONMENT.avgTotalLastGames - 225) * 0.35;
+    projectedScoreA += environmentBoost / 2;
+    projectedScoreB += environmentBoost / 2;
 
     // 4. Aplicação de Ajustes Situacionais (Mandante, B2B, Blowout, Ritmo Lento)
     const scores = applySituationalAdjustments(projectedScoreA, projectedScoreB, matchPace, options);
@@ -256,8 +264,8 @@ function applySituationalAdjustments(scoreA: number, scoreB: number, matchPace: 
     if (options?.isB2BB) sB -= NBA_CONFIG.ADJUSTMENTS.B2B_FATIGUE;
 
     // Regressão de Blowout
-    if (options?.lastMarginA && options.lastMarginA > NBA_CONFIG.THRESHOLDS.BLOWOUT_MARGIN) sA -= NBA_CONFIG.ADJUSTMENTS.BLOWOUT_REGRESSION;
-    if (options?.lastMarginB && options.lastMarginB > NBA_CONFIG.THRESHOLDS.BLOWOUT_MARGIN) sB -= NBA_CONFIG.ADJUSTMENTS.BLOWOUT_REGRESSION;
+    if (options?.lastMarginA && options.lastMarginA > NBA_CONFIG.THRESHOLDS.BLOWOUT_MARGIN) sA += NBA_CONFIG.ADJUSTMENTS.BLOWOUT_REGRESSION;
+    if (options?.lastMarginB && options.lastMarginB > NBA_CONFIG.THRESHOLDS.BLOWOUT_MARGIN) sB += NBA_CONFIG.ADJUSTMENTS.BLOWOUT_REGRESSION;
 
     // Ajuste de Jogo Lento
     if (matchPace < NBA_CONFIG.THRESHOLDS.PACE_SLOW_THRESHOLD) {
