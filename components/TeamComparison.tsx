@@ -89,6 +89,28 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
     }
   }, [teamA.name, teamB.name]);
 
+  let totalStatusColor = 'bg-slate-700 text-white';
+  let totalStatusLabel = 'DEFENSIVE_BATTLE';
+
+  if (marketData?.total) {
+    const diff = bettingLines.totalProjected - marketData.total;
+    if (diff >= 3.5) {
+      totalStatusColor = 'bg-emerald-600 text-white';
+      totalStatusLabel = `PREV_OVER ${marketData.total}`;
+    } else if (diff <= -3.5) {
+      totalStatusColor = 'bg-rose-600 text-white';
+      totalStatusLabel = `PREV_UNDER ${marketData.total}`;
+    } else {
+      totalStatusColor = 'bg-zinc-500 text-white';
+      totalStatusLabel = `PASS_TOTAL ${marketData.total}`;
+    }
+  } else {
+    if (bettingLines.totalProjected > 225.5) {
+      totalStatusColor = 'bg-indigo-500 text-white';
+      totalStatusLabel = 'HIGH_SCORE_EXPECTED';
+    }
+  }
+
   return (
     <div aria-label="Team Comparison" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
       <div ref={contentRef} className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
@@ -189,14 +211,8 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                     <span className="text-[10px] font-black text-black bg-white px-3 py-1 uppercase">
                       {bettingLines.favorite} {bettingLines.spread}
                     </span>
-                    <span className={`text-[10px] font-black px-3 py-1 uppercase skew-x-[-10deg] ${marketData?.total
-                      ? (bettingLines.totalProjected > marketData.total ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
-                      : (bettingLines.totalProjected > 225.5 ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-white')
-                      }`}>
-                      {marketData?.total
-                        ? (bettingLines.totalProjected > marketData.total ? `PREV_OVER ${marketData.total}` : `PREV_UNDER ${marketData.total}`)
-                        : (bettingLines.totalProjected > 225.5 ? 'HIGH_SCORE_EXPECTED' : 'DEFENSIVE_BATTLE')
-                      }
+                    <span className={`text-[10px] font-black px-3 py-1 uppercase skew-x-[-10deg] ${totalStatusColor}`}>
+                      {totalStatusLabel}
                     </span>
                   </div>
                 </div>
