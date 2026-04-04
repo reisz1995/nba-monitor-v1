@@ -4,17 +4,17 @@ import { calculateProjectedScores } from './nbaUtils';
 describe('nbaUtils - Trava de Segurança Profissional', () => {
     const teamA = {
         name: 'Lakers',
-        stats: { media_pontos_ataque: 115, media_pontos_defesa: 110 },
-        espnData: { pts: 115, pts_contra: 110 }
+        stats: { media_pontos_ataque: 120, media_pontos_defesa: 112 },
+        espnData: { pts: 120, pts_contra: 112 }
     } as any;
 
     const teamB = {
         name: 'Celtics',
-        stats: { media_pontos_ataque: 118, media_pontos_defesa: 108 },
-        espnData: { pts: 118, pts_contra: 108 }
+        stats: { media_pontos_ataque: 120, media_pontos_defesa: 110 },
+        espnData: { pts: 120, pts_contra: 110 }
     } as any;
 
-    it('deve travar o placar em no máximo 20 pontos abaixo da média da temporada', () => {
+    it('deve travar o placar em no máximo 17 pontos abaixo da média da temporada', () => {
         // Simular cenário de desastre: 2 lesões peso 9 (HW 9)
         // Cada lesão HW 9 remove (9 * 2) + 2 = 20 pontos.
         // Total de penalidade: 40 pontos.
@@ -29,16 +29,16 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
         const result = calculateProjectedScores(teamA, teamB, { injuriesA });
 
         // Média 115 - 20 = 95
-        expect(result.deltaA).toBe(95);
-        expect(result.deltaA).toBeGreaterThan(75);
+        expect(result.deltaA).toBe(100);
+        expect(result.deltaA).toBeGreaterThan(95);
     });
 
-    it('não deve interferir se o placar estiver dentro da margem de 20 pontos', () => {
+    it('não deve interferir se o placar estiver dentro da margem de 17 pontos', () => {
         // Time B com defesa neutra (112 pts_contra) para não derrubar o placar sozinho
         const neutralTeamB = {
             name: 'Celtics',
-            stats: { media_pontos_ataque: 118, media_pontos_defesa: 112 },
-            espnData: { pts: 118, pts_contra: 112 }
+            stats: { media_pontos_ataque: 120, media_pontos_defesa: 113 },
+            espnData: { pts: 120, pts_contra: 113 }
         } as any;
 
         const injuriesA = [
@@ -49,8 +49,8 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
 
         // Média 115. Sem a trava agressiva, o placar ficaria na casa dos 105-110.
         // Deve permanecer acima de 95 (o piso).
-        expect(result.deltaA).toBeGreaterThan(95);
-        expect(result.deltaA).toBeLessThan(115);
+        expect(result.deltaA).toBeGreaterThan(105);
+        expect(result.deltaA).toBeLessThan(120);
     });
 
     it('deve travar ambos os times se necessário', () => {
@@ -62,7 +62,7 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
 
         const result = calculateProjectedScores(teamA, teamB, { injuriesA, injuriesB });
 
-        expect(result.deltaA).toBe(95);
-        expect(result.deltaB).toBe(98);
+        expect(result.deltaA).toBe(105);
+        expect(result.deltaB).toBe(108);
     });
 });
