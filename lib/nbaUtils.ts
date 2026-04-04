@@ -55,13 +55,13 @@ const NBA_CONFIG = {
         UNDERDOG_VALUE_EDGE: 4.5
     },
     ADJUSTMENTS: {
-        HOME_ADVANTAGE: 1.5,
+        HOME_ADVANTAGE: 3.5,
         B2B_FATIGUE: 2.0,
         BLOWOUT_REGRESSION: 2.5,
         TS_VARIANCE_FACTOR: 0.15,
         TOV_PENALTY_FACTOR: 0.3,
         OREB_BONUS_FACTOR: 0.2,
-        SUPERIORITY_BONUS: 3.0
+        SUPERIORITY_BONUS: 5.0
     },
     THRESHOLDS: {
         BLOWOUT_MARGIN: 20,
@@ -70,10 +70,10 @@ const NBA_CONFIG = {
         PACE_HYPER_THRESHOLD: 102.5
     },
     DEFENSE_FILTER: [
-        { min: 120, adj: 4 },
-        { min: 117, adj: 2 },
-        { min: 113, adj: 0 },
-        { max: 112.99, adj: -2 }
+        { min: 120, adj: 10 },
+        { min: 117, adj: 7 },
+        { min: 113, adj: 5 },
+        { max: 110, adj: -3 }
     ]
 };
 
@@ -309,20 +309,20 @@ function applySuperiorityBonuses(scoreA: number, scoreB: number, entityA: Team, 
         if (Math.abs(offA - offB) >= 1) {
             if (offA > offB) {
                 sA += NBA_CONFIG.ADJUSTMENTS.SUPERIORITY_BONUS;
-                console.log(`[NOTAS] +5 para ${entityA.name} (Ataque Superior)`);
+                console.log(`[NOTAS] +10 para ${entityA.name} (Ataque Superior)`);
             } else {
                 sB += NBA_CONFIG.ADJUSTMENTS.SUPERIORITY_BONUS;
-                console.log(`[NOTAS] +5 para ${entityB.name} (Ataque Superior)`);
+                console.log(`[NOTAS] +10 para ${entityB.name} (Ataque Superior)`);
             }
         }
 
         if (Math.abs(defA - defB) >= 1) {
             if (defA > defB) {
                 sA += NBA_CONFIG.ADJUSTMENTS.SUPERIORITY_BONUS;
-                console.log(`[NOTAS] +5 para ${entityA.name} (Defesa Superior)`);
+                console.log(`[NOTAS] +7 para ${entityA.name} (Defesa Superior)`);
             } else {
                 sB += NBA_CONFIG.ADJUSTMENTS.SUPERIORITY_BONUS;
-                console.log(`[NOTAS] +5 para ${entityB.name} (Defesa Superior)`);
+                console.log(`[NOTAS] +7 para ${entityB.name} (Defesa Superior)`);
             }
         }
     }
@@ -516,7 +516,7 @@ export const calculateUnderdogValue = (
     const defA = Number(teamCasa.espnData?.pts_contra || teamCasa.stats?.media_pontos_defesa || 115);
     if (defA < NBA_CONFIG.LIMITS.ELITE_DEFENSE_THRESHOLD) rules.push('Defesa_Forte');
 
-    if (analysis.totalPayload < 210) rules.push('Total_Baixo');
+    if (analysis.totalPayload < 215) rules.push('Total_Baixo');
 
     // Vector 3: Exigência Matemática Bruta (A borda necessária salta de 3 para 4.5 pts)
     if (Math.abs(edge) >= NBA_CONFIG.LIMITS.UNDERDOG_VALUE_EDGE) rules.push('Value_Bet');
