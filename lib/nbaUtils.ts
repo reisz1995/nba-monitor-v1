@@ -100,8 +100,8 @@ export const calculateDeterministicPace = (
     projectedPace -= injuryPaceReduction(injuriesA);
     projectedPace -= injuryPaceReduction(injuriesB);
 
-    const MIN_PACE = 98.0;
-    const MAX_PACE = 108.0;
+    const MIN_PACE = 100.5;
+    const MAX_PACE = 110.5;
     const clampedPace = Math.max(MIN_PACE, Math.min(MAX_PACE, projectedPace));
 
     console.log(`[SYS-OP] Híbrido A: ${blendedPaceA.toFixed(1)} | Híbrido B: ${blendedPaceB.toFixed(1)}`);
@@ -118,12 +118,12 @@ export const calculateDeterministicPace = (
 //   Resultado: MIN pts_contra = 114.1 → ajuste de +1.0 pt em PHI (correto).
 // ─────────────────────────────────────────────────────────────────────────────
 const defenseFilter = (defPPG_season: number): number => {
-    if (defPPG_season >= 119) return +5.0;  // defesa péssima
-    if (defPPG_season >= 116) return +3.0;
-    if (defPPG_season >= 113) return +1.0;
+    if (defPPG_season >= 119) return +10.0;  // defesa péssima
+    if (defPPG_season >= 116) return +5.0;
+    if (defPPG_season >= 113) return +2.0;
     if (defPPG_season >= 111) return  0.0;  // zona neutra
     if (defPPG_season >= 109) return -1.5;  // defesa boa
-    if (defPPG_season >= 106) return -3.0;  // defesa muito boa
+    if (defPPG_season >= 106) return -5.0;  // defesa muito boa
     return -5.0;                             // defesa de elite
 };
 
@@ -228,20 +228,20 @@ export const calculateProjectedScores = (
 
         // Ajuste TS%
         const tsAvgLeague = 58.0;
-        if (databallrA!.o_ts) projectedScoreA += (databallrA!.o_ts - tsAvgLeague) * 0.15;
-        if (databallrB!.o_ts) projectedScoreB += (databallrB!.o_ts - tsAvgLeague) * 0.15;
+        if (databallrA!.o_ts) projectedScoreA += (databallrA!.o_ts - tsAvgLeague) * 4;
+        if (databallrB!.o_ts) projectedScoreB += (databallrB!.o_ts - tsAvgLeague) * 4;
 
         // Penalidade TOV
         if (databallrA!.o_tov && databallrA!.o_tov > LEAGUE_AVG_TOV)
-            projectedScoreA -= (databallrA!.o_tov - LEAGUE_AVG_TOV) * 0.3;
+            projectedScoreA -= (databallrA!.o_tov - LEAGUE_AVG_TOV) * 3;
         if (databallrB!.o_tov && databallrB!.o_tov > LEAGUE_AVG_TOV)
-            projectedScoreB -= (databallrB!.o_tov - LEAGUE_AVG_TOV) * 0.3;
+            projectedScoreB -= (databallrB!.o_tov - LEAGUE_AVG_TOV) * 3;
 
         // Bônus OReb
         if (databallrA!.orb && databallrA!.orb > 26)
-            projectedScoreA += (databallrA!.orb - 26) * 0.2;
+            projectedScoreA += (databallrA!.orb - 26) * 2;
         if (databallrB!.orb && databallrB!.orb > 26)
-            projectedScoreB += (databallrB!.orb - 26) * 0.2;
+            projectedScoreB += (databallrB!.orb - 26) * 2;
 
         // FIX v4.1: offense_rating como âncora de forma recente
         // Captura o sinal de colapso/explosão ofensiva que o blend não consegue expressar totalmente
@@ -255,11 +255,11 @@ export const calculateProjectedScores = (
 
     // ─── AJUSTES SITUACIONAIS ────────────────────────────────────────────────
     if (options?.isHomeA) {
-        projectedScoreA += 1.5;
-        projectedScoreB -= 1.5;
+        projectedScoreA += 3;
+        projectedScoreB -= 3;
     } else {
-        projectedScoreB += 1.5;
-        projectedScoreA -= 1.5;
+        projectedScoreB += 3;
+        projectedScoreA -= 3;
     }
 
     if (options?.isB2BA) projectedScoreA -= 2.0;
@@ -287,8 +287,8 @@ export const calculateProjectedScores = (
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
     // ─── TRAVA DE SEGURANÇA ──────────────────────────────────────────────────
-    const scoreFloorA = seasonPPG_A - 20;
-    const scoreFloorB = seasonPPG_B - 20;
+    const scoreFloorA = seasonPPG_A - 17;
+    const scoreFloorB = seasonPPG_B - 17;
 
     if (projectedScoreA < scoreFloorA) {
         console.log(`[SAFE-LOCK] ${entityA.name}: ${projectedScoreA.toFixed(1)} -> ${scoreFloorA.toFixed(1)}`);
@@ -308,9 +308,9 @@ export const calculateProjectedScores = (
         totalPayload,
         deltaA: projectedScoreA,
         deltaB: projectedScoreB,
-        kineticState: matchPace > 102.5
+        kineticState: matchPace > 105.5
             ? 'HYPER_KINETIC'
-            : (matchPace < 98 ? 'SLOW_GRIND' : 'STATIC_TRENCH'),
+            : (matchPace < 100.5 ? 'SLOW_GRIND' : 'STATIC_TRENCH'),
         databallrEnhanced: hasDataballr,
     };
 };
