@@ -20,7 +20,9 @@ export interface DataballrInput {
     orb?: number;
     drb?: number;
     net_rating?: number;
+    /** Ataque relativo à média da liga (negativo = abaixo da média) */
     offense_rating?: number;
+    /** Defesa relativa à média da liga */
     defense_rating?: number;
 }
 
@@ -30,9 +32,36 @@ const LEAGUE_AVG_PACE = 99.7;
 const LEAGUE_AVG_TOV  = 14.8;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FIX v4.1 — BLEND DINÂMICO
+// Antes: peso fixo 80/20 para qualquer nível de divergência.
+// Agora: quanto maior a divergência entre 14d e temporada, menos confiamos
+//        nos 14 dias e mais ancoramos na temporada completa.
+// ─────────────────────────────────────────────────────────────────────────────
+const getDynamicBlendWeights = (
+    recentRtg: number,
+    seasonRtg: number
+): { recentW: number; seasonW: number } => {
+    const divergence = Math.abs(recentRtg - seasonRtg);
+    if (divergence > 12) return { recentW: 0.50, seasonW: 0.50 }; // outlier extremo
+    if (divergence > 8)  return { recentW: 0.60, seasonW: 0.40 }; // outlier moderado
+    if (divergence > 5)  return { recentW: 0.70, seasonW: 0.30 }; // divergência normal
+    return                      { recentW: 0.80, seasonW: 0.20 }; // dados estáveis
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIX v4.1 — PACENORM IMPLÍCITO
+// Antes: paceNorm = LEAGUE_AVG_PACE / 100 = 0.997 → quase inútil quando pace é NULL.
+// Agora: deriva o pace real do time a partir do seu PPG da temporada.
+//        Ex: PHI 116.6 PPG → impliedPace = 116.6 / 1.155 = 100.95 → paceNorm = 1.0095
+// ─────────────────────────────────────────────────────────────────────────────
+const getImpliedPaceNorm = (seasonPPG: number): number => {
+    const impliedPace = seasonPPG / (LEAGUE_AVG_ORTG / 100);
+    return impliedPace / 100;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PACE HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-
 const getFallbackPace = (team: Team): number => {
     const offRtg = team.espnData?.pts || team.stats?.media_pontos_ataque || 115.5;
     return offRtg / (LEAGUE_AVG_ORTG / 100);
@@ -42,7 +71,9 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
     const seasonPace = team.pace || getFallbackPace(team);
     const recentPace = databallr?.pace;
     if (recentPace && recentPace > 0) {
-        return (recentPace * 0.8) + (seasonPace * 0.2);
+        // Pace também usa blend dinâmico
+        const { recentW, seasonW } = getDynamicBlendWeights(recentPace, seasonPace);
+        return (recentPace * recentW) + (seasonPace * seasonW);
     }
     return seasonPace;
 };
@@ -52,7 +83,6 @@ export const calculateDeterministicPace = (
     teamB: Team,
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null,
-    // FIX v4.0: recebe lesões para reduzir pace quando há titulares OUT
     injuriesA?: { isOut: boolean; isDayToDay?: boolean; weight: number }[],
     injuriesB?: { isOut: boolean; isDayToDay?: boolean; weight: number }[]
 ): number => {
@@ -61,8 +91,7 @@ export const calculateDeterministicPace = (
 
     let projectedPace = (blendedPaceA + blendedPaceB) / 2;
 
-    // FIX v4.0: Titulares de impacto OUT reduzem o pace do confronto
-    // Cada jogador OUT com HW >= 7 retira 0.3 posses do ritmo projetado
+    // Titulares de impacto OUT reduzem o pace
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
             .filter(i => i.isOut && i.weight >= 7)
@@ -82,24 +111,39 @@ export const calculateDeterministicPace = (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FIX v4.0 — FILTRO DE DEFESA CALIBRADO
-// Antes: dois blocos com valores fixos absurdos (+10/+10/+20) sem escala.
-// Agora: função única, valores proporcionais, com zona neutra explícita.
+// FIX v4.1 — FILTRO DE DEFESA NA ESCALA CORRETA
+// Antes (v4.0): usava defRtg blendado com Databallr (escala ORTG/100 posses).
+//   Resultado: MIN drtg blendado = 103 → disparava -5 pts em PHI (errado).
+// Agora: recebe o PPG da temporada (pts_contra ESPN) — escala de pontos/jogo.
+//   Resultado: MIN pts_contra = 114.1 → ajuste de +1.0 pt em PHI (correto).
 // ─────────────────────────────────────────────────────────────────────────────
-const defenseFilter = (defRtg: number): number => {
-    if (defRtg >= 119) return +5.0;   // Defesa péssima → ataque adversário ganha pouco
-    if (defRtg >= 116) return +3.0;
-    if (defRtg >= 113) return +1.0;
-    if (defRtg >= 111) return  0.0;   // Zona neutra (média da liga)
-    if (defRtg >= 109) return -1.5;   // Defesa boa
-    if (defRtg >= 106) return -3.0;   // Defesa muito boa
-    return -5.0;                       // Defesa de elite (< 106)
+const defenseFilter = (defPPG_season: number): number => {
+    if (defPPG_season >= 119) return +5.0;  // defesa péssima
+    if (defPPG_season >= 116) return +3.0;
+    if (defPPG_season >= 113) return +1.0;
+    if (defPPG_season >= 111) return  0.0;  // zona neutra
+    if (defPPG_season >= 109) return -1.5;  // defesa boa
+    if (defPPG_season >= 106) return -3.0;  // defesa muito boa
+    return -5.0;                             // defesa de elite
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FIX v4.0 — PENALIDADE DE LESÃO COM DAY-TO-DAY
-// Antes: Day-to-Day gerava penalidade ZERO (isOut = false → não entrava no if).
-// Agora: D2D aplica 35% do peso do jogador como penalidade parcial.
+// FIX v4.1 — OFFENSE_RATING COMO ÂNCORA DE FORMA RECENTE
+// Campo offense_rating do Databallr = desempenho ofensivo relativo à liga (14d).
+// Antes: completamente ignorado.
+// Agora: quando o time está muito acima ou abaixo da média da liga nos 14 dias,
+//        isso gera um bônus/penalidade amortecida (fator 0.15 para bônus, 0.25 para penalidade).
+// Threshold: só ativa se |offense_rating| > 8 (sinal forte, não ruído).
+// ─────────────────────────────────────────────────────────────────────────────
+const getOffenseRatingAnchor = (offenseRating?: number): number => {
+    if (offenseRating === undefined || offenseRating === null) return 0;
+    if (offenseRating < -8)  return offenseRating * 0.25; // colapso ofensivo → penalidade
+    if (offenseRating > 8)   return offenseRating * 0.15; // explosão ofensiva → bônus
+    return 0; // zona neutra → sem ajuste
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PENALIDADE DE LESÃO (com Day-to-Day, mantido do v4.0)
 // ─────────────────────────────────────────────────────────────────────────────
 const calculatePenalty = (
     injuries?: { isOut: boolean; isDayToDay?: boolean; weight: number }[]
@@ -107,10 +151,8 @@ const calculatePenalty = (
     let p = 0;
     (injuries || []).forEach(inj => {
         if (inj.isOut) {
-            // Colapso Sistêmico para superestrelas
             p += inj.weight >= 9 ? (inj.weight * 2.0) + 2 : inj.weight;
         } else if (inj.isDayToDay) {
-            // FIX: Jogador D2D joga, mas com restrição → penalidade parcial de 35%
             p += inj.weight * 0.35;
         }
     });
@@ -118,7 +160,7 @@ const calculatePenalty = (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOTOR PRINCIPAL
+// MOTOR PRINCIPAL v4.1
 // ─────────────────────────────────────────────────────────────────────────────
 export const calculateProjectedScores = (
     entityA: Team,
@@ -132,30 +174,49 @@ export const calculateProjectedScores = (
 ) => {
     const hasDataballr = !!(databallrA?.ortg && databallrB?.ortg);
 
-    // ─── FONTE DE RATINGS ──────────────────────────────────────────────────
-    let offRtgA = Number(entityA.espnData?.pts  || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-    let defRtgA = Number(entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
-    let offRtgB = Number(entityB.espnData?.pts  || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-    let defRtgB = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+    // ─── PPG DA TEMPORADA (âncora de escala real) ───────────────────────────
+    const seasonPPG_A  = Number(entityA.espnData?.pts        || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    const seasonDEF_A  = Number(entityA.espnData?.pts_contra  || entityA.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+    const seasonPPG_B  = Number(entityB.espnData?.pts        || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
+    const seasonDEF_B  = Number(entityB.espnData?.pts_contra  || entityB.stats?.media_pontos_defesa || LEAGUE_AVG_ORTG);
+
+    // ─── RATINGS BLENDADOS (para cálculo de eficiência cruzada) ────────────
+    let offRtgA = seasonPPG_A;
+    let defRtgA = seasonDEF_A;
+    let offRtgB = seasonPPG_B;
+    let defRtgB = seasonDEF_B;
 
     if (hasDataballr) {
-        // FIX v4.0: ORTG (pontos/100 posses) normalizado pelo pace antes de misturar com PPG
-        // Sem isso, ORTG e PPG ficavam na mesma escala, inflando os ratings
-        const paceNorm = (entityA.pace || LEAGUE_AVG_PACE) / 100;
+        // FIX v4.1: paceNorm implícito derivado do PPG da temporada (não LEAGUE_AVG_PACE fixo)
+        const paceNormA = getImpliedPaceNorm(seasonPPG_A);
+        const paceNormB = getImpliedPaceNorm(seasonPPG_B);
 
-        if (databallrA!.ortg) offRtgA = ((databallrA!.ortg * paceNorm) * 0.8) + (offRtgA * 0.2);
-        if (databallrA!.drtg) defRtgA = ((databallrA!.drtg * paceNorm) * 0.8) + (defRtgA * 0.2);
-        if (databallrB!.ortg) offRtgB = ((databallrB!.ortg * paceNorm) * 0.8) + (offRtgB * 0.2);
-        if (databallrB!.drtg) defRtgB = ((databallrB!.drtg * paceNorm) * 0.8) + (defRtgB * 0.2);
+        // FIX v4.1: pesos dinâmicos baseados na divergência entre 14d e temporada
+        if (databallrA!.ortg) {
+            const { recentW, seasonW } = getDynamicBlendWeights(databallrA!.ortg, seasonPPG_A);
+            offRtgA = (databallrA!.ortg * paceNormA * recentW) + (seasonPPG_A * seasonW);
+        }
+        if (databallrA!.drtg) {
+            const { recentW, seasonW } = getDynamicBlendWeights(databallrA!.drtg, seasonDEF_A);
+            defRtgA = (databallrA!.drtg * paceNormA * recentW) + (seasonDEF_A * seasonW);
+        }
+        if (databallrB!.ortg) {
+            const { recentW, seasonW } = getDynamicBlendWeights(databallrB!.ortg, seasonPPG_B);
+            offRtgB = (databallrB!.ortg * paceNormB * recentW) + (seasonPPG_B * seasonW);
+        }
+        if (databallrB!.drtg) {
+            const { recentW, seasonW } = getDynamicBlendWeights(databallrB!.drtg, seasonDEF_B);
+            defRtgB = (databallrB!.drtg * paceNormB * recentW) + (seasonDEF_B * seasonW);
+        }
     }
 
-    // ─── PACE (agora recebe lesões para ajuste) ─────────────────────────────
+    // ─── PACE ────────────────────────────────────────────────────────────────
     const matchPace = calculateDeterministicPace(
         entityA, entityB, databallrA, databallrB,
         options?.injuriesA, options?.injuriesB
     );
 
-    // ─── PLACAR BASE ────────────────────────────────────────────────────────
+    // ─── PLACAR BASE (eficiência cruzada) ────────────────────────────────────
     let projectedScoreA: number;
     let projectedScoreB: number;
 
@@ -181,12 +242,18 @@ export const calculateProjectedScores = (
             projectedScoreA += (databallrA!.orb - 26) * 0.2;
         if (databallrB!.orb && databallrB!.orb > 26)
             projectedScoreB += (databallrB!.orb - 26) * 0.2;
+
+        // FIX v4.1: offense_rating como âncora de forma recente
+        // Captura o sinal de colapso/explosão ofensiva que o blend não consegue expressar totalmente
+        projectedScoreA += getOffenseRatingAnchor(databallrA!.offense_rating);
+        projectedScoreB += getOffenseRatingAnchor(databallrB!.offense_rating);
+
     } else {
         projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
         projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
     }
 
-    // ─── AJUSTES SITUACIONAIS ───────────────────────────────────────────────
+    // ─── AJUSTES SITUACIONAIS ────────────────────────────────────────────────
     if (options?.isHomeA) {
         projectedScoreA += 1.5;
         projectedScoreB -= 1.5;
@@ -201,7 +268,6 @@ export const calculateProjectedScores = (
     if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1.5;
     if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1.5;
 
-    // Jogo lento: comprime o spread (não inflaciona nem um nem outro)
     if (matchPace < 98) {
         const spread = projectedScoreA - projectedScoreB;
         const adjustment = spread * 0.02;
@@ -209,21 +275,20 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 2;
     }
 
-    // ─── FILTRO DE DEFESA v4.0 (CALIBRADO) ─────────────────────────────────
-    // FIX: Substituído bloco com +10/+10/+20 por função proporcional defenseFilter()
-    projectedScoreA += defenseFilter(defRtgB); // Defesa dos Wolves afeta pontuação dos 76ers
-    projectedScoreB += defenseFilter(defRtgA); // Defesa dos 76ers afeta pontuação dos Wolves
+    // ─── FILTRO DE DEFESA v4.1 (escala PPG temporada) ───────────────────────
+    // FIX: usa seasonDEF (pts_contra ESPN), NÃO o defRtg blendado com Databallr.
+    // O defRtg blendado está em escala ORTG (por 100 posses) e não é comparável
+    // à tabela do defenseFilter, que foi calibrada em pontos reais por jogo.
+    projectedScoreA += defenseFilter(seasonDEF_B); // defesa dos Wolves afeta PHI
+    projectedScoreB += defenseFilter(seasonDEF_A); // defesa dos 76ers afeta MIN
 
-    // ─── PENALIDADE DE LESÃO v4.0 (COM DAY-TO-DAY) ─────────────────────────
+    // ─── PENALIDADE DE LESÃO v4.0 (com Day-to-Day) ──────────────────────────
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
-    // ─── TRAVA DE SEGURANÇA ─────────────────────────────────────────────────
-    const seasonAvgA = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-    const seasonAvgB = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || LEAGUE_AVG_ORTG);
-
-    const scoreFloorA = seasonAvgA - 20;
-    const scoreFloorB = seasonAvgB - 20;
+    // ─── TRAVA DE SEGURANÇA ──────────────────────────────────────────────────
+    const scoreFloorA = seasonPPG_A - 20;
+    const scoreFloorB = seasonPPG_B - 20;
 
     if (projectedScoreA < scoreFloorA) {
         console.log(`[SAFE-LOCK] ${entityA.name}: ${projectedScoreA.toFixed(1)} -> ${scoreFloorA.toFixed(1)}`);
@@ -235,6 +300,8 @@ export const calculateProjectedScores = (
     }
 
     const totalPayload = projectedScoreA + projectedScoreB;
+
+    console.log(`[v4.1] PHI: ${projectedScoreA.toFixed(1)} | MIN: ${projectedScoreB.toFixed(1)} | Total: ${totalPayload.toFixed(1)}`);
 
     return {
         matchPace,
