@@ -109,10 +109,10 @@ export const calculateDeterministicPace = (
 const defenseFilter = (defPPG_season: number): number => {
     if (defPPG_season >= 118.5) return +10.0;
     if (defPPG_season >= 115.5) return +5.0;
-    if (defPPG_season >= 112.5) return +2.0;
-    if (defPPG_season >= 110.5) return  0.0; 
-    if (defPPG_season >= 108.5) return -1.5; 
-    if (defPPG_season >= 105.5) return -5.0; 
+    if (defPPG_season >= 112.5) return -2.0;
+    if (defPPG_season >= 110.5) return -3.0; 
+    if (defPPG_season >= 108.5) return -4.5; 
+    if (defPPG_season >= 105.5) return -6.0; 
     return -5.5;                             
 };
 
@@ -227,8 +227,8 @@ export const calculateProjectedScores = (
         projectedScoreA -= 3;
     }
 
-    if (options?.isB2BA) projectedScoreA -= 2.0;
-    if (options?.isB2BB) projectedScoreB -= 2.0;
+    if (options?.isB2BA) projectedScoreA -= 1.0;
+    if (options?.isB2BB) projectedScoreB -= 1.0;
 
     if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1.5;
     if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1.5;
@@ -236,8 +236,8 @@ export const calculateProjectedScores = (
     if (matchPace < 98) {
         const spread = projectedScoreA - projectedScoreB;
         const adjustment = spread * 0.02;
-        projectedScoreA -= adjustment / 2;
-        projectedScoreB += adjustment / 2;
+        projectedScoreA -= adjustment / 3;
+        projectedScoreB += adjustment / 3;
     }
 
     projectedScoreA += defenseFilter(seasonDEF_B); 
