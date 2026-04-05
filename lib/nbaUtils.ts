@@ -68,8 +68,8 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
     const recentPace = databallr?.pace;
 
     if (recentPace && recentPace > 0) {
-        const { recentW, seasonW } = getDynamicBlendWeights(recentPace, seasonPace);
-        return (recentPace * recentW) + (seasonPace * seasonW);
+        // Média ponderada fixa: 60% databallr (14 dias) + 40% classificacao_nba (temporada)
+        return (recentPace * 0.60) + (seasonPace * 0.40);
     }
     return seasonPace;
 };
