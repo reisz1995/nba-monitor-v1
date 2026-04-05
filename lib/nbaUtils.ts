@@ -212,33 +212,33 @@ export const calculateProjectedScores = (
 
     // POWER_SCORE PENALTY E FILTROS DE DEFESA E ATAQUE ATIVADOS
     // Se o time for superior (PowerScore > rival), ele impõe a robustez de sua defesa e a explosão de seu ataque.
-    // O filtro de defesa suprime se a diferença (ORtg rival - sua DRtg) for positiva
-    // O filtro de ataque sobrepuja se a diferença (seu ORtg - DRtg rival) for positiva
+    // O filtro de defesa suprime a pontuação rival se a defesa (DRtg) do favorito for melhor (menor) que a do adversário.
+    // O filtro de ataque sobrepuja se o ataque (ORtg) do favorito for melhor (maior) que o do adversário.
     const powerA = options?.aiScoreA ?? 0;
     const powerB = options?.aiScoreB ?? 0;
     const powerDiff = powerA - powerB;
 
     if (powerA > powerB) {
         projectedScoreA += powerDiff * 0.75;
-        if (offRtgB > defRtgA) {
-            const defenseFilter = (offRtgB - defRtgA) * 0.81;
+        if (defRtgA < defRtgB) {
+            const defenseFilter = (defRtgB - defRtgA) * 0.81;
             console.log(`[DEF_FILTER_ACTIVE] ${entityA.name} defesa suprime ${entityB.name}: -${defenseFilter.toFixed(1)}pts`);
             projectedScoreB -= defenseFilter;
         }
-        if (offRtgA > defRtgB) {
-            const attackFilter = (offRtgA - defRtgB) * 0.81;
+        if (offRtgA > offRtgB) {
+            const attackFilter = (offRtgA - offRtgB) * 0.81;
             console.log(`[ATK_FILTER_ACTIVE] ${entityA.name} ataque sobrepuja ${entityB.name}: +${attackFilter.toFixed(1)}pts`);
             projectedScoreA += attackFilter;
         }
     } else if (powerB > powerA) {
         projectedScoreB += Math.abs(powerDiff) * 0.75;
-        if (offRtgA > defRtgB) {
-            const defenseFilter = (offRtgA - defRtgB) * 0.81;
+        if (defRtgB < defRtgA) {
+            const defenseFilter = (defRtgA - defRtgB) * 0.81;
             console.log(`[DEF_FILTER_ACTIVE] ${entityB.name} defesa suprime ${entityA.name}: -${defenseFilter.toFixed(1)}pts`);
             projectedScoreA -= defenseFilter;
         }
-        if (offRtgB > defRtgA) {
-            const attackFilter = (offRtgB - defRtgA) * 0.81;
+        if (offRtgB > offRtgA) {
+            const attackFilter = (offRtgB - offRtgA) * 0.81;
             console.log(`[ATK_FILTER_ACTIVE] ${entityB.name} ataque sobrepuja ${entityA.name}: +${attackFilter.toFixed(1)}pts`);
             projectedScoreB += attackFilter;
         }
