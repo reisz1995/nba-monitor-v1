@@ -99,7 +99,7 @@ export const calculateDeterministicPace = (
     projectedPace -= injuryPaceReduction(injuriesA);
     projectedPace -= injuryPaceReduction(injuriesB);
 
-    const clampedPace = Math.max(SEASON_25_26_METRICS.MIN_PACE, Math.min(SEASON_25_26_METRICS.MAX_PACE, projectedPace));
+    const clampedPace = projectedPace;
 
     console.log(`[SYS-OP] Híbrido A: ${blendedPaceA.toFixed(1)} | Híbrido B: ${blendedPaceB.toFixed(1)}`);
     console.log(`[SYS-OP] Pace Otimizado (Interação): ${clampedPace.toFixed(2)}`);
@@ -219,7 +219,7 @@ export const calculateProjectedScores = (
     const powerDiff = powerA - powerB;
 
     if (powerA > powerB) {
-        projectedScoreA += Math.min(2.5, powerDiff * 0.75);
+        projectedScoreA += powerDiff * 0.75;
         if (offRtgB > defRtgA) {
             const defenseFilter = (offRtgB - defRtgA) * 0.81;
             console.log(`[DEF_FILTER_ACTIVE] ${entityA.name} defesa suprime ${entityB.name}: -${defenseFilter.toFixed(1)}pts`);
@@ -231,7 +231,7 @@ export const calculateProjectedScores = (
             projectedScoreA += attackFilter;
         }
     } else if (powerB > powerA) {
-        projectedScoreB += Math.min(2.5, Math.abs(powerDiff) * 0.75);
+        projectedScoreB += Math.abs(powerDiff) * 0.75;
         if (offRtgA > defRtgB) {
             const defenseFilter = (offRtgA - defRtgB) * 0.81;
             console.log(`[DEF_FILTER_ACTIVE] ${entityB.name} defesa suprime ${entityA.name}: -${defenseFilter.toFixed(1)}pts`);
