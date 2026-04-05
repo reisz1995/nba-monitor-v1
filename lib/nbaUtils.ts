@@ -6,6 +6,8 @@ export interface PaceOptions {
     isB2BB?: boolean;
     lastMarginA?: number;
     lastMarginB?: number;
+    aiScoreA?: number;
+    aiScoreB?: number;
 }
 
 export interface DataballrInput {
@@ -240,8 +242,25 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 3;
     }
 
-    projectedScoreA += defenseFilter(seasonDEF_B);
-    projectedScoreB += defenseFilter(seasonDEF_A);
+    // POWER_SCORE SHIELD: Não aplicar penalidades defensivas quando o rival tem nota superior
+    const defFilterB = defenseFilter(seasonDEF_B);
+    const defFilterA = defenseFilter(seasonDEF_A);
+    const powerA = options?.aiScoreA ?? 0;
+    const powerB = options?.aiScoreB ?? 0;
+
+    // ScoreA: rival é B. Se B tem POWER_SCORE superior E filtro é negativo → skip penalty
+    if (defFilterB > 0 || powerB <= powerA) {
+        projectedScoreA += defFilterB;
+    } else {
+        console.log(`[POWER_SHIELD] ${entityA.name}: penalty ${defFilterB.toFixed(1)} bloqueada (rival POWER ${powerB} > ${powerA})`);
+    }
+
+    // ScoreB: rival é A. Se A tem POWER_SCORE superior E filtro é negativo → skip penalty
+    if (defFilterA > 0 || powerA <= powerB) {
+        projectedScoreB += defFilterA;
+    } else {
+        console.log(`[POWER_SHIELD] ${entityB.name}: penalty ${defFilterA.toFixed(1)} bloqueada (rival POWER ${powerA} > ${powerB})`);
+    }
 
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
