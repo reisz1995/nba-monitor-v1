@@ -247,17 +247,6 @@ export const calculateProjectedScores = (
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
-    const scoreFloorA = seasonPPG_A - 17;
-    const scoreFloorB = seasonPPG_B - 17;
-
-    if (projectedScoreA < scoreFloorA) {
-        console.log(`[SAFE-LOCK] ${entityA.name}: ${projectedScoreA.toFixed(1)} -> ${scoreFloorA.toFixed(1)}`);
-        projectedScoreA = scoreFloorA;
-    }
-    if (projectedScoreB < scoreFloorB) {
-        console.log(`[SAFE-LOCK] ${entityB.name}: ${projectedScoreB.toFixed(1)} -> ${scoreFloorB.toFixed(1)}`);
-        projectedScoreB = scoreFloorB;
-    }
 
     const totalPayload = projectedScoreA + projectedScoreB;
 
