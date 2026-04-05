@@ -107,12 +107,12 @@ export const calculateDeterministicPace = (
 // FILTROS E PENALIDADES
 // ─────────────────────────────────────────────────────────────────────────────
 const defenseFilter = (defPPG_season: number): number => {
-    if (defPPG_season >= 118.5) return +10.0;
-    if (defPPG_season >= 115.5) return +5.0;
-    if (defPPG_season >= 112.5) return -2.0;
-    if (defPPG_season >= 110.5) return -3.0;
-    if (defPPG_season >= 108.5) return -4.5;
-    if (defPPG_season >= 105.5) return -6.0;
+    if (defPPG_season >= 118.5) return +15.0;
+    if (defPPG_season >= 115.5) return +10;
+    if (defPPG_season >= 112.5) return -5.0;
+    if (defPPG_season >= 110.5) return -7.0;
+    if (defPPG_season >= 108.5) return -9.5;
+    if (defPPG_season >= 105.5) return -15.0;
     return -5.5;
 };
 
