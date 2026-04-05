@@ -36,20 +36,6 @@ export interface DataballrFullStats {
   net_poss: number;
   /** PACE real: posses por 48min */
   pace: number;
-  /** Frequência de arremessos no garrafão */
-  rim_freq: number;
-  /** % de conversão no garrafão */
-  rim_fg_pct: number;
-  /** Frequência de bolas de 3 */
-  three_freq: number;
-  /** % de conversão de bolas de 3 */
-  three_pct: number;
-  /** True Shooting % consolidado da equipe */
-  team_ts_pct: number;
-  /** Net calculado pelo pipeline */
-  calculated_net: number;
-  /** Classificação de tier: Elite/Good/Average/Below/Poor */
-  team_tier: string;
   record_date: string;
   period: string;
 }
@@ -60,7 +46,7 @@ let _cacheTimestamp = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 /**
- * Busca e cacheia as stats completas da tabela databallr_team_full_stats.
+ * Busca e cacheia as stats completas da tabela databallr_team_stats.
  * Retorna apenas o registro mais recente por equipe (period=last_14_days).
  */
 export const fetchDataballrFullStats = async (): Promise<DataballrFullStats[]> => {
@@ -69,7 +55,7 @@ export const fetchDataballrFullStats = async (): Promise<DataballrFullStats[]> =
   }
 
   const { data, error } = await supabase
-    .from('databallr_team_full_stats')
+    .from('databallr_team_stats')
     .select('*')
     .eq('period', 'last_14_days')
     .order('record_date', { ascending: false });
@@ -126,11 +112,10 @@ export const formatDataballrForPrompt = (
 ): string => {
   if (!s) return `[${label}] Stats avançadas (14d): INDISPONÍVEL`;
   return [
-    `[${label} — Databallr 14d | Tier: ${s.team_tier}]`,
+    `[${label} — Databallr 14d]`,
     `ORTG=${s.ortg.toFixed(1)} | DRTG=${s.drtg.toFixed(1)} | NET=${s.net_rating.toFixed(1)}`,
     `Atq.Rel=${s.offense_rating.toFixed(1)} | Def.Rel=${s.defense_rating.toFixed(1)}`,
     `PACE=${s.pace.toFixed(1)} | TS%=${s.o_ts.toFixed(1)} | TOV%=${s.o_tov.toFixed(1)}`,
     `OReb%=${s.orb.toFixed(1)} | DReb%=${s.drb.toFixed(1)} | Net.Poss=${s.net_poss.toFixed(1)}`,
-    `3pt%=${s.three_pct.toFixed(1)} | 3ptFreq=${s.three_freq.toFixed(1)} | RimFG%=${s.rim_fg_pct.toFixed(1)}`,
   ].join('\n');
 };

@@ -45,9 +45,9 @@ const getDynamicBlendWeights = (
 ): { recentW: number; seasonW: number } => {
     const divergence = Math.abs(recentRtg - seasonRtg);
     if (divergence > 12) return { recentW: 0.50, seasonW: 0.50 }; // Alerta de Outlier
-    if (divergence > 8)  return { recentW: 0.60, seasonW: 0.40 }; // Instabilidade Alta
-    if (divergence > 5)  return { recentW: 0.70, seasonW: 0.30 }; // Divergência Padrão
-    return                      { recentW: 0.80, seasonW: 0.20 }; // Conformidade
+    if (divergence > 8) return { recentW: 0.60, seasonW: 0.40 }; // Instabilidade Alta
+    if (divergence > 5) return { recentW: 0.70, seasonW: 0.30 }; // Divergência Padrão
+    return { recentW: 0.80, seasonW: 0.20 }; // Conformidade
 };
 
 const getImpliedPaceNorm = (seasonPPG: number): number => {
@@ -64,9 +64,9 @@ const getFallbackPace = (team: Team): number => {
 };
 
 const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number => {
-    const seasonPace = team.pace || getFallbackPace(team);
+    const seasonPace = Number(team.espnData?.pace) || getFallbackPace(team);
     const recentPace = databallr?.pace;
-    
+
     if (recentPace && recentPace > 0) {
         const { recentW, seasonW } = getDynamicBlendWeights(recentPace, seasonPace);
         return (recentPace * recentW) + (seasonPace * seasonW);
@@ -110,16 +110,16 @@ const defenseFilter = (defPPG_season: number): number => {
     if (defPPG_season >= 118.5) return +10.0;
     if (defPPG_season >= 115.5) return +5.0;
     if (defPPG_season >= 112.5) return -2.0;
-    if (defPPG_season >= 110.5) return -3.0; 
-    if (defPPG_season >= 108.5) return -4.5; 
-    if (defPPG_season >= 105.5) return -6.0; 
-    return -5.5;                             
+    if (defPPG_season >= 110.5) return -3.0;
+    if (defPPG_season >= 108.5) return -4.5;
+    if (defPPG_season >= 105.5) return -6.0;
+    return -5.5;
 };
 
 const getOffenseRatingAnchor = (offenseRating?: number): number => {
     if (offenseRating === undefined || offenseRating === null) return 0;
-    if (offenseRating < -8)  return offenseRating * 0.25; 
-    if (offenseRating > 8)   return offenseRating * 0.15; 
+    if (offenseRating < -8) return offenseRating * 0.25;
+    if (offenseRating > 8) return offenseRating * 0.15;
     return 0;
 };
 
@@ -152,10 +152,10 @@ export const calculateProjectedScores = (
 ) => {
     const hasDataballr = !!(databallrA?.ortg && databallrB?.ortg);
 
-    const seasonPPG_A  = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
-    const seasonDEF_A  = Number(entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
-    const seasonPPG_B  = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
-    const seasonDEF_B  = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
+    const seasonPPG_A = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
+    const seasonDEF_A = Number(entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
+    const seasonPPG_B = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
+    const seasonDEF_B = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
 
     let offRtgA = seasonPPG_A;
     let defRtgA = seasonDEF_A;
@@ -240,8 +240,8 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 3;
     }
 
-    projectedScoreA += defenseFilter(seasonDEF_B); 
-    projectedScoreB += defenseFilter(seasonDEF_A); 
+    projectedScoreA += defenseFilter(seasonDEF_B);
+    projectedScoreB += defenseFilter(seasonDEF_A);
 
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
@@ -308,8 +308,8 @@ export const parseStreakToRecord = (streakStr: string): GameResult[] | null => {
 };
 
 export const getFormattedDate = (date: Date): string => {
-    const dd   = String(date.getDate()).padStart(2, '0');
-    const mm   = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
     const yyyy = date.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
 };
@@ -343,21 +343,21 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: Array
     if (!dbPredictions || !teamName) return { yesterday: false, tomorrow: false };
     const [d, m, y] = dateStr.split('/');
     const current = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
-    
+
     const yesterday = new Date(current);
     yesterday.setDate(yesterday.getDate() - 1);
     const yStr = yesterday.toISOString().split('T')[0];
-    
+
     const tomorrow = new Date(current);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tStr = tomorrow.toISOString().split('T')[0];
-    
+
     const playedYesterday = dbPredictions.some(p =>
         (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
             p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
         p.date === yStr
     );
-    
+
     const playsTomorrow = dbPredictions.some(p =>
         (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
             p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
@@ -377,13 +377,13 @@ export const calculateUnderdogValue = (
     const isUnderdogA = marketSpread > 0;
     const fairSpread = analysis.deltaB - analysis.deltaA;
     const edge = marketSpread - fairSpread;
-    
+
     if (isUnderdogA) rules.push('Underdog_Casa');
     const defA = teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 115;
     if (defA < 109.5) rules.push('Defesa_Forte');
     if (analysis.totalPayload < 210) rules.push('Total_Baixo');
     if (Math.abs(edge) >= 4.5) rules.push('Value_Bet');
-    
+
     return { hasValue: rules.length >= 2, rules, edge: edge.toFixed(1) };
 };
 
@@ -432,4 +432,4 @@ export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
 
     return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H };
 };
-        
+

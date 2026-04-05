@@ -130,7 +130,8 @@ export const useNBAData = () => {
             aproveitamento: Number(d.pct_vit || d.pc_vit || d.aproveitamento || 0),
             media_pontos_ataque: Number(d.pts || d.media_pontos_ataque || 0),
             media_pontos_defesa: Number(d.pts_contra || d.media_pontos_defesa || 0),
-            ultimos_5: String(d.ultimos_5 || '')
+            ultimos_5: String(d.ultimos_5 || ''),
+            pace: d.pace ? Number(d.pace) : null
         } as ESPNData));
     }, [espnDataRaw]);
 
