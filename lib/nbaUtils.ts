@@ -210,9 +210,10 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 3;
     }
 
-    // POWER_SCORE PENALTY E FILTRO DE DEFESA ATIVADO
-    // Se o time for superior (PowerScore > rival), ele impõe a robustez de sua defesa.
-    // O filtro entra ativando a supressão se a diferença (ORtg rival - sua DRtg) for positiva
+    // POWER_SCORE PENALTY E FILTROS DE DEFESA E ATAQUE ATIVADOS
+    // Se o time for superior (PowerScore > rival), ele impõe a robustez de sua defesa e a explosão de seu ataque.
+    // O filtro de defesa suprime se a diferença (ORtg rival - sua DRtg) for positiva
+    // O filtro de ataque sobrepuja se a diferença (seu ORtg - DRtg rival) for positiva
     const powerA = options?.aiScoreA ?? 0;
     const powerB = options?.aiScoreB ?? 0;
     const powerDiff = powerA - powerB;
@@ -224,12 +225,22 @@ export const calculateProjectedScores = (
             console.log(`[DEF_FILTER_ACTIVE] ${entityA.name} defesa suprime ${entityB.name}: -${defenseFilter.toFixed(1)}pts`);
             projectedScoreB -= defenseFilter;
         }
+        if (offRtgA > defRtgB) {
+            const attackFilter = (offRtgA - defRtgB) * 0.81;
+            console.log(`[ATK_FILTER_ACTIVE] ${entityA.name} ataque sobrepuja ${entityB.name}: +${attackFilter.toFixed(1)}pts`);
+            projectedScoreA += attackFilter;
+        }
     } else if (powerB > powerA) {
         projectedScoreB += Math.min(2.5, Math.abs(powerDiff) * 0.75);
         if (offRtgA > defRtgB) {
             const defenseFilter = (offRtgA - defRtgB) * 0.81;
             console.log(`[DEF_FILTER_ACTIVE] ${entityB.name} defesa suprime ${entityA.name}: -${defenseFilter.toFixed(1)}pts`);
             projectedScoreA -= defenseFilter;
+        }
+        if (offRtgB > defRtgA) {
+            const attackFilter = (offRtgB - defRtgA) * 0.81;
+            console.log(`[ATK_FILTER_ACTIVE] ${entityB.name} ataque sobrepuja ${entityA.name}: +${attackFilter.toFixed(1)}pts`);
+            projectedScoreB += attackFilter;
         }
     }
 
