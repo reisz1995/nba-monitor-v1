@@ -89,7 +89,7 @@ export const calculateDeterministicPace = (
     const blendedPaceA = getBlendedPace(teamA, databallrA);
     const blendedPaceB = getBlendedPace(teamB, databallrB);
 
-    let projectedPace = (blendedPaceA * blendedPaceB) / SEASON_25_26_METRICS.AVG_PACE;
+    let projectedPace = (blendedPaceA + blendedPaceB) / 2;
 
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
@@ -167,22 +167,11 @@ export const calculateProjectedScores = (
     let defRtgB = seasonDrtgB;
 
     if (hasDataballr) {
-        if (databallrA!.ortg) {
-            const { recentW, seasonW } = getDynamicBlendWeights(databallrA!.ortg, seasonOrtgA);
-            offRtgA = (databallrA!.ortg * recentW) + (seasonOrtgA * seasonW);
-        }
-        if (databallrA!.drtg) {
-            const { recentW, seasonW } = getDynamicBlendWeights(databallrA!.drtg, seasonDrtgA);
-            defRtgA = (databallrA!.drtg * recentW) + (seasonDrtgA * seasonW);
-        }
-        if (databallrB!.ortg) {
-            const { recentW, seasonW } = getDynamicBlendWeights(databallrB!.ortg, seasonOrtgB);
-            offRtgB = (databallrB!.ortg * recentW) + (seasonOrtgB * seasonW);
-        }
-        if (databallrB!.drtg) {
-            const { recentW, seasonW } = getDynamicBlendWeights(databallrB!.drtg, seasonDrtgB);
-            defRtgB = (databallrB!.drtg * recentW) + (seasonDrtgB * seasonW);
-        }
+        // Quando temos a métrica de 14 dias (databallr), assume-se 100% dos dados para eficiência cruzada ajustada
+        if (databallrA!.ortg) offRtgA = databallrA!.ortg;
+        if (databallrA!.drtg) defRtgA = databallrA!.drtg;
+        if (databallrB!.ortg) offRtgB = databallrB!.ortg;
+        if (databallrB!.drtg) defRtgB = databallrB!.drtg;
     }
 
     const matchPace = calculateDeterministicPace(
@@ -193,31 +182,12 @@ export const calculateProjectedScores = (
     let projectedScoreA: number;
     let projectedScoreB: number;
 
-    // Ajuste de Eficiência Contínuo: ORTG_A + (DRTG_B - Lg_Avg_ORTG)
-    const lg_avg_eff = SEASON_25_26_METRICS.AVG_ORTG;
-    const adjEffA = offRtgA + (defRtgB - lg_avg_eff);
-    const adjEffB = offRtgB + (defRtgA - lg_avg_eff);
+    // Eficiência Cruzada Ajustada (Média da força de ataque com a força da defesa oponente)
+    const projEffA = (offRtgA + defRtgB) / 2;
+    const projEffB = (offRtgB + defRtgA) / 2;
 
-    projectedScoreA = (adjEffA / 100) * matchPace;
-    projectedScoreB = (adjEffB / 100) * matchPace;
-
-    if (hasDataballr) {
-        if (databallrA!.o_ts) projectedScoreA += (databallrA!.o_ts - SEASON_25_26_METRICS.AVG_TS) * 2;
-        if (databallrB!.o_ts) projectedScoreB += (databallrB!.o_ts - SEASON_25_26_METRICS.AVG_TS) * 2;
-
-        if (databallrA!.o_tov && databallrA!.o_tov > SEASON_25_26_METRICS.AVG_TOV)
-            projectedScoreA -= (databallrA!.o_tov - SEASON_25_26_METRICS.AVG_TOV) * 1;
-        if (databallrB!.o_tov && databallrB!.o_tov > SEASON_25_26_METRICS.AVG_TOV)
-            projectedScoreB -= (databallrB!.o_tov - SEASON_25_26_METRICS.AVG_TOV) * 1;
-
-        if (databallrA!.orb && databallrA!.orb > SEASON_25_26_METRICS.AVG_ORB)
-            projectedScoreA += (databallrA!.orb - SEASON_25_26_METRICS.AVG_ORB) * 1;
-        if (databallrB!.orb && databallrB!.orb > SEASON_25_26_METRICS.AVG_ORB)
-            projectedScoreB += (databallrB!.orb - SEASON_25_26_METRICS.AVG_ORB) * 1;
-
-        projectedScoreA += getOffenseRatingAnchor(databallrA!.offense_rating);
-        projectedScoreB += getOffenseRatingAnchor(databallrB!.offense_rating);
-    }
+    projectedScoreA = projEffA * (matchPace / 100);
+    projectedScoreB = projEffB * (matchPace / 100);
 
     if (options?.isHomeA) {
         projectedScoreA += 3;
@@ -240,17 +210,27 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 3;
     }
 
-    // POWER_SCORE PENALTY / EDGE SUBSTITUTO DO DEFENSE_FILTER 
-    // Como a Defesa (DRTG) agora atua em espectro contínuo, não usamos mais o 'defenseFilter' (escadas de penalidade).
-    // O Power Score atua apenas no Edge Qualitativo/Invisível (Até ~2.5 pontos por mérito intangível)
+    // POWER_SCORE PENALTY E FILTRO DE DEFESA ATIVADO
+    // Se o time for superior (PowerScore > rival), ele impõe a robustez de sua defesa.
+    // O filtro entra ativando a supressão se a diferença (ORtg rival - sua DRtg) for positiva
     const powerA = options?.aiScoreA ?? 0;
     const powerB = options?.aiScoreB ?? 0;
     const powerDiff = powerA - powerB;
 
     if (powerA > powerB) {
         projectedScoreA += Math.min(2.5, powerDiff * 0.75);
+        if (offRtgB > defRtgA) {
+            const defenseFilter = (offRtgB - defRtgA) * 0.81;
+            console.log(`[DEF_FILTER_ACTIVE] ${entityA.name} defesa suprime ${entityB.name}: -${defenseFilter.toFixed(1)}pts`);
+            projectedScoreB -= defenseFilter;
+        }
     } else if (powerB > powerA) {
         projectedScoreB += Math.min(2.5, Math.abs(powerDiff) * 0.75);
+        if (offRtgA > defRtgB) {
+            const defenseFilter = (offRtgA - defRtgB) * 0.81;
+            console.log(`[DEF_FILTER_ACTIVE] ${entityB.name} defesa suprime ${entityA.name}: -${defenseFilter.toFixed(1)}pts`);
+            projectedScoreA -= defenseFilter;
+        }
     }
 
     projectedScoreA -= calculatePenalty(options?.injuriesA);
