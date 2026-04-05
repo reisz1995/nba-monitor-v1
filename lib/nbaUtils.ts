@@ -242,24 +242,25 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 3;
     }
 
-    // POWER_SCORE SHIELD: Não aplicar penalidades defensivas quando o rival tem nota superior
+    // POWER_SCORE SHIELD: defenseFilter só aplica ao time com POWER_SCORE >= rival
+    // Se iguais: ambos filtros (positivo e negativo) são aplicados normalmente
     const defFilterB = defenseFilter(seasonDEF_B);
     const defFilterA = defenseFilter(seasonDEF_A);
     const powerA = options?.aiScoreA ?? 0;
     const powerB = options?.aiScoreB ?? 0;
 
-    // ScoreA: rival é B. Se B tem POWER_SCORE superior E filtro é negativo → skip penalty
-    if (defFilterB > 0 || powerB <= powerA) {
+    // Time A só recebe filtro se POWER_SCORE A >= B
+    if (powerA >= powerB) {
         projectedScoreA += defFilterB;
     } else {
-        console.log(`[POWER_SHIELD] ${entityA.name}: penalty ${defFilterB.toFixed(1)} bloqueada (rival POWER ${powerB} > ${powerA})`);
+        console.log(`[POWER_SHIELD] ${entityA.name}: filtro ${defFilterB.toFixed(1)} bloqueado (POWER ${powerA} < ${powerB})`);
     }
 
-    // ScoreB: rival é A. Se A tem POWER_SCORE superior E filtro é negativo → skip penalty
-    if (defFilterA > 0 || powerA <= powerB) {
+    // Time B só recebe filtro se POWER_SCORE B >= A
+    if (powerB >= powerA) {
         projectedScoreB += defFilterA;
     } else {
-        console.log(`[POWER_SHIELD] ${entityB.name}: penalty ${defFilterA.toFixed(1)} bloqueada (rival POWER ${powerA} > ${powerB})`);
+        console.log(`[POWER_SHIELD] ${entityB.name}: filtro ${defFilterA.toFixed(1)} bloqueado (POWER ${powerB} < ${powerA})`);
     }
 
     projectedScoreA -= calculatePenalty(options?.injuriesA);
