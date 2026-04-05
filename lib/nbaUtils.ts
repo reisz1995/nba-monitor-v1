@@ -66,14 +66,16 @@ const getFallbackPace = (team: Team): number => {
 };
 
 const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number => {
-    const seasonPace = Number(team.espnData?.pace) || getFallbackPace(team);
     const recentPace = databallr?.pace;
 
     if (recentPace && recentPace > 0) {
-        // Média ponderada fixa: 60% databallr (14 dias) + 40% classificacao_nba (temporada)
-        return (recentPace * 0.60) + (seasonPace * 0.40);
+        // Utiliza apenas a tabela databallr_team_stats (14 dias)
+        return recentPace;
     }
-    return seasonPace;
+
+    // Fallback puro para a média da liga atual se a amostragem de 14 dias falhar.
+    // Ignorando `espnData` completamente garantir que não haja distorção da temporada inteira.
+    return SEASON_25_26_METRICS.AVG_PACE;
 };
 
 export const calculateDeterministicPace = (
