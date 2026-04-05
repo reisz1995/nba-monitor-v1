@@ -87,7 +87,7 @@ export const calculateDeterministicPace = (
     const blendedPaceA = getBlendedPace(teamA, databallrA);
     const blendedPaceB = getBlendedPace(teamB, databallrB);
 
-    let projectedPace = (blendedPaceA + blendedPaceB) / 2;
+    let projectedPace = (blendedPaceA * blendedPaceB) / SEASON_25_26_METRICS.AVG_PACE;
 
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
@@ -100,7 +100,7 @@ export const calculateDeterministicPace = (
     const clampedPace = Math.max(SEASON_25_26_METRICS.MIN_PACE, Math.min(SEASON_25_26_METRICS.MAX_PACE, projectedPace));
 
     console.log(`[SYS-OP] Híbrido A: ${blendedPaceA.toFixed(1)} | Híbrido B: ${blendedPaceB.toFixed(1)}`);
-    console.log(`[SYS-OP] Pace Otimizado: ${clampedPace.toFixed(2)}`);
+    console.log(`[SYS-OP] Pace Otimizado (Interação): ${clampedPace.toFixed(2)}`);
 
     return clampedPace;
 };
@@ -108,15 +108,6 @@ export const calculateDeterministicPace = (
 // ─────────────────────────────────────────────────────────────────────────────
 // FILTROS E PENALIDADES
 // ─────────────────────────────────────────────────────────────────────────────
-const defenseFilter = (defPPG_season: number): number => {
-    if (defPPG_season >= 118.5) return +15.0;
-    if (defPPG_season >= 115.5) return +10;
-    if (defPPG_season >= 112.5) return -5.0;
-    if (defPPG_season >= 110.5) return -7.0;
-    if (defPPG_season >= 108.5) return -9.5;
-    if (defPPG_season >= 105.5) return -15.0;
-    return -5.5;
-};
 
 const getOffenseRatingAnchor = (offenseRating?: number): number => {
     if (offenseRating === undefined || offenseRating === null) return 0;
@@ -140,7 +131,7 @@ const calculatePenalty = (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KERNEL DE PROJEÇÃO (v4.2)
+// KERNEL DE PROJEÇÃO (v4.3) - INTERAÇÃO CONTÍNUA
 // ─────────────────────────────────────────────────────────────────────────────
 export const calculateProjectedScores = (
     entityA: Team,
@@ -159,30 +150,36 @@ export const calculateProjectedScores = (
     const seasonPPG_B = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
     const seasonDEF_B = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
 
-    let offRtgA = seasonPPG_A;
-    let defRtgA = seasonDEF_A;
-    let offRtgB = seasonPPG_B;
-    let defRtgB = seasonDEF_B;
+    // Extração do Pace Secundário (Temporada) para conversão em Rating (/100)
+    const seasonPaceA = Number(entityA.espnData?.pace) || getFallbackPace(entityA);
+    const seasonPaceB = Number(entityB.espnData?.pace) || getFallbackPace(entityB);
+
+    const seasonOrtgA = (seasonPPG_A / seasonPaceA) * 100;
+    const seasonDrtgA = (seasonDEF_A / seasonPaceA) * 100;
+    const seasonOrtgB = (seasonPPG_B / seasonPaceB) * 100;
+    const seasonDrtgB = (seasonDEF_B / seasonPaceB) * 100;
+
+    let offRtgA = seasonOrtgA;
+    let defRtgA = seasonDrtgA;
+    let offRtgB = seasonOrtgB;
+    let defRtgB = seasonDrtgB;
 
     if (hasDataballr) {
-        const paceNormA = getImpliedPaceNorm(seasonPPG_A);
-        const paceNormB = getImpliedPaceNorm(seasonPPG_B);
-
         if (databallrA!.ortg) {
-            const { recentW, seasonW } = getDynamicBlendWeights(databallrA!.ortg, seasonPPG_A);
-            offRtgA = (databallrA!.ortg * paceNormA * recentW) + (seasonPPG_A * seasonW);
+            const { recentW, seasonW } = getDynamicBlendWeights(databallrA!.ortg, seasonOrtgA);
+            offRtgA = (databallrA!.ortg * recentW) + (seasonOrtgA * seasonW);
         }
         if (databallrA!.drtg) {
-            const { recentW, seasonW } = getDynamicBlendWeights(databallrA!.drtg, seasonDEF_A);
-            defRtgA = (databallrA!.drtg * paceNormA * recentW) + (seasonDEF_A * seasonW);
+            const { recentW, seasonW } = getDynamicBlendWeights(databallrA!.drtg, seasonDrtgA);
+            defRtgA = (databallrA!.drtg * recentW) + (seasonDrtgA * seasonW);
         }
         if (databallrB!.ortg) {
-            const { recentW, seasonW } = getDynamicBlendWeights(databallrB!.ortg, seasonPPG_B);
-            offRtgB = (databallrB!.ortg * paceNormB * recentW) + (seasonPPG_B * seasonW);
+            const { recentW, seasonW } = getDynamicBlendWeights(databallrB!.ortg, seasonOrtgB);
+            offRtgB = (databallrB!.ortg * recentW) + (seasonOrtgB * seasonW);
         }
         if (databallrB!.drtg) {
-            const { recentW, seasonW } = getDynamicBlendWeights(databallrB!.drtg, seasonDEF_B);
-            defRtgB = (databallrB!.drtg * paceNormB * recentW) + (seasonDEF_B * seasonW);
+            const { recentW, seasonW } = getDynamicBlendWeights(databallrB!.drtg, seasonDrtgB);
+            defRtgB = (databallrB!.drtg * recentW) + (seasonDrtgB * seasonW);
         }
     }
 
@@ -194,12 +191,15 @@ export const calculateProjectedScores = (
     let projectedScoreA: number;
     let projectedScoreB: number;
 
-    if (hasDataballr) {
-        const effA = (offRtgA + defRtgB) / 2;
-        const effB = (offRtgB + defRtgA) / 2;
-        projectedScoreA = (effA / 100) * matchPace;
-        projectedScoreB = (effB / 100) * matchPace;
+    // Ajuste de Eficiência Contínuo: ORTG_A + (DRTG_B - Lg_Avg_ORTG)
+    const lg_avg_eff = SEASON_25_26_METRICS.AVG_ORTG;
+    const adjEffA = offRtgA + (defRtgB - lg_avg_eff);
+    const adjEffB = offRtgB + (defRtgA - lg_avg_eff);
 
+    projectedScoreA = (adjEffA / 100) * matchPace;
+    projectedScoreB = (adjEffB / 100) * matchPace;
+
+    if (hasDataballr) {
         if (databallrA!.o_ts) projectedScoreA += (databallrA!.o_ts - SEASON_25_26_METRICS.AVG_TS) * 2;
         if (databallrB!.o_ts) projectedScoreB += (databallrB!.o_ts - SEASON_25_26_METRICS.AVG_TS) * 2;
 
@@ -215,10 +215,6 @@ export const calculateProjectedScores = (
 
         projectedScoreA += getOffenseRatingAnchor(databallrA!.offense_rating);
         projectedScoreB += getOffenseRatingAnchor(databallrB!.offense_rating);
-
-    } else {
-        projectedScoreA = ((offRtgA + defRtgB) / 2.0) * (matchPace / 100.0);
-        projectedScoreB = ((offRtgB + defRtgA) / 2.0) * (matchPace / 100.0);
     }
 
     if (options?.isHomeA) {
@@ -242,25 +238,17 @@ export const calculateProjectedScores = (
         projectedScoreB += adjustment / 3;
     }
 
-    // POWER_SCORE SHIELD: defenseFilter só aplica ao time com POWER_SCORE >= rival
-    // Se iguais: ambos filtros (positivo e negativo) são aplicados normalmente
-    const defFilterB = defenseFilter(seasonDEF_B);
-    const defFilterA = defenseFilter(seasonDEF_A);
+    // POWER_SCORE PENALTY / EDGE SUBSTITUTO DO DEFENSE_FILTER 
+    // Como a Defesa (DRTG) agora atua em espectro contínuo, não usamos mais o 'defenseFilter' (escadas de penalidade).
+    // O Power Score atua apenas no Edge Qualitativo/Invisível (Até ~2.5 pontos por mérito intangível)
     const powerA = options?.aiScoreA ?? 0;
     const powerB = options?.aiScoreB ?? 0;
+    const powerDiff = powerA - powerB;
 
-    // Time A só recebe filtro se POWER_SCORE A >= B
-    if (powerA >= powerB) {
-        projectedScoreA += defFilterB;
-    } else {
-        console.log(`[POWER_SHIELD] ${entityA.name}: filtro ${defFilterB.toFixed(1)} bloqueado (POWER ${powerA} < ${powerB})`);
-    }
-
-    // Time B só recebe filtro se POWER_SCORE B >= A
-    if (powerB >= powerA) {
-        projectedScoreB += defFilterA;
-    } else {
-        console.log(`[POWER_SHIELD] ${entityB.name}: filtro ${defFilterA.toFixed(1)} bloqueado (POWER ${powerB} < ${powerA})`);
+    if (powerA > powerB) {
+        projectedScoreA += Math.min(2.5, powerDiff * 0.75);
+    } else if (powerB > powerA) {
+        projectedScoreB += Math.min(2.5, Math.abs(powerDiff) * 0.75);
     }
 
     projectedScoreA -= calculatePenalty(options?.injuriesA);
@@ -280,7 +268,7 @@ export const calculateProjectedScores = (
 
     const totalPayload = projectedScoreA + projectedScoreB;
 
-    console.log(`[v4.2] ${entityA.name}: ${projectedScoreA.toFixed(1)} | ${entityB.name}: ${projectedScoreB.toFixed(1)} | Payload: ${totalPayload.toFixed(1)}`);
+    console.log(`[v4.3] ${entityA.name}: ${projectedScoreA.toFixed(1)} | ${entityB.name}: ${projectedScoreB.toFixed(1)} | Payload: ${totalPayload.toFixed(1)}`);
 
     return {
         matchPace,
