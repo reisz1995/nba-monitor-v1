@@ -28,7 +28,7 @@ export interface DataballrInput {
 // Estatístico Chefe: Parâmetros base atualizados para o metagame atual.
 // ─────────────────────────────────────────────────────────────────────────────
 const SEASON_25_26_METRICS = {
-    AVG_ORTG: 114.8,
+    AVG_ORTG: 116.9,
     AVG_PACE: 99.2,
     AVG_TOV: 13.9,
     AVG_TS: 57.5,
