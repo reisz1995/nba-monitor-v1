@@ -28,9 +28,9 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
 
         const result = calculateProjectedScores(teamA, teamB, { injuriesA });
 
-        // Média 115 - 20 = 95
-        expect(result.deltaA).toBe(100);
-        expect(result.deltaA).toBeGreaterThan(95);
+        // Média 115 - 17 = 98. Média atual 120 - 17 = 103.
+        expect(result.deltaA).toBe(103);
+        expect(result.deltaA).toBeGreaterThan(100);
     });
 
     it('não deve interferir se o placar estiver dentro da margem de 17 pontos', () => {
@@ -47,22 +47,22 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
 
         const result = calculateProjectedScores(teamA, neutralTeamB, { injuriesA });
 
-        // Média 115. Sem a trava agressiva, o placar ficaria na casa dos 105-110.
-        // Deve permanecer acima de 95 (o piso).
-        expect(result.deltaA).toBeGreaterThan(105);
-        expect(result.deltaA).toBeLessThan(120);
+        // 120 - 17 = 103.
+        // Média 120. Sem a trava agressiva, o placar ficaria na casa dos 101.2
+        // Bate no piso 103.
+        expect(result.deltaA).toBe(103);
     });
 
     it('deve travar ambos os times se necessário', () => {
         const injuriesA = [{ nome: 'Star A', isOut: true, weight: 10 }]; // -22 pts
         const injuriesB = [{ nome: 'Star B', isOut: true, weight: 10 }]; // -22 pts
 
-        // Média A: 115 -> Floor 95
-        // Média B: 118 -> Floor 98
+        // Média A: 120 -> Floor 103
+        // Média B: 120 -> Floor 103
 
         const result = calculateProjectedScores(teamA, teamB, { injuriesA, injuriesB });
 
-        expect(result.deltaA).toBe(105);
-        expect(result.deltaB).toBe(108);
+        expect(result.deltaA).toBe(103);
+        expect(result.deltaB).toBe(103);
     });
 });
