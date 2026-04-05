@@ -244,9 +244,36 @@ export const calculateProjectedScores = (
         }
     }
 
+    // BÔNUS DE ATAQUE ELITE: média de pontos >= 115 + comparação de POWER_SCORE
+    const eliteThreshold = 115;
+    if (powerA > powerB) {
+        if (seasonPPG_A >= eliteThreshold) {
+            console.log(`[ELITE_ATK_BONUS] ${entityA.name} PPG=${seasonPPG_A.toFixed(1)} + POWER superior: +10pts`);
+            projectedScoreA += 10;
+        }
+    } else if (powerB > powerA) {
+        if (seasonPPG_B >= eliteThreshold) {
+            console.log(`[ELITE_ATK_BONUS] ${entityB.name} PPG=${seasonPPG_B.toFixed(1)} + POWER superior: +10pts`);
+            projectedScoreB += 10;
+        }
+    } else {
+        // POWER_SCORE igual: ambos ganham +5 se tiverem PPG >= 115
+        if (seasonPPG_A >= eliteThreshold) {
+            console.log(`[ELITE_ATK_BONUS] ${entityA.name} PPG=${seasonPPG_A.toFixed(1)} + POWER igual: +5pts`);
+            projectedScoreA += 5;
+        }
+        if (seasonPPG_B >= eliteThreshold) {
+            console.log(`[ELITE_ATK_BONUS] ${entityB.name} PPG=${seasonPPG_B.toFixed(1)} + POWER igual: +5pts`);
+            projectedScoreB += 5;
+        }
+    }
+
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
+    // Hard limits solicitados: mínimo 95, máximo 145
+    projectedScoreA = Math.max(95, Math.min(145, projectedScoreA));
+    projectedScoreB = Math.max(95, Math.min(145, projectedScoreB));
 
     const totalPayload = projectedScoreA + projectedScoreB;
 
