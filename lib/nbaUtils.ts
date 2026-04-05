@@ -30,8 +30,8 @@ const SEASON_25_26_METRICS = {
     AVG_PACE: 99.2,
     AVG_TOV: 13.9,
     AVG_TS: 57.5,
-    MIN_PACE: 98.5,
-    MAX_PACE: 108.0,
+    MIN_PACE: 98.0,
+    MAX_PACE: 107.0,
     AVG_ORB: 25.5
 } as const;
 
