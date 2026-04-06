@@ -235,7 +235,14 @@ export const calculateProjectedScores = (
     }
 
 
-
+    if (options?.isHomeA) {
+        projectedScoreA += 1.0;
+        projectedScoreB -= 10;
+    } else {
+        projectedScoreB += 0.5;
+        projectedScoreA -= 0.5;
+    }
+    
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
