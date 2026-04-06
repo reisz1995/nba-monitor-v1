@@ -61,8 +61,12 @@ export const useNBAData = () => {
                         .on('postgres_changes', { event: '*', schema: 'public', table: 'game_predictions' }, () => mutatePredictions());
 
                     return new Promise((resolve, reject) => {
+                        let handled = false;
                         channel.subscribe((status) => {
+                            if (handled) return;
+
                             if (status === 'SUBSCRIBED') {
+                                handled = true;
                                 if (isActive) {
                                     currentChannel = channel;
                                     resolve(true);
@@ -72,6 +76,7 @@ export const useNBAData = () => {
                                 }
                             }
                             if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+                                handled = true;
                                 supabase.removeChannel(channel);
                                 reject(new Error(`Supabase Realtime Error: ${status}`));
                             }

@@ -151,7 +151,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 };
             })
             .filter(Boolean);
-    }, [predictions, teams, marketOdds, tierScores, allInjuries, allStats, allDataballrStats]);
+    }, [predictions, teams, marketOdds, tierScores, allInjuries, allStats]);
 
     if (projections.length === 0) return null;
 
