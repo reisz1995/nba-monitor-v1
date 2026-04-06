@@ -234,6 +234,16 @@ export const calculateProjectedScores = (
         }
     }
 
+    // VOLATILITY FILTER (Gatilho de Volatilidade)
+    // Ativado quando ambas as equipes possuem Power Score (aiScore) igual ou inferior a 3.5
+    if (powerA <= 3.5 && powerB <= 3.5) {
+        const volA = Math.abs(databallrB?.net_rating ?? 0);
+        const volB = Math.abs(databallrA?.net_rating ?? 0);
+        console.log(`[VOLATILITY_FILTER_ACTIVE] Ineficiência Líquida Cruzada: ${entityA.name} +${volA.toFixed(1)} | ${entityB.name} +${volB.toFixed(1)}`);
+        projectedScoreA += volA;
+        projectedScoreB += volB;
+    }
+
 
     if (options?.isHomeA) {
         projectedScoreA += 1.5;
@@ -242,7 +252,7 @@ export const calculateProjectedScores = (
         projectedScoreB += 1.5;
         projectedScoreA -= 1.5;
     }
-    
+
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
@@ -251,7 +261,7 @@ export const calculateProjectedScores = (
     const floorB = seasonPPG_B - 17;
     projectedScoreA = Math.max(floorA, 95, Math.min(145, projectedScoreA));
     projectedScoreB = Math.max(floorB, 95, Math.min(145, projectedScoreB));
-    
+
     const totalPayload = projectedScoreA + projectedScoreB;
 
     console.log(`[v4.3] ${entityA.name}: ${projectedScoreA.toFixed(1)} | ${entityB.name}: ${projectedScoreB.toFixed(1)} | Payload: ${totalPayload.toFixed(1)}`);
@@ -426,4 +436,4 @@ export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
 
     return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H };
 };
-    
+
