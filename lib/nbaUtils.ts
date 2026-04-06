@@ -94,7 +94,7 @@ export const calculateDeterministicPace = (
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
             .filter(i => i.isOut && i.weight >= 7)
-            .reduce((sum) => sum + 0.10, 0); // Ajuste fino para 2025-26
+            .reduce((sum) => sum + 0.05, 0); // Ajuste fino para 2025-26
 
     projectedPace -= injuryPaceReduction(injuriesA);
     projectedPace -= injuryPaceReduction(injuriesB);
@@ -126,7 +126,7 @@ const calculatePenalty = (
         if (inj.isOut) {
             p += inj.weight >= 9 ? (inj.weight * 2.0) + 2 : inj.weight;
         } else if (inj.isDayToDay) {
-            p += inj.weight * 0.10;
+            p += inj.weight * 0.03;
         }
     });
     return p;
@@ -190,11 +190,11 @@ export const calculateProjectedScores = (
     projectedScoreB = projEffB * (matchPace / 100);
 
     if (options?.isHomeA) {
-        projectedScoreA += 3;
-        projectedScoreB -= 3;
+        projectedScoreA += 1;
+        projectedScoreB -= 1;
     } else {
-        projectedScoreB += 3;
-        projectedScoreA -= 3;
+        projectedScoreB += 1;
+        projectedScoreA -= 1;
     }
 
     if (options?.isB2BA) projectedScoreA -= 1.0;
@@ -206,8 +206,8 @@ export const calculateProjectedScores = (
     if (matchPace < 98) {
         const spread = projectedScoreA - projectedScoreB;
         const adjustment = spread * 0.02;
-        projectedScoreA -= adjustment / 3;
-        projectedScoreB += adjustment / 3;
+        projectedScoreA -= adjustment / 1;
+        projectedScoreB += adjustment / 1;
     }
 
     // POWER_SCORE PENALTY E FILTROS DE DEFESA E ATAQUE ATIVADOS
