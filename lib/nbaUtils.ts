@@ -94,7 +94,7 @@ export const calculateDeterministicPace = (
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
             .filter(i => i.isOut && i.weight >= 7)
-            .reduce((sum) => sum + 0.17, 0); // Ajuste fino para 2025-26
+            .reduce((sum) => sum + 0.34, 0); // Ajuste fino para 2025-26
 
     projectedPace -= injuryPaceReduction(injuriesA);
     projectedPace -= injuryPaceReduction(injuriesB);
@@ -126,7 +126,7 @@ const calculatePenalty = (
         if (inj.isOut) {
             p += inj.weight >= 9 ? (inj.weight * 2.0) + 2 : inj.weight;
         } else if (inj.isDayToDay) {
-            p += inj.weight * 0.17;
+            p += inj.weight * 0.1;
         }
     });
     return p;
