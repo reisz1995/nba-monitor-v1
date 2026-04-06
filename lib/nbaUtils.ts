@@ -246,10 +246,12 @@ export const calculateProjectedScores = (
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
-    // Hard limits solicitados: mínimo 95, máximo 145
-    projectedScoreA = Math.max(95, Math.min(145, projectedScoreA));
-    projectedScoreB = Math.max(95, Math.min(145, projectedScoreB));
 
+    const floorA = seasonPPG_A - 17;
+    const floorB = seasonPPG_B - 17;
+    projectedScoreA = Math.max(floorA, 95, Math.min(145, projectedScoreA));
+    projectedScoreB = Math.max(floorB, 95, Math.min(145, projectedScoreB));
+    
     const totalPayload = projectedScoreA + projectedScoreB;
 
     console.log(`[v4.3] ${entityA.name}: ${projectedScoreA.toFixed(1)} | ${entityB.name}: ${projectedScoreB.toFixed(1)} | Payload: ${totalPayload.toFixed(1)}`);
