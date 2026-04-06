@@ -209,7 +209,7 @@ export const calculateProjectedScores = (
     const powerDiff = powerA - powerB;
 
     if (powerA > powerB) {
-        projectedScoreA += powerDiff * 0.75;
+        projectedScoreA += powerDiff * 0.81;
         if (defRtgA < defRtgB) {
             const defenseFilter = (defRtgB - defRtgA) * 0.81;
             console.log(`[DEF_FILTER_ACTIVE] ${entityA.name} defesa suprime ${entityB.name}: -${defenseFilter.toFixed(1)}pts`);
@@ -221,7 +221,7 @@ export const calculateProjectedScores = (
             projectedScoreA += attackFilter;
         }
     } else if (powerB > powerA) {
-        projectedScoreB += Math.abs(powerDiff) * 0.75;
+        projectedScoreB += Math.abs(powerDiff) * 0.81;
         if (defRtgB < defRtgA) {
             const defenseFilter = (defRtgA - defRtgB) * 0.81;
             console.log(`[DEF_FILTER_ACTIVE] ${entityB.name} defesa suprime ${entityA.name}: -${defenseFilter.toFixed(1)}pts`);
