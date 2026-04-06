@@ -61,10 +61,10 @@ export interface PredictionIA {
   under_line?: string;
   confidence?: number;
   prediction?: {
-  handicap_line?: string;
-  [key: string]: any;
+    handicap_line?: string;
+    [key: string]: unknown;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface Source {
@@ -89,7 +89,11 @@ export interface MatchupAnalysis {
   projectedPace?: number;
   result?: 'green' | 'red' | 'pending';
   sources?: Source[];
-  momentumData?: any;
+  momentumData?: {
+    scoreA: number;
+    scoreB: number;
+    [key: string]: unknown;
+  };
 }
 
 export interface ESPNData {
@@ -102,7 +106,11 @@ export interface ESPNData {
   media_pontos_ataque?: number;
   media_pontos_defesa?: number;
   aproveitamento?: number;
-  [key: string]: any;
+  vitorias?: number;
+  derrotas?: number;
+  pct_vit?: number;
+  pace?: number | null;
+  [key: string]: unknown;
 }
 
 export interface MarketData {
@@ -117,6 +125,6 @@ export interface MarketData {
 export interface HistoryLog {
   id: string;
   action: string;
-  details?: any;
+  details?: Record<string, unknown>;
   created_at: string;
 }

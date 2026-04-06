@@ -1,12 +1,11 @@
-
 import { useEffect, useCallback, useMemo } from 'react';
 import useSWR from 'swr';
 import { supabase } from '../lib/supabase';
 import { INITIAL_TEAMS, INITIAL_ESPN_DATA } from '../constants';
-import { Team, GameResult, PlayerStat, ESPNData } from '../types';
-import { getMomentumScore, parseStreakToRecord } from '../lib/nbaUtils';
+import { Team, GameResult } from '../types';
 import { withRetry } from '../lib/resilience';
-import { fetchDataballrFullStats, findDataballrStatsByName } from '../services/databallrService';
+import { fetchDataballrFullStats } from '../services/databallrService';
+import { mergeESPNData, mergeTeams, sortTeams } from '../lib/dataMerger';
 
 export const useNBAData = () => {
     // 1. Data Fetching
@@ -49,7 +48,6 @@ export const useNBAData = () => {
                 await withRetry(async () => {
                     if (!isActive) return;
 
-                    // Clean up previous channel if any (shouldn't happen often but good for safety)
                     if (currentChannel) {
                         await supabase.removeChannel(currentChannel);
                         currentChannel = null;
@@ -67,169 +65,51 @@ export const useNBAData = () => {
                             if (status === 'SUBSCRIBED') {
                                 if (isActive) {
                                     currentChannel = channel;
-                                    console.log(`[Realtime] Conectado: ${channelName}`);
                                     resolve(true);
                                 } else {
                                     supabase.removeChannel(channel);
                                     resolve(false);
                                 }
                             }
-
-                            if (status === 'CHANNEL_ERROR') {
-                                console.error(`[Realtime] Erro no canal: ${channelName}`);
+                            if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
                                 supabase.removeChannel(channel);
-                                reject(new Error(`Supabase Realtime Error: ${channelName}`));
-                            }
-
-                            if (status === 'CLOSED') {
-                                console.warn(`[Realtime] Conexão fechada: ${channelName}`);
-                                if (isActive) {
-                                    // Trigger a re-subscription attempt by rejecting
-                                    reject(new Error(`Supabase Realtime Closed: ${channelName}`));
-                                }
+                                reject(new Error(`Supabase Realtime Error: ${status}`));
                             }
                         });
                     });
-                }, {
-                    retries: 10,
-                    initialDelay: 2000,
-                    maxDelay: 60000
-                });
+                }, { retries: 10, initialDelay: 2000, maxDelay: 60000 });
             } catch (err) {
-                if (isActive) {
-                    console.error('[Realtime] Falha crítica após múltiplas tentativas:', err);
-                }
+                console.error('[Realtime] Falha crítica:', err);
             }
         };
 
         startSubscription();
-
         return () => {
             isActive = false;
-            if (currentChannel) {
-                supabase.removeChannel(currentChannel);
-            }
+            if (currentChannel) supabase.removeChannel(currentChannel);
         };
     }, [mutateTeams, mutateEspn, mutatePredictions]);
 
-    // 3. Merging Logic
-    const espnData = useMemo(() => {
-        const baseMap = new Map<string, Partial<ESPNData>>();
-        INITIAL_ESPN_DATA.forEach(d => {
-            baseMap.set(d.time.toLowerCase(), { ...d });
-        });
+    // 3. Merging & Sorting Logic (Delegated to dataMerger)
+    const espnData = useMemo(() =>
+        mergeESPNData(espnDataRaw, INITIAL_ESPN_DATA),
+        [espnDataRaw]);
 
-        espnDataRaw.forEach((d: Partial<ESPNData>) => {
-            const name = (d.time || d.nome || d.equipe || '').toLowerCase();
-            if (!name) return;
-            let targetKey = Array.from(baseMap.keys()).find(key => name === key || name.startsWith(key + ' ') || name.endsWith(' ' + key) || key.startsWith(name + ' ') || key.endsWith(' ' + name)) || name;
-            const existing = baseMap.get(targetKey) || {};
-            baseMap.set(targetKey, { ...existing, ...d });
-        });
+    const mergedTeams = useMemo(() =>
+        mergeTeams(INITIAL_TEAMS, dbTeams, espnData, databallrFull),
+        [dbTeams, espnData, databallrFull]);
 
-        return Array.from(baseMap.values()).map(d => ({
-            ...d,
-            time: d.time || d.nome || d.equipe,
-            vitorias: Number(d.vitorias ?? 0),
-            derrotas: Number(d.derrotas ?? 0),
-            aproveitamento: Number(d.pct_vit || d.pc_vit || d.aproveitamento || 0),
-            media_pontos_ataque: Number(d.pts || d.media_pontos_ataque || 0),
-            media_pontos_defesa: Number(d.pts_contra || d.media_pontos_defesa || 0),
-            ultimos_5: String(d.ultimos_5 || ''),
-            pace: d.pace ? Number(d.pace) : null
-        } as ESPNData));
-    }, [espnDataRaw]);
-
-    const mergedTeams = useMemo(() => {
-        return INITIAL_TEAMS.map(initial => {
-            let dbTeam = dbTeams.find((t: Team) => t.id === initial.id);
-            if (!dbTeam || (dbTeam.name && dbTeam.name.toLowerCase() !== initial.name.toLowerCase())) {
-                dbTeam = dbTeams.find((t: any) => {
-                    if (!t.name) return false;
-                    const tName = t.name.toLowerCase();
-                    const iName = initial.name.toLowerCase();
-                    return tName === iName || tName.startsWith(iName + ' ') || tName.endsWith(' ' + iName) || iName.startsWith(tName + ' ') || iName.endsWith(' ' + tName);
-                });
-            }
-
-            const espnStats = espnData.find(e => {
-                const teamName = (e.time || '').toLowerCase();
-                const initialName = initial.name.toLowerCase();
-                return teamName === initialName || teamName.startsWith(initialName + ' ') || teamName.endsWith(' ' + initialName) || initialName.startsWith(teamName + ' ') || initialName.endsWith(' ' + teamName);
-            });
-
-            let currentWins = dbTeam?.wins ?? initial.wins;
-            let currentLosses = dbTeam?.losses ?? initial.losses;
-            if (espnStats) {
-                currentWins = Number(espnStats.vitorias);
-                currentLosses = Number(espnStats.derrotas);
-            }
-
-            let currentRecord: GameResult[] = [];
-            if (dbTeam?.record && Array.isArray(dbTeam.record) && dbTeam.record.length > 0) {
-                currentRecord = dbTeam.record;
-            } else if (espnStats?.ultimos_5) {
-                const parsedRecord = parseStreakToRecord(espnStats.ultimos_5);
-                if (parsedRecord) currentRecord = parsedRecord;
-            } else {
-                currentRecord = initial.record || [];
-            }
-
-            return {
-                ...initial,
-                ...dbTeam,
-                name: dbTeam?.name || initial.name,
-                logo: initial.logo,
-                record: currentRecord,
-                wins: currentWins,
-                losses: currentLosses,
-                espnData: espnStats,
-                databallr: (() => {
-                    const s = findDataballrStatsByName(initial.name, databallrFull);
-                    if (!s) return undefined;
-                    return {
-                        ortg: s.ortg,
-                        drtg: s.drtg,
-                        net_rating: s.net_rating,
-                        pace: s.pace,
-                        offense_rating: s.offense_rating,
-                        defense_rating: s.defense_rating,
-                        o_ts: s.o_ts,
-                        o_tov: s.o_tov,
-                        orb: s.orb,
-                        drb: s.drb,
-                        net_poss: s.net_poss
-                    };
-                })(),
-                stats: espnStats ? {
-                    media_pontos_ataque: espnStats.media_pontos_ataque,
-                    media_pontos_defesa: espnStats.media_pontos_defesa,
-                    aproveitamento: espnStats.aproveitamento,
-                    ultimos_5_espn: espnStats.ultimos_5
-                } : undefined
-            };
-        });
-    }, [dbTeams, espnData]);
-
-    const sortedTeams = useMemo(() => {
-        return [...mergedTeams].sort((a, b) => {
-            const scoreA = getMomentumScore(a.record);
-            const scoreB = getMomentumScore(b.record);
-            if (scoreB !== scoreA) return scoreB - scoreA;
-            if (b.wins !== a.wins) return b.wins - a.wins;
-            return (b.stats?.aproveitamento || 0) - (a.stats?.aproveitamento || 0);
-        });
-    }, [mergedTeams]);
+    const sortedTeams = useMemo(() =>
+        sortTeams(mergedTeams),
+        [mergedTeams]);
 
     // 4. Actions
     const handleToggleRecord = useCallback(async (teamId: number, recordIndex: number) => {
         const team = mergedTeams.find(t => t.id === teamId);
         if (!team) return;
 
-        const oldRecord = [...(team.record || [])] as GameResult[];
-        const wasWin = oldRecord[recordIndex] === 'V';
-        const newRecord = [...oldRecord];
-        newRecord[recordIndex] = wasWin ? 'D' : 'V';
+        const newRecord = [...(team.record || [])] as GameResult[];
+        newRecord[recordIndex] = newRecord[recordIndex] === 'V' ? 'D' : 'V';
 
         // Optimistic update
         mutateTeams((prev: Team[]) => prev?.map((t: Team) => t.id === teamId ? { ...t, record: newRecord } : t) || [], false);

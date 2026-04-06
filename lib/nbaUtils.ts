@@ -165,7 +165,14 @@ const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
     };
 };
 
-const applyContextualAjustments = (
+// ─────────────────────────────────────────────────────────────────────────────
+// KERNEL DE PROJEÇÃO (v4.4) - RECONSTRUTOR MODULAR
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Aplica ajustes baseados no contexto do jogo (margens anteriores e ritmo).
+ */
+const applyContextualAdjustments = (
     scoreA: number,
     scoreB: number,
     matchPace: number,
@@ -174,9 +181,19 @@ const applyContextualAjustments = (
     let adjA = scoreA;
     let adjB = scoreB;
 
-    if (options?.lastMarginA && options.lastMarginA > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjA -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
-    if (options?.lastMarginB && options.lastMarginB > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
+    // 1. Penalidade por cansaço em B2B (Back-to-Back)
+    if (options?.isB2BA) adjA -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
+    if (options?.isB2BB) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
 
+    // 2. Penalidade por blowout recente
+    if (options?.lastMarginA && options.lastMarginA > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) {
+        adjA -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
+    }
+    if (options?.lastMarginB && options.lastMarginB > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) {
+        adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
+    }
+
+    // 3. Ajuste de spread em ritmo lento
     if (matchPace < PROJECTION_CONFIG.PACE_THRESHOLD_SLOW) {
         const spread = adjA - adjB;
         const adjustment = spread * PROJECTION_CONFIG.PACE_ADJUSTMENT_FACTOR;
@@ -185,6 +202,35 @@ const applyContextualAjustments = (
     }
 
     return { adjA, adjB };
+};
+
+/**
+ * Helper para aplicar bônus de ataque e penalidade de defesa baseado em superioridade.
+ */
+const applyTeamSuperiority = (
+    targetScore: number,
+    opponentScore: number,
+    targetRtg: { offRtg: number; defRtg: number },
+    opponentRtg: { offRtg: number; defRtg: number },
+    isFavorite: boolean
+) => {
+    let adjTarget = targetScore;
+    let adjOpponent = opponentScore;
+
+    // Filtro de Defesa: Se a defesa do alvo é melhor que a do oponente, suprime o ataque do oponente
+    if (targetRtg.defRtg < opponentRtg.defRtg) {
+        const mult = isFavorite ? PROJECTION_CONFIG.DEF_FILTER_FAVORITE_MULT : PROJECTION_CONFIG.DEF_FILTER_UNDERDOG_MULT;
+        const defenseFilter = (opponentRtg.defRtg - targetRtg.defRtg) * mult;
+        adjOpponent -= defenseFilter;
+    }
+
+    // Filtro de Ataque: Se o ataque do alvo é melhor que o do oponente, ganha bônus
+    if (targetRtg.offRtg > opponentRtg.offRtg) {
+        const attackFilter = (targetRtg.offRtg - opponentRtg.offRtg) * PROJECTION_CONFIG.ATK_FILTER_MULT;
+        adjTarget += attackFilter;
+    }
+
+    return { adjTarget, adjOpponent };
 };
 
 const applySuperiorityFilters = (
@@ -203,28 +249,14 @@ const applySuperiorityFilters = (
 
     if (powerA > powerB) {
         adjA += powerDiff * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
-        if (rtgA.defRtg < rtgB.defRtg) {
-            const defenseFilter = (rtgB.defRtg - rtgA.defRtg) * PROJECTION_CONFIG.DEF_FILTER_FAVORITE_MULT;
-            console.log(`[DEF_FILTER_ACTIVE] ${teamA.name} defesa suprime ${teamB.name}: -${defenseFilter.toFixed(1)}pts`);
-            adjB -= defenseFilter;
-        }
-        if (rtgA.offRtg > rtgB.offRtg) {
-            const attackFilter = (rtgA.offRtg - rtgB.offRtg) * PROJECTION_CONFIG.ATK_FILTER_MULT;
-            console.log(`[ATK_FILTER_ACTIVE] ${teamA.name} ataque sobrepuja ${teamB.name}: +${attackFilter.toFixed(1)}pts`);
-            adjA += attackFilter;
-        }
+        const { adjTarget, adjOpponent } = applyTeamSuperiority(adjA, adjB, rtgA, rtgB, true);
+        adjA = adjTarget;
+        adjB = adjOpponent;
     } else if (powerB > powerA) {
         adjB += Math.abs(powerDiff) * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
-        if (rtgB.defRtg < rtgA.defRtg) {
-            const defenseFilter = (rtgA.defRtg - rtgB.defRtg) * PROJECTION_CONFIG.DEF_FILTER_UNDERDOG_MULT;
-            console.log(`[DEF_FILTER_ACTIVE] ${teamB.name} defesa suprime ${teamA.name}: -${defenseFilter.toFixed(1)}pts`);
-            adjA -= defenseFilter;
-        }
-        if (rtgB.offRtg > rtgA.offRtg) {
-            const attackFilter = (rtgB.offRtg - rtgA.offRtg) * PROJECTION_CONFIG.ATK_FILTER_MULT;
-            console.log(`[ATK_FILTER_ACTIVE] ${teamB.name} ataque sobrepuja ${teamA.name}: +${attackFilter.toFixed(1)}pts`);
-            adjB += attackFilter;
-        }
+        const { adjTarget, adjOpponent } = applyTeamSuperiority(adjB, adjA, rtgB, rtgA, false);
+        adjB = adjTarget;
+        adjA = adjOpponent;
     }
 
     return { adjA, adjB };
@@ -260,12 +292,12 @@ const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: num
     };
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// KERNEL DE PROJEÇÃO (v4.3) - INTERAÇÃO CONTÍNUA
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Motor de Projeção Principal
+ */
 export const calculateProjectedScores = (
-    entityA: Team,
-    entityB: Team,
+    teamA: Team,
+    teamB: Team,
     options?: PaceOptions & {
         injuriesA?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number }[];
         injuriesB?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number }[];
@@ -273,62 +305,63 @@ export const calculateProjectedScores = (
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null
 ) => {
-    const rtgA = getTeamRatings(entityA, databallrA);
-    const rtgB = getTeamRatings(entityB, databallrB);
+    const rtgA = getTeamRatings(teamA, databallrA);
+    const rtgB = getTeamRatings(teamB, databallrB);
 
     const matchPace = calculateDeterministicPace(
-        entityA, entityB, databallrA, databallrB,
+        teamA, teamB, databallrA, databallrB,
         options?.injuriesA, options?.injuriesB
     );
 
-    // Eficiência Cruzada Ajustada
-    let projectedScoreA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
-    let projectedScoreB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
+    // 1. Eficiência Cruzada Ajustada (Base)
+    let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
+    let projB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
 
-    // 1. Ajustes Contextuais (Margens e Pace Lento)
-    const context = applyContextualAjustments(projectedScoreA, projectedScoreB, matchPace, options);
-    projectedScoreA = context.adjA;
-    projectedScoreB = context.adjB;
+    // 2. Ajustes Contextuais (B2B, Blowouts e Pace)
+    const context = applyContextualAdjustments(projA, projB, matchPace, options);
+    projA = context.adjA;
+    projB = context.adjB;
 
-    // 2. Filtros de Superioridade (Power Score, Defesa e Ataque)
+    // 3. Filtros de Superioridade (Power Score, Defesa e Ataque)
     const superiority = applySuperiorityFilters(
-        projectedScoreA, projectedScoreB,
-        entityA, entityB, rtgA, rtgB,
+        projA, projB,
+        teamA, teamB, rtgA, rtgB,
         options?.aiScoreA ?? 0, options?.aiScoreB ?? 0
     );
-    projectedScoreA = superiority.adjA;
-    projectedScoreB = superiority.adjB;
+    projA = superiority.adjA;
+    projB = superiority.adjB;
 
-    // 3. Filtro de Volatilidade
+    // 4. Filtro de Volatilidade
     const volatility = applyVolatilityFilter(
-        projectedScoreA, projectedScoreB,
+        projA, projB,
         databallrA, databallrB,
         options?.aiScoreA, options?.aiScoreB
     );
-    projectedScoreA = volatility.adjA;
-    projectedScoreB = volatility.adjB;
+    projA = volatility.adjA;
+    projB = volatility.adjB;
 
-    // 4. Mando de Quadra
+    // 5. Mando de Quadra
+    const homeAdv = PROJECTION_CONFIG.HOME_ADVANTAGE;
     if (options?.isHomeA) {
-        projectedScoreA += PROJECTION_CONFIG.HOME_ADVANTAGE;
-        projectedScoreB -= PROJECTION_CONFIG.HOME_ADVANTAGE;
+        projA += homeAdv;
+        projB -= homeAdv;
     } else {
-        projectedScoreB += PROJECTION_CONFIG.HOME_ADVANTAGE;
-        projectedScoreA -= PROJECTION_CONFIG.HOME_ADVANTAGE;
+        projB += homeAdv;
+        projA -= homeAdv;
     }
 
-    // 5. Penalidades de Lesões
-    projectedScoreA -= calculatePenalty(options?.injuriesA);
-    projectedScoreB -= calculatePenalty(options?.injuriesB);
+    // 6. Penalidades de Lesões
+    projA -= calculatePenalty(options?.injuriesA);
+    projB -= calculatePenalty(options?.injuriesB);
 
-    // 6. Clamping e Limites
+    // 7. Clamping e Limites Finais
     const { finalA, finalB } = clampScores(
-        projectedScoreA, projectedScoreB,
+        projA, projB,
         rtgA.seasonPPG - 30, rtgB.seasonPPG - 30
     );
 
     const totalPayload = finalA + finalB;
-    console.log(`[v4.3] ${entityA.name}: ${finalA.toFixed(1)} | ${entityB.name}: ${finalB.toFixed(1)} | Payload: ${totalPayload.toFixed(1)}`);
+    console.log(`[v4.4] ${teamA.name}: ${finalA.toFixed(1)} | ${teamB.name}: ${finalB.toFixed(1)} | Payload: ${totalPayload.toFixed(1)}`);
 
     return {
         matchPace,

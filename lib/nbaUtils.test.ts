@@ -98,16 +98,16 @@ describe('nbaUtils', () => {
         const teamA = { name: 'Lakers', stats: { media_pontos_ataque: 115, media_pontos_defesa: 115 } } as any;
         const teamB = { name: 'Celtics', stats: { media_pontos_ataque: 115, media_pontos_defesa: 115 } } as any;
 
-        it('should apply home advantage (+3 net)', () => {
+        it('should apply home advantage (+1.5 per team, 3.0 total delta)', () => {
             const resultHomeA = calculateProjectedScores(teamA, teamB, { isHomeA: true });
             const resultHomeB = calculateProjectedScores(teamA, teamB, { isHomeA: false });
 
-            // Difference should be 6 points in total because Home gets +3 and Away gets -3
-            expect(resultHomeA.deltaA - resultHomeA.deltaB).toBeCloseTo(6);
-            expect(resultHomeB.deltaB - resultHomeB.deltaA).toBeCloseTo(6);
+            // Diferença deve ser 3.0 pontos porque Mandante ganha +1.5 e Visitante perde -1.5
+            expect(resultHomeA.deltaA - resultHomeA.deltaB).toBeCloseTo(3.0);
+            expect(resultHomeB.deltaB - resultHomeB.deltaA).toBeCloseTo(3.0);
         });
 
-        it('should apply B2B fatigue (-2.0)', () => {
+        it('should apply B2B fatigue (-1.0)', () => {
             const base = calculateProjectedScores(teamA, teamB, { isHomeA: true });
             const b2b = calculateProjectedScores(teamA, teamB, { isHomeA: true, isB2BA: true });
 
@@ -115,12 +115,12 @@ describe('nbaUtils', () => {
             expect(base.deltaA - b2b.deltaA).toBeCloseTo(1.0);
         });
 
-        it('should apply Blowout Regression (-1.5)', () => {
+        it('should apply Blowout Regression (-1.0)', () => {
             const base = calculateProjectedScores(teamA, teamB, { isHomeA: true });
             const regression = calculateProjectedScores(teamA, teamB, { isHomeA: true, lastMarginA: 25 });
 
             expect(regression.deltaA).toBeLessThan(base.deltaA);
-            expect(base.deltaA - regression.deltaA).toBeCloseTo(1.0); // Adjusted from 1.5 to match implementation
+            expect(base.deltaA - regression.deltaA).toBeCloseTo(1.0);
         });
 
         it('should activate Volatility Filter when both power scores <= 3.5', () => {
