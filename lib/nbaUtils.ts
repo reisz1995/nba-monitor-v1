@@ -209,26 +209,26 @@ export const calculateProjectedScores = (
     const powerDiff = powerA - powerB;
 
     if (powerA > powerB) {
-        projectedScoreA += powerDiff * 0.81;
+        projectedScoreA += powerDiff * 0.80;
         if (defRtgA < defRtgB) {
-            const defenseFilter = (defRtgB - defRtgA) * 2;
+            const defenseFilter = (defRtgB - defRtgA) * 1.5;
             console.log(`[DEF_FILTER_ACTIVE] ${entityA.name} defesa suprime ${entityB.name}: -${defenseFilter.toFixed(1)}pts`);
             projectedScoreB -= defenseFilter;
         }
         if (offRtgA > offRtgB) {
-            const attackFilter = (offRtgA - offRtgB) * 0.82;
+            const attackFilter = (offRtgA - offRtgB) * 1;
             console.log(`[ATK_FILTER_ACTIVE] ${entityA.name} ataque sobrepuja ${entityB.name}: +${attackFilter.toFixed(1)}pts`);
             projectedScoreA += attackFilter;
         }
     } else if (powerB > powerA) {
-        projectedScoreB += Math.abs(powerDiff) * 0.81;
+        projectedScoreB += Math.abs(powerDiff) * 0.80;
         if (defRtgB < defRtgA) {
-            const defenseFilter = (defRtgA - defRtgB) * 2;
+            const defenseFilter = (defRtgA - defRtgB) * 1.5;
             console.log(`[DEF_FILTER_ACTIVE] ${entityB.name} defesa suprime ${entityA.name}: -${defenseFilter.toFixed(1)}pts`);
             projectedScoreA -= defenseFilter;
         }
         if (offRtgB > offRtgA) {
-            const attackFilter = (offRtgB - offRtgA) * 0.91;
+            const attackFilter = (offRtgB - offRtgA) * 1;
             console.log(`[ATK_FILTER_ACTIVE] ${entityB.name} ataque sobrepuja ${entityA.name}: +${attackFilter.toFixed(1)}pts`);
             projectedScoreB += attackFilter;
         }
