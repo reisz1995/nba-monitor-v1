@@ -191,17 +191,17 @@ export const calculateProjectedScores = (
 
     if (options?.isHomeA) {
         projectedScoreA += 7;
-        projectedScoreB -= 1;
+        projectedScoreB -= 0.5;
     } else {
-        projectedScoreB += 5;
-        projectedScoreA -= 0;
+        projectedScoreB += 2;
+        projectedScoreA -= 2;
     }
 
     if (options?.isB2BA) projectedScoreA -= 0.5;
     if (options?.isB2BB) projectedScoreB -= 0.5;
 
-    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1.5;
-    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1.5;
+    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 2;
+    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 2;
 
     if (matchPace < 98) {
         const spread = projectedScoreA - projectedScoreB;
