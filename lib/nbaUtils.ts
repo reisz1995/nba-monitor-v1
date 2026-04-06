@@ -190,7 +190,7 @@ export const calculateProjectedScores = (
     projectedScoreB = projEffB * (matchPace / 100);
 
     if (options?.isHomeA) {
-        projectedScoreA += 7;
+        projectedScoreA += 10;
         projectedScoreB -= 0.5;
     } else {
         projectedScoreB += 2;
@@ -200,8 +200,8 @@ export const calculateProjectedScores = (
     if (options?.isB2BA) projectedScoreA -= 0.5;
     if (options?.isB2BB) projectedScoreB -= 0.5;
 
-    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 2;
-    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 2;
+    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1;
+    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1;
 
     if (matchPace < 98) {
         const spread = projectedScoreA - projectedScoreB;
