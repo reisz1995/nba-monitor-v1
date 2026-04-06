@@ -1,8 +1,9 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { TrendingUp, Target, Activity, Zap, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Team, PalpiteData } from '../../types';
-import { calculateProjectedScores, findTeamByName, calculateUnderdogValue, getStandardTeamName } from '../../lib/nbaUtils';
+import { calculateProjectedScores, findTeamByName, calculateUnderdogValue, getStandardTeamName, DataballrInput } from '../../lib/nbaUtils';
 import { supabase } from '../../lib/supabase';
+import { fetchDataballrFullStats, findDataballrStatsByName } from '../../services/databallrService';
 
 interface MarketOdds {
     matchup: string;
@@ -46,13 +47,17 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
 
     const [allInjuries, setAllInjuries] = useState<any[]>([]);
     const [allStats, setAllStats] = useState<any[]>([]);
+    const [allDataballrStats, setAllDataballrStats] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchData = async () => {
             const { data: injData } = await supabase.from('nba_injured_players').select('*');
             const { data: statsData } = await supabase.from('nba_jogadores_stats').select('*');
+            const databallrFull = await fetchDataballrFullStats();
+
             if (injData) setAllInjuries(injData);
             if (statsData) setAllStats(statsData);
+            if (databallrFull) setAllDataballrStats(databallrFull);
         };
         fetchData();
     }, []);
@@ -95,13 +100,35 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 const injuriesA = mapInjToHW(teamCasa.name);
                 const injuriesB = mapInjToHW(teamFora.name);
 
+                const dbStatsA = findDataballrStatsByName(teamCasa.name, allDataballrStats);
+                const dbStatsB = findDataballrStatsByName(teamFora.name, allDataballrStats);
+
+                const databallrA: DataballrInput | undefined = dbStatsA ? {
+                    ortg: dbStatsA.ortg,
+                    drtg: dbStatsA.drtg,
+                    net_rating: dbStatsA.net_rating,
+                    pace: dbStatsA.pace
+                } : undefined;
+
+                const databallrB: DataballrInput | undefined = dbStatsB ? {
+                    ortg: dbStatsB.ortg,
+                    drtg: dbStatsB.drtg,
+                    net_rating: dbStatsB.net_rating,
+                    pace: dbStatsB.pace
+                } : undefined;
+
+                const notaCasa = tierScores[teamCasa.name] || '-';
+                const notaFora = tierScores[teamFora.name] || '-';
+
                 const analysis = calculateProjectedScores(teamCasa, teamFora, {
                     isHomeA: true,
                     isB2BA: isB2BHome,
                     isB2BB: isB2BAway,
                     injuriesA,
-                    injuriesB
-                });
+                    injuriesB,
+                    aiScoreA: Number(notaCasa) || 0,
+                    aiScoreB: Number(notaFora) || 0
+                }, databallrA, databallrB);
 
                 const fairHandicapNum = Number((analysis.deltaB - analysis.deltaA).toFixed(1));
                 const fairHandicapLabel = fairHandicapNum > 0 ? `+${fairHandicapNum}` : fairHandicapNum.toString();
@@ -116,10 +143,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 const spreadEdge = marketSpread !== null ? (marketSpread - fairHandicapNum).toFixed(1) : null;
                 const totalEdge = market?.total !== undefined && market?.total !== null ? (analysis.totalPayload - market.total).toFixed(1) : null;
 
-                const notaCasa = tierScores[teamCasa.name] || '-';
-                const notaFora = tierScores[teamFora.name] || '-';
-
-                const underdogValue = calculateUnderdogValue(teamCasa, teamFora, analysis, marketSpread, notaCasa, notaFora);
+                const underdogValue = calculateUnderdogValue(teamCasa, teamFora, analysis, marketSpread);
 
                 return {
                     id: p.id,
@@ -145,7 +169,7 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 };
             })
             .filter(Boolean);
-    }, [predictions, teams, marketOdds, tierScores, allInjuries, allStats]);
+    }, [predictions, teams, marketOdds, tierScores, allInjuries, allStats, allDataballrStats]);
 
     if (projections.length === 0) return null;
 

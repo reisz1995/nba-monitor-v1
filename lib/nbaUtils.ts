@@ -236,9 +236,10 @@ export const calculateProjectedScores = (
 
     // VOLATILITY FILTER (Gatilho de Volatilidade)
     // Ativado quando ambas as equipes possuem Power Score (aiScore) igual ou inferior a 3.5
-    if (powerA <= 3.5 && powerB <= 3.5) {
-        const volA = Math.abs(databallrB?.net_rating ?? 0);
-        const volB = Math.abs(databallrA?.net_rating ?? 0);
+    // EXIGÊNCIA DE SIMETRIA: O filtro só aplica se ambos os times tiverem dados de Net Rating para evitar distorção lopsided.
+    if (powerA <= 3.5 && powerB <= 3.5 && databallrA?.net_rating !== undefined && databallrB?.net_rating !== undefined) {
+        const volA = Math.abs(databallrB.net_rating);
+        const volB = Math.abs(databallrA.net_rating);
         console.log(`[VOLATILITY_FILTER_ACTIVE] Ineficiência Líquida Cruzada: ${entityA.name} +${volA.toFixed(1)} | ${entityB.name} +${volB.toFixed(1)}`);
         projectedScoreA += volA;
         projectedScoreB += volB;
@@ -388,7 +389,13 @@ export const calculateUnderdogValue = (
     if (analysis.totalPayload < 210) rules.push('Total_Baixo');
     if (Math.abs(edge) >= 4.5) rules.push('Value_Bet');
 
-    return { hasValue: rules.length >= 2, rules, edge: edge.toFixed(1) };
+    return {
+        hasValue: rules.length >= 2,
+        rules,
+        edge: edge.toFixed(1),
+        levels: { home: 0, away: 0 },
+        kelly: 0
+    };
 };
 
 export const parseScoreToTotal = (score: string): number => {
