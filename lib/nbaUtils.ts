@@ -94,7 +94,7 @@ export const calculateDeterministicPace = (
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
             .filter(i => i.isOut && i.weight >= 7)
-            .reduce((sum) => sum + 0.05, 0); // Ajuste fino para 2025-26
+            .reduce((sum) => sum + 0.01, 0); // Ajuste fino para 2025-26
 
     projectedPace -= injuryPaceReduction(injuriesA);
     projectedPace -= injuryPaceReduction(injuriesB);
@@ -190,10 +190,10 @@ export const calculateProjectedScores = (
     projectedScoreB = projEffB * (matchPace / 100);
 
     if (options?.isHomeA) {
-        projectedScoreA += 1;
+        projectedScoreA += 5;
         projectedScoreB -= 1;
     } else {
-        projectedScoreB += 1;
+        projectedScoreB += 5;
         projectedScoreA -= 1;
     }
 
@@ -264,7 +264,7 @@ export const calculateProjectedScores = (
         }
         if (seasonPPG_B >= eliteThreshold) {
             console.log(`[ELITE_ATK_BONUS] ${entityB.name} PPG=${seasonPPG_B.toFixed(1)} + POWER igual: +5pts`);
-            projectedScoreB += 5;
+            projectedScoreB += 10;
         }
     }
 
