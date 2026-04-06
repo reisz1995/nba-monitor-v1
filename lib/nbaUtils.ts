@@ -191,7 +191,7 @@ export const calculateProjectedScores = (
 
     if (options?.isHomeA) {
         projectedScoreA += 10;
-        projectedScoreB -= 0.5;
+        projectedScoreB -= 10;
     } else {
         projectedScoreB += 2;
         projectedScoreA -= 2;
