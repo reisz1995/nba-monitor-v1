@@ -183,8 +183,8 @@ export const calculateProjectedScores = (
     let projectedScoreB: number;
 
     // Eficiência Cruzada Ajustada (Média da força de ataque com a força da defesa oponente)
-    const projEffA = (offRtgA + defRtgB) / 1.5;
-    const projEffB = (offRtgB + defRtgA) / 1.5;
+    const projEffA = (offRtgA + defRtgB) / 1.9;
+    const projEffB = (offRtgB + defRtgA) / 1.9;
 
     projectedScoreA = projEffA * (matchPace / 100);
     projectedScoreB = projEffB * (matchPace / 100);
