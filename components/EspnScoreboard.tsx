@@ -147,6 +147,14 @@ const EspnScoreboard: React.FC = () => {
                                             {home?.score}
                                         </span>
                                     </div>
+
+                                    {/* TOTAL */}
+                                    <div className="flex items-center justify-between border-t border-slate-800/50 pt-1.5 mt-0.5">
+                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widestAlpha">Total</span>
+                                        <span className="text-[10px] font-black text-indigo-400">
+                                            {Number(away?.score || 0) + Number(home?.score || 0)}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         );
