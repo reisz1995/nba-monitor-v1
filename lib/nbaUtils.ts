@@ -193,8 +193,8 @@ export const calculateProjectedScores = (
         projectedScoreA += 10;
         projectedScoreB -= 10;
     } else {
-        projectedScoreB += 2;
-        projectedScoreA -= 2;
+        projectedScoreB += 10;
+        projectedScoreA -= 10;
     }
 
     if (options?.isB2BA) projectedScoreA -= 0.5;
@@ -260,7 +260,7 @@ export const calculateProjectedScores = (
         // POWER_SCORE igual: ambos ganham +5 se tiverem PPG >= 115
         if (seasonPPG_A >= eliteThreshold) {
             console.log(`[ELITE_ATK_BONUS] ${entityA.name} PPG=${seasonPPG_A.toFixed(1)} + POWER igual: +5pts`);
-            projectedScoreA += 5;
+            projectedScoreA += 10;
         }
         if (seasonPPG_B >= eliteThreshold) {
             console.log(`[ELITE_ATK_BONUS] ${entityB.name} PPG=${seasonPPG_B.toFixed(1)} + POWER igual: +5pts`);
