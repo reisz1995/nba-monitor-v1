@@ -8,81 +8,89 @@ A aplicação funciona como um centro de comando para analistas e apostadores de
 
 ---
 
+## 🏗️ Arquitetura Técnica
+
+O sistema opera em uma arquitetura moderna orientada a dados:
+
+1.  **Ingestão de Dados (Providers)**:
+    - **ESPN API**: Sincronização de placares ao vivo, horários e estatísticas básicas de temporada.
+    - **Databallr (Supabase)**: Fonte primária para estatísticas avançadas de 14 dias (ORTG, DRTG, Pace Real).
+2.  **Camada de Processamento (Logic)**:
+    - **Projection Kernel (v4.3)**: Motor central em TypeScript que processa as métricas cruzadas.
+    - **Gemini AI Service**: Orquestração de prompts para análise qualitativa de matchups.
+3.  **Estado & Sincronização**:
+    - **Supabase Realtime**: Persistência de análises e sincronização instantânea entre clientes.
+    - **SWR**: Estratégia de cache e revalidação (stale-while-revalidate) para performance no frontend.
+
+---
+
+## 🧠 Algoritmo de Projeção (v4.3)
+
+O coração do monitor é o motor de **Eficiência Cruzada Ajustada**, localizado em `lib/nbaUtils.ts`.
+
+### 1. Parâmetros Base (Temporada 2025-26)
+| Métrica | Valor Base | Descrição |
+| :--- | :--- | :--- |
+| **AVG_ORTG** | 116.9 | Média de pontos por 100 posses. |
+| **AVG_PACE** | 99.2 | Média de posses por 48 minutos. |
+| **MAX_PACE** | 107.0 | Limite superior de ritmo. |
+
+### 2. O Kernel de Projeção
+A pontuação projetada segue um fluxo de 6 estágios:
+
+1.  **Cálculo de Pace Determinístico**: Combina o Pace de 14 dias (Databallr) de ambos os times com ajustes por desfalques críticos.
+2.  **Eficiência Cruzada**:
+    - `ScoreA = ((Offense_A + Defense_B) / 2) * (MatchPace / 100)`
+3.  **Ajustes Contextuais**: Penalidades para vitórias por margens extremas (>20 pts) no jogo anterior e ajustes finos para jogos de ritmo muito lento.
+4.  **Filtros de Superioridade (Power Score)**:
+    - Aplica bônus de ataque e defesa baseados na diferença de `POWER_SCORE` entre as equipes.
+5.  **Filtro de Volatilidade**: Compensa predições onde times de baixo ranking (Power Score <= 3.5) possuem Net Ratings positivos recentes.
+6.  **Ajuste Médico & Mando**: Aplica o fator casa (+1.5/-1.5) e subtrai pontos ponderados pelo peso de cada jogador fora (Injury Penalty).
+
+---
+
 ## ✨ Funcionalidades Principais
 
-### 1. Monitor em Tempo Real
-- **Power Ranking Dinâmico**: Classificação baseada no "Momentum" (sequência de vitórias/derrotas ponderada).
-- **Integração ESPN**: Sincronização automática com estatísticas avançadas (PTS+, PTS-, %V, SEQ).
-- **Sincronização Supabase**: Atualizações instantâneas entre múltiplos dispositivos sem necessidade de refresh.
-
-### 2. Inteligência Artificial (AI Engine)
-Utiliza modelos **Gemini 3-Pro** e **3-Flash** para:
-- **Insights Estratégicos**: Geração automática de análises sobre tendências de mercado (Over/Under, Handicaps).
-- **Matchup Analysis**: Comparativo profundo entre dois times considerando "Regras de Ouro" (ex: Cansaço em Back-to-Back, Defesa Ruim, Impacto de Estrelas Fora).
-
-### 3. Simulador de Confrontos (Team Comparison)
-- **Placar Projetado**: Algoritmo que calcula a pontuação provável baseada em médias ofensivas e defensivas cruzadas.
-- **Ajuste Médico**: Aplicação automática de penalidades no placar projetado (Ex: -3.0 pts por jogador chave fora).
-- **Fator Casa/Fora**: Ponderação estatística para times mandantes.
-
-### 4. Vault History (Arquivo Técnico)
-- **Histórico de Performance**: Registro persistente de todas as análises feitas pela IA no Supabase.
-- **Validação de Resultados**: Sistema de marcação manual para coletar "Greens" e "Reds", permitindo calcular a taxa de assertividade (Win Rate) real.
-- **Layout de Densidade**: Tabela de alta densidade informativa com logos brutalistas e acesso rápido a detalhes.
-
-### 5. ESPN Live Scoreboard
-- **Placares em Tempo Real**: Painel dedicado que sincroniza diretamente com a API da ESPN para mostrar jogos ao vivo, placares finais e horários da rodada.
-- **Destaque Visual**: Sistema de sinalização para jogos "LIVE" com micro-animações e tipografia mono.
-
-### 6. Tips Dashboard (Painel de Especialista)
-- **Tabela de Notas**: Sistema de Power Ranking manual/IA para categorizar franquias (Elite, Candidatos, Reconstrução).
-- **Gerador de Cards**: Painel para criação de palpites com exportação direta para imagem (PNG) para compartilhamento em redes sociais.
-- **Importação de IA**: Capacidade de puxar as predições geradas pela IA diretamente para o painel de edição.
-
-### 7. Tracking de Desfalques e Stats
-- **Relatório Unificado**: Monitoramento de lesões (OUT, Day-to-Day) e líderes de estatísticas (PTS, REB, AST) integrados ao fluxo principal do Monitor.
+- **Monitor em Tempo Real**: Power Ranking dinâmico baseado em "Momentum".
+- **Simulador de Confrontos**: Algoritmo v4.3 integrado com ajuste médico automático.
+- **Vault History**: Arquivo técnico persistente no Supabase com validação de Win Rate.
+- **Tips Dashboard**: Gerador de cards (PNG) com importação direta de predições da IA.
+- **ESPN Live Scoreboard**: Placares sincronizados com micro-animações.
 
 ---
 
 ## 🛠 Tecnologias Utilizadas
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS.
+- **Frontend**: React 19, TypeScript, Tailwind CSS 4.
 - **Banco de Dados**: Supabase (PostgreSQL + Realtime).
-- **IA**: Google Generative AI (Gemini API).
-- **Bibliotecas Chave**:
-  - `SWR`: Cache e revalidação de dados.
-  - `html-to-image`: Geração de cards de predição.
-  - `Lucide React`: Iconografia.
-
----
-
-## 🧠 Regras de Ouro da IA (Golden Rules)
-
-O motor de análise segue diretrizes rígidas para garantir qualidade nas predições:
-1. **Defesa Ruim = Over**: Times com média de pontos sofridos alta priorizam palpites de Over.
-2. **Impacto de Estrelas**: Redução drástica nas chances de vitória se o principal jogador estiver fora.
-3. **Fator Cansaço**: Alerta de zebra para favoritos em jogos consecutivos (Back-to-back).
-4. **Filtro de Handicap**: Evita Handicaps de baixo valor (+5.5), priorizando linhas mais agressivas ou seguras.
-5. **Potencial de Pontuação**: Verificação de capacidade de ambos os times somarem +110 pts.
+- **IA**: Google Generative AI (Gemini 1.5 Pro/Flash).
+- **Bibliotecas**: `SWR`, `html-to-image`, `Lucide React`, `Zod`.
 
 ---
 
 ## 📂 Estrutura de Arquivos
 
-- `/components`: Componentes modulares de UI (Standings, Comparison, Scoreboard, etc).
-- `/services`: Lógica de integração com a API do Gemini.
-- `/lib`: Configurações de clientes externos (Supabase).
-- `/types`: Definições de interfaces TypeScript.
-- `/constants`: Mock data inicial e configurações de times.
+- `/components`: UI modular (Dashboards, Tables, Modals).
+- `/services`: Clientes de API (Gemini, Databallr, History).
+- `/lib`: Configurações de infraestrutura (Supabase, Utils de Projeção).
+- `/hooks`: Lógica de estado reutilizável e subscrições Realtime.
+- `/types`: Definições rigorosas de dados do domínio NBA.
 
 ---
 
-## 📖 Como Usar
+## 📖 Configuração e Uso
 
-1. **Navegação**: Use as abas no topo para alternar entre o **Monitor** (Dados em tempo real) e o painel de **Tips** (Predições).
-2. **Comparação**: No Monitor, selecione dois times clicando no checkbox ou no logo. O painel de comparação abrirá automaticamente.
-3. **Simulação**: Na aba Tips, você pode editar notas, adicionar palpites ou clicar em "Importar IA" para que o sistema gere sugestões baseadas nos dados atuais.
-4. **Exportação**: Após configurar seus palpites no Painel de Tips, clique em "Exportar PNG" para gerar o card de divulgação.
+### Variáveis de Ambiente (.env.local)
+```env
+VITE_SUPABASE_URL=seu_url
+VITE_SUPABASE_ANON_KEY=sua_chave
+VITE_GEMINI_API_KEY=sua_chave_gemini
+```
+
+### Comandos Disponíveis
+- `npm run dev`: Inicia servidor de desenvolvimento Vite.
+- `npm run test`: Executa suíte de testes Vitest para o Kernel v4.3.
+- `npm run build`: Gera build otimizada para produção.
 
 ---
-*Desenvolvido por Senior Frontend Engineers com foco em High-End UI/UX para a comunidade NBA.*
+*Desenvolvido com foco em High-End UI/UX para a comunidade analítica da NBA.*
