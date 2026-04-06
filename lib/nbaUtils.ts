@@ -193,8 +193,8 @@ export const calculateProjectedScores = (
         projectedScoreA += 1.0;
         projectedScoreB -= 10;
     } else {
-        projectedScoreB += 0.1;
-        projectedScoreA -= 10;
+        projectedScoreB += 0.5;
+        projectedScoreA -= 0.5;
     }
 
     if (options?.isB2BA) projectedScoreA -= 0.5;
