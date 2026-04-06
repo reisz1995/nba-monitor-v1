@@ -106,6 +106,46 @@ const callGeminiProxy = async (mode: 'compareTeams' | 'analyzeStandings', prompt
 // 3. MOTORES DE CÁLCULO E INFERÊNCIA
 // ==========================================
 
+/**
+ * Lógica de Sanitização: Coerência Termodinâmica
+ * Garante que o vencedor e a confiança estejam em sincronia matemática com os scores.
+ */
+interface ParsedAnalysis extends MatchupAnalysis {
+  expectedScoreA: number;
+  expectedScoreB: number;
+  winner: string;
+}
+
+const enforceThermodynamicCoherence = (
+  analysis: ParsedAnalysis,
+  teamA: Team,
+  teamB: Team
+): ParsedAnalysis => {
+  const { expectedScoreA, expectedScoreB } = analysis;
+
+  // 1. Verificação de delta estrito
+  const scoreDelta = expectedScoreA - expectedScoreB;
+
+  // 2. Override determinístico do vencedor
+  let coherentWinner = analysis.winner;
+  if (scoreDelta > 0 && !analysis.winner.toLowerCase().includes(teamA.name.toLowerCase())) {
+    coherentWinner = teamA.name;
+    console.warn(`[ESTATÍSTICO_CHEFE] Correção de rota: ${teamA.name} assumido como vencedor.`);
+  } else if (scoreDelta < 0 && !analysis.winner.toLowerCase().includes(teamB.name.toLowerCase())) {
+    coherentWinner = teamB.name;
+    console.warn(`[ESTATÍSTICO_CHEFE] Correção de rota: ${teamB.name} assumido como vencedor.`);
+  }
+
+  // 3. Recalibração de confiança baseada na margem de vitória
+  const adjustedConfidence = Math.min(100, Math.max(50, 50 + (Math.abs(scoreDelta) * 2.5)));
+
+  return {
+    ...analysis,
+    winner: coherentWinner,
+    confidence: isNaN(adjustedConfidence) ? analysis.confidence : Math.round(adjustedConfidence)
+  };
+};
+
 export const fetchGameWithMomentum = async (gameId: string) => {
   const { data, error } = await supabase
     .from('game_predictions')
@@ -277,8 +317,15 @@ export const compareTeams = async (
 
   try {
     const text = await withRetry(() => callGeminiProxy('compareTeams', prompt), { retries: 2, initialDelay: 500 });
-    const analysisResult = JSON.parse(text);
-    return { ...analysisResult, sources: [], momentumData };
+
+    // Assepsia e extração
+    const cleanJsonText = text.replace(/```json\n|```/g, '').trim();
+    const rawAnalysisResult = JSON.parse(cleanJsonText);
+
+    // Injeção da trava de segurança termodinâmica
+    const coherentAnalysis = enforceThermodynamicCoherence(rawAnalysisResult, teamA, teamB);
+
+    return { ...coherentAnalysis, sources: [], momentumData };
   } catch (error) {
     console.error("[IA_ENGINE] Colapso na matriz vetorial:", error);
     return {

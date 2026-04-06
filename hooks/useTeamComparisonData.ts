@@ -214,25 +214,6 @@ export const useTeamComparisonData = ({
         let projA = deltaA;
         let projB = deltaB;
 
-        // VETOR DE HARMONIA V3.1 (Ajuste solicitado pelo usuário: 4 a 8 pontos)
-        // Se a IA ("Estatístico Chefe") já gerou uma análise e o vencedor diverge do favorito matemático,
-        // aplicamos um ajuste de 6.0 pontos para reduzir a discrepância visual.
-        if (analysis && analysis.winner !== "N/A" && !loading) {
-            const mathFavorite = projA > projB ? teamA.name : teamB.name;
-            const aiWinner = analysis.winner;
-
-            // Se a IA e a Matemática divergem
-            if (aiWinner.toLowerCase().includes(teamA.name.toLowerCase()) && mathFavorite === teamB.name) {
-                projA += 10;
-                projB -= 5;
-                console.info(`[HARMONY] Ajuste de +10 para ${teamA.name} alinhado com IA.`);
-            } else if (aiWinner.toLowerCase().includes(teamB.name.toLowerCase()) && mathFavorite === teamA.name) {
-                projB += 10;
-                projA -= 5;
-                console.info(`[HARMONY] Ajuste de +10 para ${teamB.name} alinhado com IA.`);
-            }
-        }
-
         const spread = projB - projA;
 
         return {
