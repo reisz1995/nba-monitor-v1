@@ -189,16 +189,6 @@ export const calculateProjectedScores = (
     projectedScoreA = projEffA * (matchPace / 100);
     projectedScoreB = projEffB * (matchPace / 100);
 
-    if (options?.isHomeA) {
-        projectedScoreA += 1.0;
-        projectedScoreB -= 10;
-    } else {
-        projectedScoreB += 0.5;
-        projectedScoreA -= 0.5;
-    }
-
-    if (options?.isB2BA) projectedScoreA -= 0.5;
-    if (options?.isB2BB) projectedScoreB -= 0.5;
 
     if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1;
     if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1;
