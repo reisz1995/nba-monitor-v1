@@ -89,12 +89,12 @@ export const calculateDeterministicPace = (
     const blendedPaceA = getBlendedPace(teamA, databallrA);
     const blendedPaceB = getBlendedPace(teamB, databallrB);
 
-    let projectedPace = (blendedPaceA + blendedPaceB) / 2;
+    let projectedPace = (blendedPaceA + blendedPaceB) / 1;
 
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
             .filter(i => i.isOut && i.weight >= 7)
-            .reduce((sum) => sum + 0.35, 0); // Ajuste fino para 2025-26
+            .reduce((sum) => sum + 0.1, 0); // Ajuste fino para 2025-26
 
     projectedPace -= injuryPaceReduction(injuriesA);
     projectedPace -= injuryPaceReduction(injuriesB);
