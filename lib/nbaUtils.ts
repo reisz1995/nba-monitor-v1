@@ -37,6 +37,20 @@ const SEASON_25_26_METRICS = {
     AVG_ORB: 25.5
 } as const;
 
+const PROJECTION_CONFIG = {
+    POWER_DIFF_WEIGHT: 0.80,
+    DEF_FILTER_FAVORITE_MULT: 2.0,
+    DEF_FILTER_UNDERDOG_MULT: 1.5,
+    ATK_FILTER_MULT: 1.0,
+    HOME_ADVANTAGE: 1.5,
+    LAST_MARGIN_THRESHOLD: 20,
+    LAST_MARGIN_PENALTY: 1,
+    SCORE_FLOOR_MIN: 95,
+    SCORE_CEILING_MAX: 145,
+    PACE_ADJUSTMENT_FACTOR: 0.02,
+    PACE_THRESHOLD_SLOW: 98
+} as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MOTOR DE BLEND DINÂMICO
 // Aloca pesos estocásticos baseados na divergência da amostra recente.
@@ -133,6 +147,120 @@ const calculatePenalty = (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HELPER FUNCTIONS PARA MOTOR DE PROJEÇÃO
+// ─────────────────────────────────────────────────────────────────────────────
+
+const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
+    const ppg = Number(entity.espnData?.pts || entity.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
+    const def = Number(entity.espnData?.pts_contra || entity.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
+    const pace = Number(entity.espnData?.pace) || getFallbackPace(entity);
+
+    const seasonOrtg = (ppg / pace) * 100;
+    const seasonDrtg = (def / pace) * 100;
+
+    return {
+        offRtg: databallr?.ortg || seasonOrtg,
+        defRtg: databallr?.drtg || seasonDrtg,
+        seasonPPG: ppg
+    };
+};
+
+const applyContextualAjustments = (
+    scoreA: number,
+    scoreB: number,
+    matchPace: number,
+    options?: PaceOptions
+) => {
+    let adjA = scoreA;
+    let adjB = scoreB;
+
+    if (options?.lastMarginA && options.lastMarginA > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjA -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
+    if (options?.lastMarginB && options.lastMarginB > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
+
+    if (matchPace < PROJECTION_CONFIG.PACE_THRESHOLD_SLOW) {
+        const spread = adjA - adjB;
+        const adjustment = spread * PROJECTION_CONFIG.PACE_ADJUSTMENT_FACTOR;
+        adjA -= adjustment;
+        adjB += adjustment;
+    }
+
+    return { adjA, adjB };
+};
+
+const applySuperiorityFilters = (
+    scoreA: number,
+    scoreB: number,
+    teamA: Team,
+    teamB: Team,
+    rtgA: { offRtg: number; defRtg: number },
+    rtgB: { offRtg: number; defRtg: number },
+    powerA: number,
+    powerB: number
+) => {
+    let adjA = scoreA;
+    let adjB = scoreB;
+    const powerDiff = powerA - powerB;
+
+    if (powerA > powerB) {
+        adjA += powerDiff * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
+        if (rtgA.defRtg < rtgB.defRtg) {
+            const defenseFilter = (rtgB.defRtg - rtgA.defRtg) * PROJECTION_CONFIG.DEF_FILTER_FAVORITE_MULT;
+            console.log(`[DEF_FILTER_ACTIVE] ${teamA.name} defesa suprime ${teamB.name}: -${defenseFilter.toFixed(1)}pts`);
+            adjB -= defenseFilter;
+        }
+        if (rtgA.offRtg > rtgB.offRtg) {
+            const attackFilter = (rtgA.offRtg - rtgB.offRtg) * PROJECTION_CONFIG.ATK_FILTER_MULT;
+            console.log(`[ATK_FILTER_ACTIVE] ${teamA.name} ataque sobrepuja ${teamB.name}: +${attackFilter.toFixed(1)}pts`);
+            adjA += attackFilter;
+        }
+    } else if (powerB > powerA) {
+        adjB += Math.abs(powerDiff) * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
+        if (rtgB.defRtg < rtgA.defRtg) {
+            const defenseFilter = (rtgA.defRtg - rtgB.defRtg) * PROJECTION_CONFIG.DEF_FILTER_UNDERDOG_MULT;
+            console.log(`[DEF_FILTER_ACTIVE] ${teamB.name} defesa suprime ${teamA.name}: -${defenseFilter.toFixed(1)}pts`);
+            adjA -= defenseFilter;
+        }
+        if (rtgB.offRtg > rtgA.offRtg) {
+            const attackFilter = (rtgB.offRtg - rtgA.offRtg) * PROJECTION_CONFIG.ATK_FILTER_MULT;
+            console.log(`[ATK_FILTER_ACTIVE] ${teamB.name} ataque sobrepuja ${teamA.name}: +${attackFilter.toFixed(1)}pts`);
+            adjB += attackFilter;
+        }
+    }
+
+    return { adjA, adjB };
+};
+
+const applyVolatilityFilter = (
+    scoreA: number,
+    scoreB: number,
+    databallrA?: DataballrInput | null,
+    databallrB?: DataballrInput | null,
+    powerA: number = 0,
+    powerB: number = 0
+) => {
+    let adjA = scoreA;
+    let adjB = scoreB;
+
+    const netA = databallrA?.net_rating ?? NaN;
+    const netB = databallrB?.net_rating ?? NaN;
+    const hasValidNet = !isNaN(Number(netA)) && !isNaN(Number(netB));
+
+    if (powerA > 0 && powerB > 0 && powerA <= 3.5 && powerB <= 3.5 && hasValidNet) {
+        adjA += Math.abs(Number(netB));
+        adjB += Math.abs(Number(netA));
+    }
+
+    return { adjA, adjB };
+};
+
+const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: number) => {
+    return {
+        finalA: Math.max(floorA, PROJECTION_CONFIG.SCORE_FLOOR_MIN, Math.min(PROJECTION_CONFIG.SCORE_CEILING_MAX, scoreA)),
+        finalB: Math.max(floorB, PROJECTION_CONFIG.SCORE_FLOOR_MIN, Math.min(PROJECTION_CONFIG.SCORE_CEILING_MAX, scoreB))
+    };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // KERNEL DE PROJEÇÃO (v4.3) - INTERAÇÃO CONTÍNUA
 // ─────────────────────────────────────────────────────────────────────────────
 export const calculateProjectedScores = (
@@ -145,138 +273,72 @@ export const calculateProjectedScores = (
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null
 ) => {
-    const hasDataballr = !!(databallrA?.ortg && databallrB?.ortg);
-
-    const seasonPPG_A = Number(entityA.espnData?.pts || entityA.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
-    const seasonDEF_A = Number(entityA.espnData?.pts_contra || entityA.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
-    const seasonPPG_B = Number(entityB.espnData?.pts || entityB.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
-    const seasonDEF_B = Number(entityB.espnData?.pts_contra || entityB.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
-
-    // Extração do Pace Secundário (Temporada) para conversão em Rating (/100)
-    const seasonPaceA = Number(entityA.espnData?.pace) || getFallbackPace(entityA);
-    const seasonPaceB = Number(entityB.espnData?.pace) || getFallbackPace(entityB);
-
-    const seasonOrtgA = (seasonPPG_A / seasonPaceA) * 100;
-    const seasonDrtgA = (seasonDEF_A / seasonPaceA) * 100;
-    const seasonOrtgB = (seasonPPG_B / seasonPaceB) * 100;
-    const seasonDrtgB = (seasonDEF_B / seasonPaceB) * 100;
-
-    let offRtgA = seasonOrtgA;
-    let defRtgA = seasonDrtgA;
-    let offRtgB = seasonOrtgB;
-    let defRtgB = seasonDrtgB;
-
-    if (hasDataballr) {
-        // Quando temos a métrica de 14 dias (databallr), assume-se 100% dos dados para eficiência cruzada ajustada
-        if (databallrA!.ortg) offRtgA = databallrA!.ortg;
-        if (databallrA!.drtg) defRtgA = databallrA!.drtg;
-        if (databallrB!.ortg) offRtgB = databallrB!.ortg;
-        if (databallrB!.drtg) defRtgB = databallrB!.drtg;
-    }
+    const rtgA = getTeamRatings(entityA, databallrA);
+    const rtgB = getTeamRatings(entityB, databallrB);
 
     const matchPace = calculateDeterministicPace(
         entityA, entityB, databallrA, databallrB,
         options?.injuriesA, options?.injuriesB
     );
 
-    let projectedScoreA: number;
-    let projectedScoreB: number;
+    // Eficiência Cruzada Ajustada
+    let projectedScoreA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
+    let projectedScoreB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
 
-    // Eficiência Cruzada Ajustada (Média da força de ataque com a força da defesa oponente)
-    const projEffA = (offRtgA + defRtgB) / 2;
-    const projEffB = (offRtgB + defRtgA) / 2;
+    // 1. Ajustes Contextuais (Margens e Pace Lento)
+    const context = applyContextualAjustments(projectedScoreA, projectedScoreB, matchPace, options);
+    projectedScoreA = context.adjA;
+    projectedScoreB = context.adjB;
 
-    projectedScoreA = projEffA * (matchPace / 100);
-    projectedScoreB = projEffB * (matchPace / 100);
+    // 2. Filtros de Superioridade (Power Score, Defesa e Ataque)
+    const superiority = applySuperiorityFilters(
+        projectedScoreA, projectedScoreB,
+        entityA, entityB, rtgA, rtgB,
+        options?.aiScoreA ?? 0, options?.aiScoreB ?? 0
+    );
+    projectedScoreA = superiority.adjA;
+    projectedScoreB = superiority.adjB;
 
+    // 3. Filtro de Volatilidade
+    const volatility = applyVolatilityFilter(
+        projectedScoreA, projectedScoreB,
+        databallrA, databallrB,
+        options?.aiScoreA, options?.aiScoreB
+    );
+    projectedScoreA = volatility.adjA;
+    projectedScoreB = volatility.adjB;
 
-    if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1;
-    if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1;
-
-    if (matchPace < 98) {
-        const spread = projectedScoreA - projectedScoreB;
-        const adjustment = spread * 0.02;
-        projectedScoreA -= adjustment;
-        projectedScoreB += adjustment;
-    }
-
-    // POWER_SCORE PENALTY E FILTROS DE DEFESA E ATAQUE ATIVADOS
-    // Se o time for superior (PowerScore > rival), ele impõe a robustez de sua defesa e a explosão de seu ataque.
-    // O filtro de defesa suprime a pontuação rival se a defesa (DRtg) do favorito for melhor (menor) que a do adversário.
-    // O filtro de ataque sobrepuja se o ataque (ORtg) do favorito for melhor (maior) que o do adversário.
-    const powerA = options?.aiScoreA ?? 0;
-    const powerB = options?.aiScoreB ?? 0;
-    const powerDiff = powerA - powerB;
-
-    if (powerA > powerB) {
-        projectedScoreA += powerDiff * 0.80;
-        if (defRtgA < defRtgB) {
-            const defenseFilter = (defRtgB - defRtgA) * 2;
-            console.log(`[DEF_FILTER_ACTIVE] ${entityA.name} defesa suprime ${entityB.name}: -${defenseFilter.toFixed(1)}pts`);
-            projectedScoreB -= defenseFilter;
-        }
-        if (offRtgA > offRtgB) {
-            const attackFilter = (offRtgA - offRtgB) * 1;
-            console.log(`[ATK_FILTER_ACTIVE] ${entityA.name} ataque sobrepuja ${entityB.name}: +${attackFilter.toFixed(1)}pts`);
-            projectedScoreA += attackFilter;
-        }
-    } else if (powerB > powerA) {
-        projectedScoreB += Math.abs(powerDiff) * 0.80;
-        if (defRtgB < defRtgA) {
-            const defenseFilter = (defRtgA - defRtgB) * 1.5;
-            console.log(`[DEF_FILTER_ACTIVE] ${entityB.name} defesa suprime ${entityA.name}: -${defenseFilter.toFixed(1)}pts`);
-            projectedScoreA -= defenseFilter;
-        }
-        if (offRtgB > offRtgA) {
-            const attackFilter = (offRtgB - offRtgA) * 1;
-            console.log(`[ATK_FILTER_ACTIVE] ${entityB.name} ataque sobrepuja ${entityA.name}: +${attackFilter.toFixed(1)}pts`);
-            projectedScoreB += attackFilter;
-        }
-    }
-
-    // VOLATILITY FILTER (Gatilho de Volatilidade)
-    const netA = databallrA?.net_rating !== undefined && databallrA?.net_rating !== null ? Number(databallrA.net_rating) : NaN;
-    const netB = databallrB?.net_rating !== undefined && databallrB?.net_rating !== null ? Number(databallrB.net_rating) : NaN;
-    const hasValidNet = !isNaN(netA) && !isNaN(netB);
-
-    if (powerA > 0 && powerB > 0 && powerA <= 3.5 && powerB <= 3.5 && hasValidNet) {
-        const volA = Math.abs(netB);
-        const volB = Math.abs(netA);
-        projectedScoreA += volA;
-        projectedScoreB += volB;
-    }
-
-
+    // 4. Mando de Quadra
     if (options?.isHomeA) {
-        projectedScoreA += 1.5;
-        projectedScoreB -= 1.5;
+        projectedScoreA += PROJECTION_CONFIG.HOME_ADVANTAGE;
+        projectedScoreB -= PROJECTION_CONFIG.HOME_ADVANTAGE;
     } else {
-        projectedScoreB += 1.5;
-        projectedScoreA -= 1.5;
+        projectedScoreB += PROJECTION_CONFIG.HOME_ADVANTAGE;
+        projectedScoreA -= PROJECTION_CONFIG.HOME_ADVANTAGE;
     }
 
+    // 5. Penalidades de Lesões
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
+    // 6. Clamping e Limites
+    const { finalA, finalB } = clampScores(
+        projectedScoreA, projectedScoreB,
+        rtgA.seasonPPG - 30, rtgB.seasonPPG - 30
+    );
 
-    const floorA = seasonPPG_A - 30;
-    const floorB = seasonPPG_B - 30;
-    projectedScoreA = Math.max(floorA, 95, Math.min(145, projectedScoreA));
-    projectedScoreB = Math.max(floorB, 95, Math.min(145, projectedScoreB));
-
-    const totalPayload = projectedScoreA + projectedScoreB;
-
-    console.log(`[v4.3] ${entityA.name}: ${projectedScoreA.toFixed(1)} | ${entityB.name}: ${projectedScoreB.toFixed(1)} | Payload: ${totalPayload.toFixed(1)}`);
+    const totalPayload = finalA + finalB;
+    console.log(`[v4.3] ${entityA.name}: ${finalA.toFixed(1)} | ${entityB.name}: ${finalB.toFixed(1)} | Payload: ${totalPayload.toFixed(1)}`);
 
     return {
         matchPace,
         totalPayload,
-        deltaA: projectedScoreA,
-        deltaB: projectedScoreB,
+        deltaA: finalA,
+        deltaB: finalB,
         kineticState: matchPace > 105.5
             ? 'HYPER_KINETIC'
             : (matchPace < 100.5 ? 'SLOW_GRIND' : 'STATIC_TRENCH'),
-        databallrEnhanced: hasDataballr,
+        databallrEnhanced: !!(databallrA?.ortg && databallrB?.ortg),
     };
 };
 
@@ -324,12 +386,11 @@ export const getPlayerWeight = (pts: number): number => Math.floor((pts || 0) / 
 
 export const findTeamByName = (name: string, teams: Team[]): Team | null => {
     if (!name) return null;
-    const clean = normalizeTeamName(name);
-    return teams.find(t =>
-        normalizeTeamName(t.name) === clean ||
-        normalizeTeamName(t.name).includes(clean) ||
-        clean.includes(normalizeTeamName(t.name))
-    ) || null;
+    const cleanSearch = normalizeTeamName(name);
+    return teams.find(t => {
+        const teamClean = normalizeTeamName(t.name);
+        return teamClean === cleanSearch || teamClean.includes(cleanSearch) || cleanSearch.includes(teamClean);
+    }) || null;
 };
 
 export const getStandardTeamName = (name: string): string => {
