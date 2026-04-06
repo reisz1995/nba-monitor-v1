@@ -92,14 +92,37 @@ export const findDataballrStatsByName = (
 
   const clean = teamName.toLowerCase().trim();
 
+  // Mapeamento de abreviações comuns que não são substrings óbvias
+  const abbreviationMap: Record<string, string[]> = {
+    'okc': ['thunder', 'oklahoma'],
+    'sas': ['spurs', 'san antonio'],
+    'gsw': ['warriors', 'golden state'],
+    'nyk': ['knicks', 'new york'],
+    'nop': ['pelicans', 'new orleans'],
+    'lal': ['lakers', 'los angeles lakers'],
+    'lac': ['clippers', 'los angeles clippers'],
+    'phx': ['suns', 'phoenix'],
+    'phi': ['76ers', 'sixers', 'philadelphia'],
+    'bkn': ['nets', 'brooklyn'],
+    'was': ['wizards', 'washington'],
+    'por': ['blazers', 'portland']
+  };
+
   return (
-    stats.find(
-      (s) =>
-        s.team_name.toLowerCase() === clean ||
-        s.team_name.toLowerCase().includes(clean) ||
-        clean.includes(s.team_name.toLowerCase()) ||
-        s.team_abbreviation.toLowerCase() === clean
-    ) ?? null
+    stats.find((s) => {
+      const sName = s.team_name.toLowerCase();
+      const sAbbr = s.team_abbreviation.toLowerCase();
+
+      // 1. Match exato ou substring direta
+      if (sName === clean || sName.includes(clean) || clean.includes(sName)) return true;
+      if (sAbbr === clean || sAbbr.includes(clean) || clean.includes(sAbbr)) return true;
+
+      // 2. Match via mapeamento de abreviação
+      const mappedNames = abbreviationMap[sAbbr] || abbreviationMap[sName];
+      if (mappedNames && mappedNames.some(m => clean.includes(m) || m.includes(clean))) return true;
+
+      return false;
+    }) ?? null
   );
 };
 

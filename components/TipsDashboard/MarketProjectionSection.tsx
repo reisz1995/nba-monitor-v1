@@ -104,17 +104,17 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 const dbStatsB = findDataballrStatsByName(teamFora.name, allDataballrStats);
 
                 const databallrA: DataballrInput | undefined = dbStatsA ? {
-                    ortg: dbStatsA.ortg,
-                    drtg: dbStatsA.drtg,
-                    net_rating: dbStatsA.net_rating,
-                    pace: dbStatsA.pace
+                    ortg: Number(dbStatsA.ortg),
+                    drtg: Number(dbStatsA.drtg),
+                    net_rating: Number(dbStatsA.net_rating),
+                    pace: Number(dbStatsA.pace)
                 } : undefined;
 
                 const databallrB: DataballrInput | undefined = dbStatsB ? {
-                    ortg: dbStatsB.ortg,
-                    drtg: dbStatsB.drtg,
-                    net_rating: dbStatsB.net_rating,
-                    pace: dbStatsB.pace
+                    ortg: Number(dbStatsB.ortg),
+                    drtg: Number(dbStatsB.drtg),
+                    net_rating: Number(dbStatsB.net_rating),
+                    pace: Number(dbStatsB.pace)
                 } : undefined;
 
                 const notaCasa = tierScores[teamCasa.name] || '-';

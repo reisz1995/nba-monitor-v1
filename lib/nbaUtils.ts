@@ -235,12 +235,13 @@ export const calculateProjectedScores = (
     }
 
     // VOLATILITY FILTER (Gatilho de Volatilidade)
-    // Ativado quando ambas as equipes possuem Power Score (aiScore) igual ou inferior a 3.5
-    // EXIGÊNCIA DE SIMETRIA: O filtro só aplica se ambos os times tiverem dados de Net Rating para evitar distorção lopsided.
-    if (powerA <= 3.5 && powerB <= 3.5 && databallrA?.net_rating !== undefined && databallrB?.net_rating !== undefined) {
-        const volA = Math.abs(databallrB.net_rating);
-        const volB = Math.abs(databallrA.net_rating);
-        console.log(`[VOLATILITY_FILTER_ACTIVE] Ineficiência Líquida Cruzada: ${entityA.name} +${volA.toFixed(1)} | ${entityB.name} +${volB.toFixed(1)}`);
+    const netA = databallrA?.net_rating !== undefined && databallrA?.net_rating !== null ? Number(databallrA.net_rating) : NaN;
+    const netB = databallrB?.net_rating !== undefined && databallrB?.net_rating !== null ? Number(databallrB.net_rating) : NaN;
+    const hasValidNet = !isNaN(netA) && !isNaN(netB);
+
+    if (powerA > 0 && powerB > 0 && powerA <= 3.5 && powerB <= 3.5 && hasValidNet) {
+        const volA = Math.abs(netB);
+        const volB = Math.abs(netA);
         projectedScoreA += volA;
         projectedScoreB += volB;
     }
