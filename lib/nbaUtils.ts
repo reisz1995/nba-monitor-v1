@@ -94,7 +94,7 @@ export const calculateDeterministicPace = (
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
             .filter(i => i.isOut && i.weight >= 7)
-            .reduce((sum) => sum + 0.5, 0); // Ajuste fino para 2025-26
+            .reduce((sum) => sum + 0.05, 0); // Ajuste fino para 2025-26
 
     projectedPace -= injuryPaceReduction(injuriesA);
     projectedPace -= injuryPaceReduction(injuriesB);
@@ -126,7 +126,7 @@ const calculatePenalty = (
         if (inj.isOut) {
             p += inj.weight >= 9 ? (inj.weight * 2.0) + 2 : inj.weight;
         } else if (inj.isDayToDay) {
-            p += inj.weight * 0.35;
+            p += inj.weight * 0.10;
         }
     });
     return p;
@@ -259,8 +259,8 @@ export const calculateProjectedScores = (
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
 
-    const floorA = seasonPPG_A - 17;
-    const floorB = seasonPPG_B - 17;
+    const floorA = seasonPPG_A - 30;
+    const floorB = seasonPPG_B - 30;
     projectedScoreA = Math.max(floorA, 95, Math.min(145, projectedScoreA));
     projectedScoreB = Math.max(floorB, 95, Math.min(145, projectedScoreB));
 
