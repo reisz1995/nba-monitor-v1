@@ -246,10 +246,6 @@ export const calculateProjectedScores = (
     projectedScoreA -= calculatePenalty(options?.injuriesA);
     projectedScoreB -= calculatePenalty(options?.injuriesB);
 
-    CORREÇÃO 3: Trava de Segurança Profissional (Sincronizada com Testes)
-    const floorA = seasonPPG_A - 17;
-    const floorB = seasonPPG_B - 17;
-
     // Hard limits solicitados: mínimo 95, máximo 145
     projectedScoreA = Math.max(95, Math.min(145, projectedScoreA));
     projectedScoreB = Math.max(95, Math.min(145, projectedScoreB));
@@ -428,3 +424,4 @@ export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
 
     return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H };
 };
+    
