@@ -83,6 +83,23 @@ const TeamRow = memo(({
               {team.conference === 'East' ? 'CONFERENCE_EAST' : 'CONFERENCE_WEST'}
             </span>
           </div>
+
+          <div className="hidden xl:flex items-center gap-4 ml-auto pr-4 border-r border-white/10 h-full py-1">
+            <div className="flex flex-col items-center min-w-[36px]">
+              <span className="text-[7px] font-black text-slate-500 uppercase font-mono">ORTG</span>
+              <span className="text-[11px] font-black text-white font-mono">{team.databallr?.ortg?.toFixed(1) || '--'}</span>
+            </div>
+            <div className="flex flex-col items-center min-w-[36px]">
+              <span className="text-[7px] font-black text-slate-500 uppercase font-mono">DRTG</span>
+              <span className="text-[11px] font-black text-white font-mono">{team.databallr?.drtg?.toFixed(1) || '--'}</span>
+            </div>
+            <div className="flex flex-col items-center min-w-[36px]">
+              <span className="text-[7px] font-black text-indigo-400 uppercase font-mono">NET</span>
+              <span className={`text-[11px] font-black font-mono ${Number(team.databallr?.net_rating) > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {team.databallr?.net_rating ? (team.databallr.net_rating > 0 ? `+${team.databallr.net_rating.toFixed(1)}` : team.databallr.net_rating.toFixed(1)) : '--'}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -111,10 +128,10 @@ const TeamRow = memo(({
   );
 }, (prevProps, nextProps) => {
   return prevProps.team.id === nextProps.team.id &&
-         prevProps.isSelected === nextProps.isSelected &&
-         prevProps.isFocused === nextProps.isFocused &&
-         (prevProps.team.record || []).length === (nextProps.team.record || []).length &&
-         prevProps.index === nextProps.index;
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isFocused === nextProps.isFocused &&
+    (prevProps.team.record || []).length === (nextProps.team.record || []).length &&
+    prevProps.index === nextProps.index;
 });
 
 const StandingsTable: React.FC<StandingsTableProps> = memo(({ teams, selectedTeams, onToggleRecord, onToggleSelect }) => {
@@ -127,8 +144,8 @@ const StandingsTable: React.FC<StandingsTableProps> = memo(({ teams, selectedTea
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (flattenedTeams.length === 0) return;
 
-    const currentIndex = focusedTeamId !== null 
-      ? flattenedTeams.findIndex(t => t.id === focusedTeamId) 
+    const currentIndex = focusedTeamId !== null
+      ? flattenedTeams.findIndex(t => t.id === focusedTeamId)
       : -1;
 
     switch (e.key) {
@@ -184,7 +201,7 @@ const StandingsTable: React.FC<StandingsTableProps> = memo(({ teams, selectedTea
   );
 
   return (
-    <div 
+    <div
       className="bg-black/40 backdrop-blur-xl border-2 border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col glass-morphism focus-within:border-indigo-500/50 transition-colors"
       role="grid"
       aria-label="NBA Standings by Conference"

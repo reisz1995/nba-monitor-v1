@@ -3,7 +3,7 @@ import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, Marke
 import { compareTeams, saveMatchupAnalysis, fetchGameWithMomentum } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
 import { calculateProjectedScores, DataballrInput, getStandardTeamName } from '../lib/nbaUtils';
-import { fetchDataballrFullStats, findDataballrStatsByName } from '../services/databallrService';
+import { findDataballrStatsByName } from '../services/databallrService';
 import { toast } from 'sonner';
 
 interface UseTeamComparisonDataProps {
@@ -29,8 +29,8 @@ export const useTeamComparisonData = ({
         a: teamA.ai_score || 0,
         b: teamB.ai_score || 0
     });
-    const [databallrA, setDataballrA] = useState<DataballrInput | null>(null);
-    const [databallrB, setDataballrB] = useState<DataballrInput | null>(null);
+    const databallrA = teamA.databallr || null;
+    const databallrB = teamB.databallr || null;
 
     useEffect(() => {
         const fetchTeamNotas = async () => {
@@ -52,54 +52,6 @@ export const useTeamComparisonData = ({
         fetchTeamNotas();
     }, [teamA.name, teamB.name, teamA.ai_score, teamB.ai_score]);
 
-    // Busca as métricas avançadas do Databallr (últimos 14 dias) para os dois times
-    useEffect(() => {
-        const fetchDataballrStats = async () => {
-            try {
-                const allStats = await fetchDataballrFullStats();
-                if (allStats.length === 0) return;
-                const sA = findDataballrStatsByName(teamA.name, allStats);
-                const sB = findDataballrStatsByName(teamB.name, allStats);
-                if (sA) {
-                    setDataballrA({
-                        ortg: Number(sA.ortg) || undefined,
-                        drtg: Number(sA.drtg) || undefined,
-                        pace: sA.pace ? Number(sA.pace) : null,
-                        o_ts: Number(sA.o_ts) || undefined,
-                        o_tov: Number(sA.o_tov) || undefined,
-                        orb: Number(sA.orb) || undefined,
-                        drb: Number(sA.drb) || undefined,
-                        net_rating: Number(sA.net_rating) || undefined,
-                        offense_rating: Number(sA.offense_rating) || undefined,
-                        defense_rating: Number(sA.defense_rating) || undefined,
-                    });
-                    console.info(`[Databallr] ✅ Stats carregadas para ${teamA.name}: ORTG=${sA.ortg} | DRTG=${sA.drtg} | NET=${sA.net_rating}`);
-                } else {
-                    console.warn(`[Databallr] ⚠️ Nenhuma stat encontrada para "${teamA.name}"`);
-                }
-                if (sB) {
-                    setDataballrB({
-                        ortg: Number(sB.ortg) || undefined,
-                        drtg: Number(sB.drtg) || undefined,
-                        pace: sB.pace ? Number(sB.pace) : null,
-                        o_ts: Number(sB.o_ts) || undefined,
-                        o_tov: Number(sB.o_tov) || undefined,
-                        orb: Number(sB.orb) || undefined,
-                        drb: Number(sB.drb) || undefined,
-                        net_rating: Number(sB.net_rating) || undefined,
-                        offense_rating: Number(sB.offense_rating) || undefined,
-                        defense_rating: Number(sB.defense_rating) || undefined,
-                    });
-                    console.info(`[Databallr] ✅ Stats carregadas para ${teamB.name}: ORTG=${sB.ortg} | DRTG=${sB.drtg} | NET=${sB.net_rating}`);
-                } else {
-                    console.warn(`[Databallr] ⚠️ Nenhuma stat encontrada para "${teamB.name}"`);
-                }
-            } catch (e) {
-                console.error('[Databallr] Falha ao buscar full stats:', e);
-            }
-        };
-        fetchDataballrStats();
-    }, [teamA.name, teamB.name]);
 
     // Busca odds da nba_odds_matrix — tolerante a falhas com maybeSingle()
     // Se o cron job ainda não correu ou não há linhas abertas, oddsData será null

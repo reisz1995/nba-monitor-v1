@@ -27,6 +27,19 @@ export const TeamSchema = z.object({
   }).optional(),
   espnData: z.record(z.any()).optional(), // ESPN data é volátil, manter flexível
   tanking: z.boolean().optional(),
+  databallr: z.object({
+    ortg: z.number().optional(),
+    drtg: z.number().optional(),
+    net_rating: z.number().optional(),
+    pace: z.number().optional().nullable(),
+    offense_rating: z.number().optional(),
+    defense_rating: z.number().optional(),
+    o_ts: z.number().optional(),
+    o_tov: z.number().optional(),
+    orb: z.number().optional(),
+    drb: z.number().optional(),
+    net_poss: z.number().optional(),
+  }).optional(),
 });
 
 export const PlayerStatSchema = z.object({

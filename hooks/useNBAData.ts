@@ -6,6 +6,7 @@ import { INITIAL_TEAMS, INITIAL_ESPN_DATA } from '../constants';
 import { Team, GameResult, PlayerStat, ESPNData } from '../types';
 import { getMomentumScore, parseStreakToRecord } from '../lib/nbaUtils';
 import { withRetry } from '../lib/resilience';
+import { fetchDataballrFullStats, findDataballrStatsByName } from '../services/databallrService';
 
 export const useNBAData = () => {
     // 1. Data Fetching
@@ -33,6 +34,10 @@ export const useNBAData = () => {
         const { data } = await supabase.from('game_predictions').select('*');
         return data || [];
     }, { revalidateOnFocus: true });
+
+    const { data: databallrFull = [] } = useSWR('nba/databallr', async () => {
+        return await fetchDataballrFullStats();
+    }, { revalidateOnFocus: false });
 
     // 2. Real-time Subscriptions with Resilience
     useEffect(() => {
@@ -179,6 +184,23 @@ export const useNBAData = () => {
                 wins: currentWins,
                 losses: currentLosses,
                 espnData: espnStats,
+                databallr: (() => {
+                    const s = findDataballrStatsByName(initial.name, databallrFull);
+                    if (!s) return undefined;
+                    return {
+                        ortg: s.ortg,
+                        drtg: s.drtg,
+                        net_rating: s.net_rating,
+                        pace: s.pace,
+                        offense_rating: s.offense_rating,
+                        defense_rating: s.defense_rating,
+                        o_ts: s.o_ts,
+                        o_tov: s.o_tov,
+                        orb: s.orb,
+                        drb: s.drb,
+                        net_poss: s.net_poss
+                    };
+                })(),
                 stats: espnStats ? {
                     media_pontos_ataque: espnStats.media_pontos_ataque,
                     media_pontos_defesa: espnStats.media_pontos_defesa,

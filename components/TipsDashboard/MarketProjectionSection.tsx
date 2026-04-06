@@ -1,9 +1,8 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { TrendingUp, Target, Activity, Zap, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Team, PalpiteData } from '../../types';
-import { calculateProjectedScores, findTeamByName, calculateUnderdogValue, getStandardTeamName, DataballrInput } from '../../lib/nbaUtils';
+import { calculateProjectedScores, findTeamByName, calculateUnderdogValue, getStandardTeamName } from '../../lib/nbaUtils';
 import { supabase } from '../../lib/supabase';
-import { fetchDataballrFullStats, findDataballrStatsByName } from '../../services/databallrService';
 
 interface MarketOdds {
     matchup: string;
@@ -47,17 +46,14 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
 
     const [allInjuries, setAllInjuries] = useState<any[]>([]);
     const [allStats, setAllStats] = useState<any[]>([]);
-    const [allDataballrStats, setAllDataballrStats] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchData = async () => {
             const { data: injData } = await supabase.from('nba_injured_players').select('*');
             const { data: statsData } = await supabase.from('nba_jogadores_stats').select('*');
-            const databallrFull = await fetchDataballrFullStats();
 
             if (injData) setAllInjuries(injData);
             if (statsData) setAllStats(statsData);
-            if (databallrFull) setAllDataballrStats(databallrFull);
         };
         fetchData();
     }, []);
@@ -100,22 +96,8 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                 const injuriesA = mapInjToHW(teamCasa.name);
                 const injuriesB = mapInjToHW(teamFora.name);
 
-                const dbStatsA = findDataballrStatsByName(teamCasa.name, allDataballrStats);
-                const dbStatsB = findDataballrStatsByName(teamFora.name, allDataballrStats);
-
-                const databallrA: DataballrInput | undefined = dbStatsA ? {
-                    ortg: Number(dbStatsA.ortg),
-                    drtg: Number(dbStatsA.drtg),
-                    net_rating: Number(dbStatsA.net_rating),
-                    pace: Number(dbStatsA.pace)
-                } : undefined;
-
-                const databallrB: DataballrInput | undefined = dbStatsB ? {
-                    ortg: Number(dbStatsB.ortg),
-                    drtg: Number(dbStatsB.drtg),
-                    net_rating: Number(dbStatsB.net_rating),
-                    pace: Number(dbStatsB.pace)
-                } : undefined;
+                const databallrA = teamCasa.databallr;
+                const databallrB = teamFora.databallr;
 
                 const notaCasa = tierScores[teamCasa.name] || '-';
                 const notaFora = tierScores[teamFora.name] || '-';
