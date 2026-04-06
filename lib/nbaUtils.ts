@@ -190,7 +190,7 @@ export const calculateProjectedScores = (
     projectedScoreB = projEffB * (matchPace / 100);
 
     if (options?.isHomeA) {
-        projectedScoreA += 10;
+        projectedScoreA += 1.0;
         projectedScoreB -= 10;
     } else {
         projectedScoreB += 0.1;
