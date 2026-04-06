@@ -223,13 +223,13 @@ export const useTeamComparisonData = ({
 
             // Se a IA e a Matemática divergem
             if (aiWinner.toLowerCase().includes(teamA.name.toLowerCase()) && mathFavorite === teamB.name) {
-                projA += 5.0;
-                projB -= 1.0;
-                console.info(`[HARMONY] Ajuste de +5.0 para ${teamA.name} alinhado com IA.`);
+                projA += 10;
+                projB -= 5;
+                console.info(`[HARMONY] Ajuste de +10 para ${teamA.name} alinhado com IA.`);
             } else if (aiWinner.toLowerCase().includes(teamB.name.toLowerCase()) && mathFavorite === teamA.name) {
-                projB += 5;
-                projA -= 1.0;
-                console.info(`[HARMONY] Ajuste de +5.0 para ${teamB.name} alinhado com IA.`);
+                projB += 10;
+                projA -= 5;
+                console.info(`[HARMONY] Ajuste de +10 para ${teamB.name} alinhado com IA.`);
             }
         }
 
