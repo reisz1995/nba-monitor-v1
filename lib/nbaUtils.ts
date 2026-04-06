@@ -183,22 +183,22 @@ export const calculateProjectedScores = (
     let projectedScoreB: number;
 
     // Eficiência Cruzada Ajustada (Média da força de ataque com a força da defesa oponente)
-    const projEffA = (offRtgA + defRtgB) / 2;
-    const projEffB = (offRtgB + defRtgA) / 2;
+    const projEffA = (offRtgA + defRtgB) / 2.5;
+    const projEffB = (offRtgB + defRtgA) / 2.5;
 
     projectedScoreA = projEffA * (matchPace / 100);
     projectedScoreB = projEffB * (matchPace / 100);
 
     if (options?.isHomeA) {
-        projectedScoreA += 5;
+        projectedScoreA += 7;
         projectedScoreB -= 1;
     } else {
         projectedScoreB += 5;
-        projectedScoreA -= 1;
+        projectedScoreA -= 0;
     }
 
-    if (options?.isB2BA) projectedScoreA -= 1.0;
-    if (options?.isB2BB) projectedScoreB -= 1.0;
+    if (options?.isB2BA) projectedScoreA -= 0.5;
+    if (options?.isB2BB) projectedScoreB -= 0.5;
 
     if (options?.lastMarginA && options.lastMarginA > 20) projectedScoreA -= 1.5;
     if (options?.lastMarginB && options.lastMarginB > 20) projectedScoreB -= 1.5;
