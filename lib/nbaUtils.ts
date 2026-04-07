@@ -270,7 +270,7 @@ export const calculateProjectedScores = (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UTILITÁRIOS
+// UTILITÁRIOS E PARSERS (Restaurados para compatibilidade do Sistema)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getMomentumScore = (record: GameResult[]): number => {
@@ -280,9 +280,108 @@ export const getMomentumScore = (record: GameResult[]): number => {
     }, 0);
 };
 
+export const getFormattedDate = (date: Date): string => {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+};
+
+export const getPlayerWeight = (pts: number): number => Math.floor((pts || 0) / 3);
+
+export const getStandardTeamName = (name: string): string => {
+    if (!name) return '';
+    const n = name.trim();
+    if (n === 'LA Clippers') return 'Los Angeles Clippers';
+    return n;
+};
+
 export const normalizeTeamName = (name: string): string => {
     if (!name) return '';
-    return name.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const standard = getStandardTeamName(name);
+    return standard.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+};
+
+export const findTeamByName = (name: string, teams: Team[]): Team | null => {
+    if (!name) return null;
+    const cleanSearch = normalizeTeamName(name);
+    return teams.find(t => {
+        const teamClean = normalizeTeamName(t.name);
+        return teamClean === cleanSearch || teamClean.includes(cleanSearch) || cleanSearch.includes(teamClean);
+    }) || null;
+};
+
+export const checkB2B = (teamName: string, dateStr: string, dbPredictions: Array<{ home_team: string; away_team: string; date: string }>) => {
+    if (!dbPredictions || !teamName) return { yesterday: false, tomorrow: false };
+    const [d, m, y] = dateStr.split('/');
+    const current = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+
+    const yesterday = new Date(current);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().split('T')[0];
+
+    const tomorrow = new Date(current);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tStr = tomorrow.toISOString().split('T')[0];
+
+    const playedYesterday = dbPredictions.some(p =>
+        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
+            p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
+        p.date === yStr
+    );
+
+    const playsTomorrow = dbPredictions.some(p =>
+        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
+            p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
+        p.date === tStr
+    );
+    return { yesterday: playedYesterday, tomorrow: playsTomorrow };
+};
+
+export const parseScoreToTotal = (score: string): number => {
+    if (!score) return 0;
+    const parts = score.split(/[-\s:]+/);
+    if (parts.length < 2) return 0;
+    const pts1 = parseInt(parts[0], 10);
+    const pts2 = parseInt(parts[1], 10);
+    if (isNaN(pts1) || isNaN(pts2)) return 0;
+    return pts1 + pts2;
+};
+
+export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
+    const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
+    const getGamePace = (score: string) => parseScoreToTotal(score) / (2 * PACE_FACTOR);
+
+    const last5A = (teamA.record || []).slice(-5);
+    const avgPace5A = last5A.length > 0
+        ? last5A.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5A.length
+        : 0;
+
+    const last5B = (teamB.record || []).slice(-5);
+    const avgPace5B = last5B.length > 0
+        ? last5B.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5B.length
+        : 0;
+
+    const normB = normalizeTeamName(teamB.name);
+    const h2hGames = (teamA.record || []).filter(g =>
+        g.opponent && normalizeTeamName(g.opponent).includes(normB)
+    ).slice(-2);
+
+    let avgPaceH2H = 0;
+    const hasH2H = h2hGames.length > 0;
+
+    if (hasH2H) {
+        avgPaceH2H = h2hGames.reduce((sum, g) => sum + getGamePace(g.score), 0) / h2hGames.length;
+    } else if (avgPace5A > 0 && avgPace5B > 0) {
+        avgPaceH2H = (avgPace5A + avgPace5B) / 2;
+    }
+
+    let finalPace = 0;
+    if (avgPace5A > 0 && avgPace5B > 0 && avgPaceH2H > 0) {
+        finalPace = (avgPace5A + avgPace5B + avgPaceH2H) / 3;
+    }
+
+    return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H };
 };
 
 export const calculateUnderdogValue = (
