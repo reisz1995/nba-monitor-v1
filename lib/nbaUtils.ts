@@ -107,21 +107,21 @@ export const calculateDeterministicPace = (
         // Fator de Controle: Quanto maior a diferença, mais o ritmo pende para o melhor
         const controlFactor = Math.min(0.20, Math.abs(defDelta) / 40);
 
-        if (powerDiff <= 1.5) {
-            // (Defensive Control II) Confrontos de times desequilibrados
+        if (powerDiff >= 2.0) {
+            // (Defensive Control II) Confrontos de times desequilibrados (>= 2.0)
             if (defDelta > 0) {
-                // Time A tem a melhor defesa -> Peso 0.9 + controlFactor
-                projectedPace = (blendedPaceA * (0.7 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
+                // Time A tem a melhor defesa
+                projectedPace = (blendedPaceA * (0.9 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
             } else {
-                // Time B tem a melhor defesa -> Peso 0.9 + controlFactor
-                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.7 + controlFactor));
+                // Time B tem a melhor defesa
+                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.9 + controlFactor));
             }
         } else {
             // (Defensive Control I) Confrontos equilibrados (diff < 2.0)
             if (defDelta > 0) {
-                projectedPace = (blendedPaceA * (0.9 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
+                projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.5 - controlFactor));
             } else {
-                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.9 + controlFactor));
+                projectedPace = (blendedPaceA * (0.5 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
             }
         }
         console.log(`[SYS-OP] Pace Control: ${projectedPace.toFixed(2)} (DefDelta: ${defDelta.toFixed(1)}, PowerDiff: ${powerDiff.toFixed(1)})`);
