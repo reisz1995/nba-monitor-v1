@@ -40,16 +40,16 @@ const SEASON_25_26_METRICS = {
 const PROJECTION_CONFIG = {
     // Peso da diferença de Power Score (IA). 
     // 0.85 significa que se a IA vê 3 pontos de diferença, ela adiciona ~2.5 pts ao score.
-    POWER_DIFF_WEIGHT: 0.2,
+    POWER_DIFF_WEIGHT: 0.85,
 
     // Quando o favorito tem a melhor defesa, ele suprime o adversário com mais força.
-    DEF_FILTER_FAVORITE_MULT: 6.5,
+    DEF_FILTER_FAVORITE_MULT: 20,
 
     // Quando o underdog tem a melhor defesa, ele consegue segurar o favorito, mas menos que o inverso.
     DEF_FILTER_UNDERDOG_MULT: 1.4,
 
     // Bônus para quem tem ataque superior. Mantido próximo de 1.0 para não inflar o total.
-    ATK_FILTER_MULT: 0.75,
+    ATK_FILTER_MULT: 10,
 
     // Vantagem de casa. Como seu código soma no Home e subtrai no Away, 
     // 1.75 cria um "Swing" total de 3.5 pontos (valor padrão da NBA moderna).
@@ -59,7 +59,7 @@ const PROJECTION_CONFIG = {
     LAST_MARGIN_THRESHOLD: 22,
 
     // Penalidade de 'estagnação' após uma vitória esmagadora (ajuste psicológico/eficiência).
-    LAST_MARGIN_PENALTY: 0.5,
+    LAST_MARGIN_PENALTY: 1.5,
 
     // Piso absoluto. Times da NBA raramente fazem menos de 92 pts na era atual.
     SCORE_FLOOR_MIN: 92,
@@ -69,7 +69,7 @@ const PROJECTION_CONFIG = {
 
     // Fator de compressão de spread em jogos lentos. 
     // 0.03 significa que 3% da diferença de pontos é redistribuída para equilibrar o jogo.
-    PACE_ADJUSTMENT_FACTOR: 3.0,
+    PACE_ADJUSTMENT_FACTOR: 0.03,
 
     // Limite de Pace para considerar o jogo como "Slow Grind".
     PACE_THRESHOLD_SLOW: 97.5
@@ -127,7 +127,7 @@ export const calculateDeterministicPace = (
     const blendedPaceA = getBlendedPace(teamA, databallrA);
     const blendedPaceB = getBlendedPace(teamB, databallrB);
 
-    let projectedPace = (blendedPaceA + blendedPaceB) / 2;
+    let projectedPace = (blendedPaceA + blendedPaceB) / 1.9;
 
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || [])
@@ -521,8 +521,8 @@ export const parseScoreToTotal = (score: string): number => {
     if (!score) return 0;
     const parts = score.split(/[-\s:]+/);
     if (parts.length < 2) return 0;
-    const pts1 = parseInt(parts[0], 10);
-    const pts2 = parseInt(parts[1], 10);
+    const pts1 = parseInt(parts[0], 5);
+    const pts2 = parseInt(parts[1], 5);
     if (isNaN(pts1) || isNaN(pts2)) return 0;
     return pts1 + pts2;
 };
