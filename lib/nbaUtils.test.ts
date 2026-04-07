@@ -98,32 +98,32 @@ describe('nbaUtils', () => {
         const teamA = { name: 'Lakers', stats: { media_pontos_ataque: 115, media_pontos_defesa: 115 } } as any;
         const teamB = { name: 'Celtics', stats: { media_pontos_ataque: 115, media_pontos_defesa: 115 } } as any;
 
-        it('should apply home advantage (+1.5 per team, 3.0 total delta)', () => {
+        it('should apply home advantage (+1.75 per team, 3.5 total delta)', () => {
             const resultHomeA = calculateProjectedScores(teamA, teamB, { isHomeA: true });
             const resultHomeB = calculateProjectedScores(teamA, teamB, { isHomeA: false });
 
-            // Diferença deve ser 3.0 pontos porque Mandante ganha +1.5 e Visitante perde -1.5
-            expect(resultHomeA.deltaA - resultHomeA.deltaB).toBeCloseTo(3.0);
-            expect(resultHomeB.deltaB - resultHomeB.deltaA).toBeCloseTo(3.0);
+            // Diferença deve ser 3.5 pontos porque Mandante ganha +1.75 e Visitante perde -1.75
+            expect(resultHomeA.deltaA - resultHomeA.deltaB).toBeCloseTo(3.5);
+            expect(resultHomeB.deltaB - resultHomeB.deltaA).toBeCloseTo(3.5);
         });
 
-        it('should apply B2B fatigue (-1.0)', () => {
+        it('should apply B2B fatigue (-1.5)', () => {
             const base = calculateProjectedScores(teamA, teamB, { isHomeA: true });
             const b2b = calculateProjectedScores(teamA, teamB, { isHomeA: true, isB2BA: true });
 
             expect(b2b.deltaA).toBeLessThan(base.deltaA);
-            expect(base.deltaA - b2b.deltaA).toBeCloseTo(1.0);
+            expect(base.deltaA - b2b.deltaA).toBeCloseTo(1.5);
         });
 
-        it('should apply Blowout Regression (-1.0)', () => {
+        it('should apply Blowout Regression (-1.5)', () => {
             const base = calculateProjectedScores(teamA, teamB, { isHomeA: true });
             const regression = calculateProjectedScores(teamA, teamB, { isHomeA: true, lastMarginA: 25 });
 
             expect(regression.deltaA).toBeLessThan(base.deltaA);
-            expect(base.deltaA - regression.deltaA).toBeCloseTo(1.0);
+            expect(base.deltaA - regression.deltaA).toBeCloseTo(1.5);
         });
 
-        it('should activate Volatility Filter when both power scores <= 3.5', () => {
+        it('should activate Volatility Filter with clamped boosts (+4.0 max)', () => {
             const teamA = { name: 'Team A', stats: { media_pontos_ataque: 105, media_pontos_defesa: 115 }, espnData: { pts: 105, pts_contra: 115, pace: 100 } } as any;
             const teamB = { name: 'Team B', stats: { media_pontos_ataque: 105, media_pontos_defesa: 115 }, espnData: { pts: 105, pts_contra: 115, pace: 100 } } as any;
 
@@ -136,10 +136,17 @@ describe('nbaUtils', () => {
             const resultNoVol = calculateProjectedScores(teamA, teamB, optionsNoVol, databallrA, databallrB);
             const resultWithVol = calculateProjectedScores(teamA, teamB, optionsWithVol, databallrA, databallrB);
 
-            // Incremento A: abs(netB) = 19.2
-            // Incremento B: abs(netA) = 17.2
-            expect(resultWithVol.deltaA - resultNoVol.deltaA).toBeCloseTo(19.2, 1);
-            expect(resultWithVol.deltaB - resultNoVol.deltaB).toBeCloseTo(17.2, 1);
+            // Bônus clamped a 4.0. Penalidade clamped a 3.0.
+            // PowerA/B <= 3.5 ativa o filtro.
+            // Para A: netB (-19.2) é negativo. Bônus A = min(19.2, 4.0) = 4.0.
+            // Para A: netA (-17.2) é negativo. Penalidade A = min(17.2 * 0.6, 3.0) = 3.0.
+            // Total A = +4.0 - 3.0 = +1.0.
+            expect(resultWithVol.deltaA - resultNoVol.deltaA).toBeCloseTo(1.0, 1);
+
+            // Para B: netA (-17.2) é negativo. Bônus B = min(17.2, 4.0) = 4.0.
+            // Para B: netB (-19.2) é negativo. Penalidade B = min(19.2 * 0.6, 3.0) = 3.0.
+            // Total B = +4.0 - 3.0 = +1.0.
+            expect(resultWithVol.deltaB - resultNoVol.deltaB).toBeCloseTo(1.0, 1);
         });
     });
 
@@ -222,7 +229,7 @@ describe('nbaUtils', () => {
 
             const result = calculateMatchupPaceV2(teamA, teamB);
             expect(result.hasH2H).toBe(true);
-            expect(result.avgPaceH2H).toBeCloseTo(98.8, 1);
+            expect(result.avgPaceH2H).toBeCloseTo(100.0, 1);
         });
 
         it('should fallback to Avg 5 if no H2H', () => {
@@ -237,7 +244,8 @@ describe('nbaUtils', () => {
 
             const result = calculateMatchupPaceV2(teamA, teamB);
             expect(result.hasH2H).toBe(false);
-            expect(result.avgPaceH2H).toBeCloseTo(101.15, 2);
+            // avgPace5A = 100, avgPace5B = 104.76. Avg = 102.38
+            expect(result.avgPaceH2H).toBeCloseTo(102.38, 2);
         });
     });
 });
