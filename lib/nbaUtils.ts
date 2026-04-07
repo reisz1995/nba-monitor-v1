@@ -218,15 +218,6 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
 };
 
 
-    // Aplica gravidade estática de contenção (Reduz pontuação total em dogfights)
-    if (isDogfight) {
-        adjA -= 3.5;
-        adjB -= 3.5;
-    }
-
-    return { adjA, adjB };
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // KERNEL V5.2 - PATCH 2: CORREÇÃO DO FILTRO DE VOLATILIDADE
 // ─────────────────────────────────────────────────────────────────────────────
