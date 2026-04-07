@@ -46,7 +46,7 @@ const PROJECTION_CONFIG = {
     LAST_MARGIN_PENALTY: 1.5,
     SCORE_FLOOR_MIN: 95,
     SCORE_CEILING_MAX: 148,
-    PACE_ADJUSTMENT_FACTOR: 0.5, 
+    PACE_ADJUSTMENT_FACTOR: 0.5,
     PACE_THRESHOLD_SLOW: 97.5
 } as const;
 
@@ -90,26 +90,47 @@ export const calculateDeterministicPace = (
     injuriesA?: { isOut: boolean; weight: number }[],
     injuriesB?: { isOut: boolean; weight: number }[],
     rtgA?: { defRtg: number },
-    rtgB?: { defRtg: number }
+    rtgB?: { defRtg: number },
+    powerA: number = 0,
+    powerB: number = 0
 ): number => {
     const blendedPaceA = getBlendedPace(teamA, databallrA);
     const blendedPaceB = getBlendedPace(teamB, databallrB);
 
     let projectedPace: number;
+    const powerDiff = Math.abs(powerA - powerB);
 
+    // LÓGICA DE CONTROLE DEFENSIVO
     if (rtgA && rtgB) {
-        const defDelta = rtgB.defRtg - rtgA.defRtg; 
-        const controlFactor = Math.min(0.4, Math.abs(defDelta) / 30); 
-        
-        if (defDelta > 0) {
-            projectedPace = (blendedPaceA * (0.7 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
+        const defDelta = rtgB.defRtg - rtgA.defRtg; // Positivo se A for melhor defesa
+
+        // Fator de Controle: Quanto maior a diferença, mais o ritmo pende para o melhor
+        const controlFactor = Math.min(0.20, Math.abs(defDelta) / 40);
+
+        if (powerDiff >= 2.0) {
+            // (Defensive Control II) Confrontos de times desequilibrados
+            if (defDelta > 0) {
+                // Time A tem a melhor defesa -> Peso 0.9 + controlFactor
+                projectedPace = (blendedPaceA * (0.9 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
+            } else {
+                // Time B tem a melhor defesa -> Peso 0.9 + controlFactor
+                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.9 + controlFactor));
+            }
         } else {
-            projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.7 + controlFactor));
+            // (Defensive Control I) Confrontos equilibrados (diff < 2.0)
+            if (defDelta > 0) {
+                projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.5 - controlFactor));
+            } else {
+                projectedPace = (blendedPaceA * (0.5 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
+            }
         }
+        console.log(`[SYS-OP] Pace Control: ${projectedPace.toFixed(2)} (DefDelta: ${defDelta.toFixed(1)}, PowerDiff: ${powerDiff.toFixed(1)})`);
     } else {
+        // Fallback para média simples se não houver ratings
         projectedPace = (blendedPaceA + blendedPaceB) / 2;
     }
 
+    // Ajustes de lesões
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || []).filter(i => i.isOut && i.weight >= 7).reduce((sum) => sum + 0.05, 0);
 
@@ -212,7 +233,18 @@ export const calculateProjectedScores = (
 ) => {
     const rtgA = getTeamRatings(teamA, databallrA);
     const rtgB = getTeamRatings(teamB, databallrB);
-    const matchPace = calculateDeterministicPace(teamA, teamB, databallrA, databallrB, options?.injuriesA, options?.injuriesB, rtgA, rtgB);
+    const matchPace = calculateDeterministicPace(
+        teamA,
+        teamB,
+        databallrA,
+        databallrB,
+        options?.injuriesA,
+        options?.injuriesB,
+        rtgA,
+        rtgB,
+        options?.aiScoreA ?? 0,
+        options?.aiScoreB ?? 0
+    );
 
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
     let projB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
@@ -227,7 +259,7 @@ export const calculateProjectedScores = (
     projA = volatility.adjA; projB = volatility.adjB;
 
     const homeAdv = PROJECTION_CONFIG.HOME_ADVANTAGE;
-    if (options?.isHomeA) { projA += homeAdv; projB -= homeAdv; } 
+    if (options?.isHomeA) { projA += homeAdv; projB -= homeAdv; }
     else { projB += homeAdv; projA -= homeAdv; }
 
     projA -= calculatePenalty(options?.injuriesA);
