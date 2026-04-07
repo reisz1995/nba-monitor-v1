@@ -43,7 +43,7 @@ const PROJECTION_CONFIG = {
     POWER_DIFF_WEIGHT: 0.85,
 
     // Quando o favorito tem a melhor defesa, ele suprime o adversário com mais força.
-    DEF_FILTER_FAVORITE_MULT: 80,
+    DEF_FILTER_FAVORITE_MULT: 2.5,
 
     // Quando o underdog tem a melhor defesa, ele consegue segurar o favorito, mas menos que o inverso.
     DEF_FILTER_UNDERDOG_MULT: 1.4,
@@ -116,34 +116,58 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
     return SEASON_25_26_METRICS.AVG_PACE;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBSISTEMA DE PACE ATUALIZADO (v4.5 - Defensive Control)
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const calculateDeterministicPace = (
     teamA: Team,
     teamB: Team,
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null,
-    injuriesA?: { isOut: boolean; isDayToDay?: boolean; weight: number }[],
-    injuriesB?: { isOut: boolean; isDayToDay?: boolean; weight: number }[]
+    injuriesA?: { isOut: boolean; weight: number }[],
+    injuriesB?: { isOut: boolean; weight: number }[],
+    // Adicionamos as ratings aqui para calcular o controle
+    rtgA?: { defRtg: number },
+    rtgB?: { defRtg: number }
 ): number => {
     const blendedPaceA = getBlendedPace(teamA, databallrA);
     const blendedPaceB = getBlendedPace(teamB, databallrB);
 
-    let projectedPace = (blendedPaceA + blendedPaceB) / 1.9;
+    let projectedPace: number;
 
+    // LÓGICA DE CONTROLE DEFENSIVO
+    if (rtgA && rtgB) {
+        const defDelta = rtgB.defRtg - rtgA.defRtg; // Positivo se A for melhor defesa
+        
+        // Calculamos o "Fator de Controle" (Quanto maior a diferença, mais o ritmo pende para o melhor)
+        // Ex: Se a diferença for 5 pontos de DRTG, o controle é de ~10% a mais para a melhor defesa
+        const controlFactor = Math.min(0.25, Math.abs(defDelta) / 50); 
+        
+        if (defDelta > 0) {
+            // Time A tem a melhor defesa -> Pende para o Pace do Time A
+            projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.5 - controlFactor));
+        } else {
+            // Time B tem a melhor defesa -> Pende para o Pace do Time B
+            projectedPace = (blendedPaceA * (0.5 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
+        }
+    } else {
+        // Fallback para média simples se não houver ratings
+        projectedPace = (blendedPaceA + blendedPaceB) / 2;
+    }
+
+    // Ajustes de lesões (mantendo sua lógica original)
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
-        (injuries || [])
-            .filter(i => i.isOut && i.weight >= 7)
-            .reduce((sum) => sum + 0.05, 0); // Ajuste fino para 2025-26
+        (injuries || []).filter(i => i.isOut && i.weight >= 7).reduce((sum) => sum + 0.05, 0);
 
     projectedPace -= injuryPaceReduction(injuriesA);
     projectedPace -= injuryPaceReduction(injuriesB);
 
-    const clampedPace = projectedPace;
+    console.log(`[SYS-OP] Pace Control: ${projectedPace.toFixed(2)} (DefDelta: ${rtgA && rtgB ? (rtgB.defRtg - rtgA.defRtg).toFixed(1) : 'N/A'})`);
 
-    console.log(`[SYS-OP] Híbrido A: ${blendedPaceA.toFixed(1)} | Híbrido B: ${blendedPaceB.toFixed(1)}`);
-    console.log(`[SYS-OP] Pace Otimizado (Interação): ${clampedPace.toFixed(2)}`);
-
-    return clampedPace;
+    return projectedPace;
 };
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FILTROS E PENALIDADES
@@ -329,17 +353,23 @@ export const calculateProjectedScores = (
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null
 ) => {
+    // 0. PRIMEIRO: Calculamos as ratings (necessário para o Pace agora)
     const rtgA = getTeamRatings(teamA, databallrA);
     const rtgB = getTeamRatings(teamB, databallrB);
 
+    // 1. SEGUNDO: Calculamos o Pace passando as ratings de defesa
     const matchPace = calculateDeterministicPace(
         teamA, teamB, databallrA, databallrB,
-        options?.injuriesA, options?.injuriesB
+        options?.injuriesA, options?.injuriesB,
+        rtgA, rtgB // <--- Injeção de ratings
     );
 
-    // 1. Eficiência Cruzada Ajustada (Base)
+    // 2. Eficiência Cruzada Ajustada (Base)
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
     let projB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
+
+    // ... resto do código (Contextual, Superiority, Volatility, etc) segue igual
+}
 
     // 2. Ajustes Contextuais (B2B, Blowouts e Pace)
     const context = applyContextualAdjustments(projA, projB, matchPace, options);
