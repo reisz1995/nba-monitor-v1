@@ -69,7 +69,7 @@ const PROJECTION_CONFIG = {
 
     // Fator de compressão de spread em jogos lentos. 
     // 0.03 significa que 3% da diferença de pontos é redistribuída para equilibrar o jogo.
-    PACE_ADJUSTMENT_FACTOR: 0.03,
+    PACE_ADJUSTMENT_FACTOR: 3.0,
 
     // Limite de Pace para considerar o jogo como "Slow Grind".
     PACE_THRESHOLD_SLOW: 97.5
