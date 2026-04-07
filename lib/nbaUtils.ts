@@ -38,7 +38,7 @@ const SEASON_25_26_METRICS = {
 
 const PROJECTION_CONFIG = {
     // Peso do Power Score na pontuação final (Ajustado para não inflar)
-    POWER_DIFF_WEIGHT: 1.1, 
+    POWER_DIFF_WEIGHT: 1.1,
     DEF_FILTER_FAVORITE_MULT: 2.5,
     DEF_FILTER_UNDERDOG_MULT: 1.4,
     ATK_FILTER_MULT: 0.75,
@@ -159,18 +159,18 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     let adjA = scoreA;
     let adjB = scoreB;
     const powerDiff = Math.abs(powerA - powerB);
-    
+
     // [ ESTADO DE TRINCHEIRA ]: Diferença de força inferior a 1.5
     const isDogfight = powerDiff < 1.5;
-    
+
     // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais
     // Protege placares estabilizados de equipes medianas
     const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
-    const isShootout = combinedOffense >= 118.5 && rtgA.offRtg >= 114.0 && rtgB.offRtg >= 114.0;
-    
+    const isShootout = combinedOffense >= 123.5 && rtgA.offRtg >= 114.0 && rtgB.offRtg >= 114.0;
+
     // OTIMIZAÇÃO: A eficiência de ataque só é restaurada em Shootouts reais
-    const currentAtkMult = (isDogfight && !isShootout) 
-        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6) 
+    const currentAtkMult = (isDogfight && !isShootout)
+        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6)
         : PROJECTION_CONFIG.ATK_FILTER_MULT;
 
     const applyTeamSuperiorityV5 = (targetScore: number, opponentScore: number, targetRtg: any, opponentRtg: any, isFavorite: boolean) => {
@@ -208,7 +208,7 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
         adjB -= 3.5;
     } else if (isShootout) {
         // [ STATUS ]: Acelera apenas anomalias ofensivas como Suns e Rockets
-        const shootoutBonus = Math.min((combinedOffense - 118.0) * 1.8, 7.5); 
+        const shootoutBonus = Math.min((combinedOffense - 118.0) * 1.8, 7.5);
         adjA += shootoutBonus;
         adjB += shootoutBonus;
         console.log(`[SYS-OP] ISOLAMENTO ROMPIDO (SHOOTOUT): +${shootoutBonus.toFixed(1)} pts alocados.`);
@@ -226,19 +226,19 @@ const applyVolatilityFilter = (scoreA: number, scoreB: number, databallrA?: Data
     let adjB = scoreB;
     const netA = databallrA?.net_rating ?? 0;
     const netB = databallrB?.net_rating ?? 0;
-    
+
     // OTIMIZAÇÃO: A inflação matemática indiscriminada (Math.abs) foi erradicada.
     if (powerA > 0 && powerB > 0 && powerA <= 3.5 && powerB <= 3.5) {
-        
+
         // A equipe explora falhas: Lucra apenas se o oponente tiver Net Rating NEGATIVO (Teto: +4.0 pts)
         if (netB < 0) adjA += Math.min(Math.abs(netB), 4.0);
         if (netA < 0) adjB += Math.min(Math.abs(netA), 4.0);
-        
+
         // A equipe sofre pelo próprio defeito: Penalizada se o seu Net Rating for NEGATIVO (Teto: -3.0 pts)
         if (netA < 0) adjA -= Math.min(Math.abs(netA) * 0.6, 3.0);
         if (netB < 0) adjB -= Math.min(Math.abs(netB) * 0.6, 3.0);
     }
-    
+
     return { adjA, adjB };
 };
 
@@ -261,7 +261,7 @@ export const calculateProjectedScores = (
 ) => {
     const rtgA = getTeamRatings(teamA, databallrA);
     const rtgB = getTeamRatings(teamB, databallrB);
-    
+
     const matchPace = calculateDeterministicPace(
         teamA, teamB, databallrA, databallrB,
         options?.injuriesA, options?.injuriesB,
@@ -282,7 +282,7 @@ export const calculateProjectedScores = (
     projA = volatility.adjA; projB = volatility.adjB;
 
     const homeAdv = PROJECTION_CONFIG.HOME_ADVANTAGE;
-    if (options?.isHomeA) { projA += homeAdv; projB -= homeAdv; } 
+    if (options?.isHomeA) { projA += homeAdv; projB -= homeAdv; }
     else { projB += homeAdv; projA -= homeAdv; }
 
     projA -= calculatePenalty(options?.injuriesA);
