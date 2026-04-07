@@ -152,8 +152,10 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
     }
     return { adjA, adjB };
 };
+
+
 // ─────────────────────────────────────────────────────────────────────────────
-// KERNEL V5.3.1 - PATCH: PROTOCOLO DE RUPTURA CIRÚRGICA (ISOLAMENTO)
+// KERNEL V5.3.4 - PATCH: PROTOCOLO DE COLAPSO DEFENSIVO E VÁCUO
 // ─────────────────────────────────────────────────────────────────────────────
 const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, teamB: Team, rtgA: { offRtg: number; defRtg: number }, rtgB: { offRtg: number; defRtg: number }, powerA: number, powerB: number) => {
     let adjA = scoreA;
@@ -163,13 +165,16 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     // [ ESTADO DE TRINCHEIRA ]: Diferença de força inferior a 1.5
     const isDogfight = powerDiff < 1.5;
 
-    // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais
-    // Protege placares estabilizados de equipes medianas
+    // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais no ataque
     const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
     const isShootout = combinedOffense >= 120.5 && rtgA.offRtg >= 113.0 && rtgB.offRtg >= 113.0;
 
-    // OTIMIZAÇÃO: A eficiência de ataque só é restaurada em Shootouts reais
-    const currentAtkMult = (isDogfight && !isShootout)
+    // [ GATILHO DE VÁCUO DEFENSIVO ]: Exige que AMBAS as equipes tenham defesas colapsadas
+    const combinedDefense = (rtgA.defRtg + rtgB.defRtg) / 2;
+    const isDefensiveCollapse = combinedDefense >= 116.5 && rtgA.defRtg >= 114.0 && rtgB.defRtg >= 114.0;
+
+    // OTIMIZAÇÃO: A eficiência de ataque é restaurada em Shootouts E em Colapsos Defensivos
+    const currentAtkMult = (isDogfight && !isShootout && !isDefensiveCollapse)
         ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6)
         : PROJECTION_CONFIG.ATK_FILTER_MULT;
 
@@ -202,31 +207,30 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-// KERNEL V5.3.3 - PATCH: ATENUAÇÃO DA MATRIZ DE SHOOTOUT
-// ─────────────────────────────────────────────────────────────────────────────
-    
-    // MATRIZ DE GRAVIDADE APLICADA COM PRECISÃO
-    if (isDogfight && !isShootout) {
-        // [ STATUS ]: Retém a perfeição do placar padrão (Atrito aplicado)
-        adjA -= 3.5;
-        adjB -= 3.5;
-    } else if (isShootout) {
-        // [ STATUS ]: Válvula de escape atenuada. O sistema já se beneficia 
-        // pela remoção do atrito (-3.5) e restauração do ATK_MULT.
-        // A injeção extra atua apenas como ajuste fino de volatilidade térmica.
-        
+    // MATRIZ DE GRAVIDADE MULTI-VETORIAL (V5.3.4)
+    // ─────────────────────────────────────────────────────────────────────────────
+    if (isShootout) {
+        // [ STATUS ]: Tiroteio de Elite
         const shootoutBonus = Math.min((combinedOffense - 120.0) * 0.8, 3.0); 
-        
         if (shootoutBonus > 0) {
             adjA += shootoutBonus;
             adjB += shootoutBonus;
-            console.log(`[SYS-OP] ISOLAMENTO ROMPIDO (SHOOTOUT): Bônus atenuado de +${shootoutBonus.toFixed(1)} pts alocados.`);
+            console.log(`[SYS-OP] RUPTURA OFFENSIVA: +${shootoutBonus.toFixed(1)} pts alocados.`);
         }
+    } else if (isDefensiveCollapse) {
+        // [ STATUS ]: Vácuo Defensivo. Equipes não marcam. Inversão da penalidade de trincheira.
+        const collapseBonus = Math.min((combinedDefense - 116.0) * 1.2, 4.5);
+        adjA += collapseBonus;
+        adjB += collapseBonus;
+        console.log(`[SYS-OP] COLAPSO DEFENSIVO: +${collapseBonus.toFixed(1)} pts alocados (Ausência de Atrito).`);
+    } else if (isDogfight) {
+        // [ STATUS ]: Retém a perfeição do placar padrão (Atrito aplicado APENAS para times que defendem)
+        adjA -= 3.5;
+        adjB -= 3.5;
     }
 
     return { adjA, adjB };
 };
-
 
 
 // ─────────────────────────────────────────────────────────────────────────────
