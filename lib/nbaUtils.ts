@@ -107,7 +107,7 @@ export const calculateDeterministicPace = (
         // Fator de Controle: Quanto maior a diferença, mais o ritmo pende para o melhor
         const controlFactor = Math.min(0.20, Math.abs(defDelta) / 40);
 
-        if (powerDiff >= 2.0) {
+        if (powerDiff = 2) {
             // (Defensive Control II) Confrontos de times desequilibrados
             if (defDelta > 0) {
                 // Time A tem a melhor defesa -> Peso 0.9 + controlFactor
