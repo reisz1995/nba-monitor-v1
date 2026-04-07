@@ -28,13 +28,13 @@ export interface DataballrInput {
 // Estatístico Chefe: Parâmetros base atualizados para o metagame atual.
 // ─────────────────────────────────────────────────────────────────────────────
 const SEASON_25_26_METRICS = {
-    AVG_ORTG: 116.9,
-    AVG_PACE: 99.2,
-    AVG_TOV: 13.9,
-    AVG_TS: 57.5,
-    MIN_PACE: 98.0,
-    MAX_PACE: 106.0,
-    AVG_ORB: 25.5
+    AVG_ORTG: 115.5,
+    AVG_PACE: 99.3,
+    AVG_TOV: 14.8,
+    AVG_TS: 58.8,
+    MIN_PACE: 95.0,
+    MAX_PACE: 104.0,
+    AVG_ORB: 23.5
 } as const;
 
 const PROJECTION_CONFIG = {
