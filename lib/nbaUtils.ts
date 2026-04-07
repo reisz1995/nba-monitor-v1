@@ -99,7 +99,7 @@ export const calculateDeterministicPace = (
 
     if (rtgA && rtgB) {
         const defDelta = rtgB.defRtg - rtgA.defRtg; 
-        const controlFactor = Math.min(0.15, Math.abs(defDelta) / 70); 
+        const controlFactor = Math.min(0.4, Math.abs(defDelta) / 30); 
         
         if (defDelta > 0) {
             projectedPace = (blendedPaceA * (0.7 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
