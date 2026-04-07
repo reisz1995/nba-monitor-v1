@@ -38,17 +38,41 @@ const SEASON_25_26_METRICS = {
 } as const;
 
 const PROJECTION_CONFIG = {
-    POWER_DIFF_WEIGHT: 2,
-    DEF_FILTER_FAVORITE_MULT: 2,
-    DEF_FILTER_UNDERDOG_MULT: 0.2,
-    ATK_FILTER_MULT: 1.0,
-    HOME_ADVANTAGE: 2,
-    LAST_MARGIN_THRESHOLD: 20,
-    LAST_MARGIN_PENALTY: 1,
-    SCORE_FLOOR_MIN: 95,
-    SCORE_CEILING_MAX: 145,
-    PACE_ADJUSTMENT_FACTOR: 1.9,
-    PACE_THRESHOLD_SLOW: 98
+    // Peso da diferença de Power Score (IA). 
+    // 0.85 significa que se a IA vê 3 pontos de diferença, ela adiciona ~2.5 pts ao score.
+    POWER_DIFF_WEIGHT: 0.85,
+
+    // Quando o favorito tem a melhor defesa, ele suprime o adversário com mais força.
+    DEF_FILTER_FAVORITE_MULT: 2.2,
+
+    // Quando o underdog tem a melhor defesa, ele consegue segurar o favorito, mas menos que o inverso.
+    DEF_FILTER_UNDERDOG_MULT: 1.4,
+
+    // Bônus para quem tem ataque superior. Mantido próximo de 1.0 para não inflar o total.
+    ATK_FILTER_MULT: 0.75,
+
+    // Vantagem de casa. Como seu código soma no Home e subtrai no Away, 
+    // 1.75 cria um "Swing" total de 3.5 pontos (valor padrão da NBA moderna).
+    HOME_ADVANTAGE: 1.75,
+
+    // Margem a partir da qual o jogo anterior é considerado um 'Blowout'.
+    LAST_MARGIN_THRESHOLD: 22,
+
+    // Penalidade de 'estagnação' após uma vitória esmagadora (ajuste psicológico/eficiência).
+    LAST_MARGIN_PENALTY: 0.5,
+
+    // Piso absoluto. Times da NBA raramente fazem menos de 92 pts na era atual.
+    SCORE_FLOOR_MIN: 92,
+
+    // Teto absoluto para evitar anomalias do algoritmo em jogos hiper-cinéticos.
+    SCORE_CEILING_MAX: 148,
+
+    // Fator de compressão de spread em jogos lentos. 
+    // 0.03 significa que 3% da diferença de pontos é redistribuída para equilibrar o jogo.
+    PACE_ADJUSTMENT_FACTOR: 0.03,
+
+    // Limite de Pace para considerar o jogo como "Slow Grind".
+    PACE_THRESHOLD_SLOW: 97.5
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
