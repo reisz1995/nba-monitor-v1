@@ -49,7 +49,7 @@ const PROJECTION_CONFIG = {
     DEF_FILTER_UNDERDOG_MULT: 1.4,
 
     // Bônus para quem tem ataque superior. Mantido próximo de 1.0 para não inflar o total.
-    ATK_FILTER_MULT: 10,
+    ATK_FILTER_MULT: 2.0,
 
     // Vantagem de casa. Como seu código soma no Home e subtrai no Away, 
     // 1.75 cria um "Swing" total de 3.5 pontos (valor padrão da NBA moderna).
