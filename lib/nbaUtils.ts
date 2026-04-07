@@ -107,7 +107,7 @@ export const calculateDeterministicPace = (
             projectedPace = (blendedPaceA * (0.5 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
         }
     } else {
-        projectedPace = (blendedPaceA + blendedPaceB) / 2;
+        projectedPace = (blendedPaceA + blendedPaceB) / 2.5;
     }
 
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
