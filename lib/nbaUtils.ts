@@ -32,7 +32,7 @@ const SEASON_25_26_METRICS = {
     AVG_TOV: 14.8,
     AVG_TS: 58.8,
     MIN_PACE: 99.3,
-    MAX_PACE: 110.0,
+    MAX_PACE: 107.0,
     AVG_ORB: 23.5
 } as const;
 
@@ -44,7 +44,7 @@ const PROJECTION_CONFIG = {
     HOME_ADVANTAGE: 1.75,
     LAST_MARGIN_THRESHOLD: 22,
     LAST_MARGIN_PENALTY: 1.5,
-    SCORE_FLOOR_MIN: 99,
+    SCORE_FLOOR_MIN: 95,
     SCORE_CEILING_MAX: 148,
     PACE_ADJUSTMENT_FACTOR: 0.5, 
     PACE_THRESHOLD_SLOW: 97.5
@@ -99,7 +99,7 @@ export const calculateDeterministicPace = (
 
     if (rtgA && rtgB) {
         const defDelta = rtgB.defRtg - rtgA.defRtg; 
-        const controlFactor = Math.min(0.30, Math.abs(defDelta) / 60); 
+        const controlFactor = Math.min(0.20, Math.abs(defDelta) / 40); 
         
         if (defDelta > 0) {
             projectedPace = (blendedPaceA * (0.9 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
