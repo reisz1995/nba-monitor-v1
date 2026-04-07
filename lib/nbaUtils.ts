@@ -118,7 +118,7 @@ export const calculateDeterministicPace = (
             }
         } else {
             // (Defensive Control I) Confrontos equilibrados (diff < 2.0)
-            if (defDelta > 0) {
+            if (defDelta <= 1.5) {
                 projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
             } else {
                 projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
