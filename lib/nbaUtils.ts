@@ -102,9 +102,9 @@ export const calculateDeterministicPace = (
         const controlFactor = Math.min(0.20, Math.abs(defDelta) / 40); 
         
         if (defDelta > 0) {
-            projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
+            projectedPace = (blendedPaceA * (0.7 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
         } else {
-            projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
+            projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.7 + controlFactor));
         }
     } else {
         projectedPace = (blendedPaceA + blendedPaceB) / 2;
