@@ -40,10 +40,10 @@ const SEASON_25_26_METRICS = {
 const PROJECTION_CONFIG = {
     // Peso da diferença de Power Score (IA). 
     // 0.85 significa que se a IA vê 3 pontos de diferença, ela adiciona ~2.5 pts ao score.
-    POWER_DIFF_WEIGHT: 0.85,
+    POWER_DIFF_WEIGHT: 0.2,
 
     // Quando o favorito tem a melhor defesa, ele suprime o adversário com mais força.
-    DEF_FILTER_FAVORITE_MULT: 2.2,
+    DEF_FILTER_FAVORITE_MULT: 6.5,
 
     // Quando o underdog tem a melhor defesa, ele consegue segurar o favorito, mas menos que o inverso.
     DEF_FILTER_UNDERDOG_MULT: 1.4,
