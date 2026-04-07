@@ -105,7 +105,7 @@ export const calculateDeterministicPace = (
         const defDelta = rtgB.defRtg - rtgA.defRtg; // Positivo se A for melhor defesa
 
         // Fator de Controle: Quanto maior a diferença, mais o ritmo pende para o melhor
-        const controlFactor = Math.min(0.20, Math.abs(defDelta) / 40);
+        const controlFactor = Math.min(0.20, Math.abs(defDelta) / 50);
 
         if (powerDiff >= 2.0) {
             // (Defensive Control II) Confrontos de times desequilibrados
@@ -119,9 +119,9 @@ export const calculateDeterministicPace = (
         } else {
             // (Defensive Control I) Confrontos equilibrados (diff < 2.0)
             if (defDelta > 0) {
-                projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.5 - controlFactor));
+                projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
             } else {
-                projectedPace = (blendedPaceA * (0.5 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
+                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
             }
         }
         console.log(`[SYS-OP] Pace Control: ${projectedPace.toFixed(2)} (DefDelta: ${defDelta.toFixed(1)}, PowerDiff: ${powerDiff.toFixed(1)})`);
