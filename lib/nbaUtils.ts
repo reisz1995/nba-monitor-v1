@@ -152,20 +152,26 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
     }
     return { adjA, adjB };
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
-// KERNEL V5.2 - PATCH 1: SUPRESSÃO DE INFLAÇÃO POR SUPERIORIDADE
+// KERNEL V5.3.1 - PATCH: PROTOCOLO DE RUPTURA CIRÚRGICA (ISOLAMENTO)
 // ─────────────────────────────────────────────────────────────────────────────
 const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, teamB: Team, rtgA: { offRtg: number; defRtg: number }, rtgB: { offRtg: number; defRtg: number }, powerA: number, powerB: number) => {
     let adjA = scoreA;
     let adjB = scoreB;
     const powerDiff = Math.abs(powerA - powerB);
     
-    // [ ESTADO DE TRINCHEIRA ] Se a diferença for < 1.5, o jogo é denso.
+    // [ ESTADO DE TRINCHEIRA ]: Diferença de força inferior a 1.5
     const isDogfight = powerDiff < 1.5;
     
-    // Corta a eficiência do multiplicador de ataque em 40% em jogos parelhos
-    const currentAtkMult = isDogfight ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6) : PROJECTION_CONFIG.ATK_FILTER_MULT;
+    // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais
+    // Protege placares estabilizados de equipes medianas
+    const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
+    const isShootout = combinedOffense >= 118.5 && rtgA.offRtg >= 114.0 && rtgB.offRtg >= 114.0;
+    
+    // OTIMIZAÇÃO: A eficiência de ataque só é restaurada em Shootouts reais
+    const currentAtkMult = (isDogfight && !isShootout) 
+        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6) 
+        : PROJECTION_CONFIG.ATK_FILTER_MULT;
 
     const applyTeamSuperiorityV5 = (targetScore: number, opponentScore: number, targetRtg: any, opponentRtg: any, isFavorite: boolean) => {
         let adjT = targetScore;
@@ -194,6 +200,23 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
         adjA = (supA.adjT + supB.adjO) / 2;
         adjB = (supA.adjO + supB.adjT) / 2;
     }
+
+    // MATRIZ DE GRAVIDADE APLICADA COM PRECISÃO
+    if (isDogfight && !isShootout) {
+        // [ STATUS ]: Retém a perfeição do placar da sua imagem (Atrito aplicado)
+        adjA -= 3.5;
+        adjB -= 3.5;
+    } else if (isShootout) {
+        // [ STATUS ]: Acelera apenas anomalias ofensivas como Suns e Rockets
+        const shootoutBonus = Math.min((combinedOffense - 118.0) * 1.8, 7.5); 
+        adjA += shootoutBonus;
+        adjB += shootoutBonus;
+        console.log(`[SYS-OP] ISOLAMENTO ROMPIDO (SHOOTOUT): +${shootoutBonus.toFixed(1)} pts alocados.`);
+    }
+
+    return { adjA, adjB };
+};
+
 
     // Aplica gravidade estática de contenção (Reduz pontuação total em dogfights)
     if (isDogfight) {
