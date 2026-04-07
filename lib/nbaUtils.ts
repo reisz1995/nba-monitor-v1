@@ -119,9 +119,11 @@ export const calculateDeterministicPace = (
         } else {
             // (Defensive Control I) Confrontos equilibrados (diff < 2.0)
             if (defDelta > 0) {
-                projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.5 - controlFactor));
+                // Viés moderado para a defesa (0.6 base)
+                projectedPace = (blendedPaceA * (0.6 + controlFactor)) + (blendedPaceB * (0.4 - controlFactor));
             } else {
-                projectedPace = (blendedPaceA * (0.5 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
+                // Viés moderado para a defesa (0.6 base)
+                projectedPace = (blendedPaceA * (0.4 - controlFactor)) + (blendedPaceB * (0.6 + controlFactor));
             }
         }
         console.log(`[SYS-OP] Pace Control: ${projectedPace.toFixed(2)} (DefDelta: ${defDelta.toFixed(1)}, PowerDiff: ${powerDiff.toFixed(1)})`);
