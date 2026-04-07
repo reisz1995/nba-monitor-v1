@@ -44,7 +44,7 @@ const PROJECTION_CONFIG = {
     HOME_ADVANTAGE: 1.75,
     LAST_MARGIN_THRESHOLD: 22,
     LAST_MARGIN_PENALTY: 1.5,
-    SCORE_FLOOR_MIN: 92,
+    SCORE_FLOOR_MIN: 99,
     SCORE_CEILING_MAX: 148,
     PACE_ADJUSTMENT_FACTOR: 0.03,
     PACE_THRESHOLD_SLOW: 97.5
@@ -99,7 +99,7 @@ export const calculateDeterministicPace = (
 
     if (rtgA && rtgB) {
         const defDelta = rtgB.defRtg - rtgA.defRtg; 
-        const controlFactor = Math.min(0.25, Math.abs(defDelta) / 50); 
+        const controlFactor = Math.min(0.30, Math.abs(defDelta) / 60); 
         
         if (defDelta > 0) {
             projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.5 - controlFactor));
