@@ -25,7 +25,6 @@ export interface DataballrInput {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HUD DE CONFIGURAÇÃO - TEMPORADA 2025-26
-// Estatístico Chefe: Parâmetros base atualizados para o metagame atual.
 // ─────────────────────────────────────────────────────────────────────────────
 const SEASON_25_26_METRICS = {
     AVG_ORTG: 115.5,
@@ -41,7 +40,7 @@ const PROJECTION_CONFIG = {
     POWER_DIFF_WEIGHT: 0.85,
     DEF_FILTER_FAVORITE_MULT: 2.5,
     DEF_FILTER_UNDERDOG_MULT: 1.4,
-    ATK_FILTER_MULT: 0.75, // Ajustado para evitar double-counting
+    ATK_FILTER_MULT: 0.75,
     HOME_ADVANTAGE: 1.75,
     LAST_MARGIN_THRESHOLD: 22,
     LAST_MARGIN_PENALTY: 1.5,
@@ -52,16 +51,8 @@ const PROJECTION_CONFIG = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOTOR DE BLEND DINÂMICO
+// AUXILIARES DE PACE & RATINGS
 // ─────────────────────────────────────────────────────────────────────────────
-const getDynamicBlendWeights = (recentRtg: number, seasonRtg: number) => {
-    const divergence = Math.abs(recentRtg - seasonRtg);
-    if (divergence > 12) return { recentW: 0.50, seasonW: 0.50 };
-    if (divergence > 8) return { recentW: 0.60, seasonW: 0.40 };
-    if (divergence > 5) return { recentW: 0.70, seasonW: 0.30 };
-    return { recentW: 0.80, seasonW: 0.20 };
-};
-
 const getFallbackPace = (team: Team): number => {
     const offRtg = team.espnData?.pts || team.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG;
     return offRtg / (SEASON_25_26_METRICS.AVG_ORTG / 100);
@@ -71,6 +62,21 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
     const recentPace = databallr?.pace;
     if (recentPace && recentPace > 0) return recentPace;
     return SEASON_25_26_METRICS.AVG_PACE;
+};
+
+const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
+    const ppg = Number(entity.espnData?.pts || entity.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
+    const def = Number(entity.espnData?.pts_contra || entity.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
+    const pace = Number(entity.espnData?.pace) || getFallbackPace(entity);
+
+    const seasonOrtg = (ppg / pace) * 100;
+    const seasonDrtg = (def / pace) * 100;
+
+    return {
+        offRtg: databallr?.ortg || seasonOrtg,
+        defRtg: databallr?.drtg || seasonDrtg,
+        seasonPPG: ppg
+    };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -128,58 +134,34 @@ const calculatePenalty = (injuries?: { isOut: boolean; isDayToDay?: boolean; wei
     return p;
 };
 
-const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
-    const ppg = Number(entity.espnData?.pts || entity.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
-    const def = Number(entity.espnData?.pts_contra || entity.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
-    const pace = Number(entity.espnData?.pace) || getFallbackPace(entity);
-
-    const seasonOrtg = (ppg / pace) * 100;
-    const seasonDrtg = (def / pace) * 100;
-
-    return {
-        offRtg: databallr?.ortg || seasonOrtg,
-        defRtg: databallr?.drtg || seasonDrtg,
-        seasonPPG: ppg
-    };
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // KERNEL DE PROJEÇÃO (v4.5)
 // ─────────────────────────────────────────────────────────────────────────────
-
 const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: number, options?: PaceOptions) => {
     let adjA = scoreA;
     let adjB = scoreB;
-
     if (options?.isB2BA) adjA -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
     if (options?.isB2BB) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
-
     if (options?.lastMarginA && options.lastMarginA > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjA -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
     if (options?.lastMarginB && options.lastMarginB > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
-
     if (matchPace < PROJECTION_CONFIG.PACE_THRESHOLD_SLOW) {
         const spread = adjA - adjB;
         const adjustment = spread * PROJECTION_CONFIG.PACE_ADJUSTMENT_FACTOR;
-        adjA -= adjustment;
-        adjB += adjustment;
+        adjA -= adjustment; adjB += adjustment;
     }
-
     return { adjA, adjB };
 };
 
 const applyTeamSuperiority = (targetScore: number, opponentScore: number, targetRtg: { offRtg: number; defRtg: number }, opponentRtg: { offRtg: number; defRtg: number }, isFavorite: boolean) => {
     let adjTarget = targetScore;
     let adjOpponent = opponentScore;
-
     if (targetRtg.defRtg < opponentRtg.defRtg) {
         const mult = isFavorite ? PROJECTION_CONFIG.DEF_FILTER_FAVORITE_MULT : PROJECTION_CONFIG.DEF_FILTER_UNDERDOG_MULT;
         adjOpponent -= (opponentRtg.defRtg - targetRtg.defRtg) * mult;
     }
-
     if (targetRtg.offRtg > opponentRtg.offRtg) {
         adjTarget += (targetRtg.offRtg - opponentRtg.offRtg) * PROJECTION_CONFIG.ATK_FILTER_MULT;
     }
-
     return { adjTarget, adjOpponent };
 };
 
@@ -187,7 +169,6 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     let adjA = scoreA;
     let adjB = scoreB;
     const powerDiff = powerA - powerB;
-
     if (powerA > powerB) {
         adjA += powerDiff * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
         const { adjTarget, adjOpponent } = applyTeamSuperiority(adjA, adjB, rtgA, rtgB, true);
@@ -231,12 +212,7 @@ export const calculateProjectedScores = (
 ) => {
     const rtgA = getTeamRatings(teamA, databallrA);
     const rtgB = getTeamRatings(teamB, databallrB);
-
-    const matchPace = calculateDeterministicPace(
-        teamA, teamB, databallrA, databallrB,
-        options?.injuriesA, options?.injuriesB,
-        rtgA, rtgB
-    );
+    const matchPace = calculateDeterministicPace(teamA, teamB, databallrA, databallrB, options?.injuriesA, options?.injuriesB, rtgA, rtgB);
 
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
     let projB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
@@ -270,7 +246,7 @@ export const calculateProjectedScores = (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UTILITÁRIOS E PARSERS (Restaurados para compatibilidade do Sistema)
+// UTILITÁRIOS E PARSERS (SISTEMA COMPLETO)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getMomentumScore = (record: GameResult[]): number => {
@@ -278,6 +254,28 @@ export const getMomentumScore = (record: GameResult[]): number => {
         const rStr = typeof res === 'object' && res !== null ? (res as { result: string }).result : res;
         return score + (rStr === 'V' ? Math.pow(2, idx) : 0);
     }, 0);
+};
+
+export const parseStreakToRecord = (streakStr: string): GameResult[] | null => {
+    if (!streakStr) return null;
+    const match = streakStr.match(/([WLVD])(\d+)/i);
+    if (match) {
+        const type = match[1].toUpperCase();
+        const count = Math.min(parseInt(match[2], 10), 5);
+        const winChar = (type === 'W' || type === 'V') ? 'V' : 'D';
+        const lossChar = winChar === 'V' ? 'D' : 'V';
+        const record: GameResult[] = new Array(5).fill(lossChar);
+        for (let i = 0; i < count; i++) record[4 - i] = winChar;
+        return record;
+    }
+    const chars = streakStr.match(/[VDWL]/g);
+    if (chars && chars.length > 0) {
+        let results = chars.map(c => (c === 'W' || c === 'V' ? 'V' : 'D')) as GameResult[];
+        if (results.length > 5) results = results.slice(-5);
+        while (results.length < 5) results.unshift(results[0] === 'V' ? 'D' : 'V');
+        return results;
+    }
+    return null;
 };
 
 export const getFormattedDate = (date: Date): string => {
@@ -315,25 +313,18 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: Array
     if (!dbPredictions || !teamName) return { yesterday: false, tomorrow: false };
     const [d, m, y] = dateStr.split('/');
     const current = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
-
     const yesterday = new Date(current);
     yesterday.setDate(yesterday.getDate() - 1);
     const yStr = yesterday.toISOString().split('T')[0];
-
     const tomorrow = new Date(current);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tStr = tomorrow.toISOString().split('T')[0];
 
     const playedYesterday = dbPredictions.some(p =>
-        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
-            p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
-        p.date === yStr
+        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) || p.away_team.toLowerCase().includes(teamName.toLowerCase())) && p.date === yStr
     );
-
     const playsTomorrow = dbPredictions.some(p =>
-        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) ||
-            p.away_team.toLowerCase().includes(teamName.toLowerCase())) &&
-        p.date === tStr
+        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) || p.away_team.toLowerCase().includes(teamName.toLowerCase())) && p.date === tStr
     );
     return { yesterday: playedYesterday, tomorrow: playsTomorrow };
 };
@@ -344,44 +335,27 @@ export const parseScoreToTotal = (score: string): number => {
     if (parts.length < 2) return 0;
     const pts1 = parseInt(parts[0], 10);
     const pts2 = parseInt(parts[1], 10);
-    if (isNaN(pts1) || isNaN(pts2)) return 0;
-    return pts1 + pts2;
+    return isNaN(pts1) || isNaN(pts2) ? 0 : pts1 + pts2;
 };
 
 export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
     const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
     const getGamePace = (score: string) => parseScoreToTotal(score) / (2 * PACE_FACTOR);
-
     const last5A = (teamA.record || []).slice(-5);
-    const avgPace5A = last5A.length > 0
-        ? last5A.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5A.length
-        : 0;
-
+    const avgPace5A = last5A.length > 0 ? last5A.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5A.length : 0;
     const last5B = (teamB.record || []).slice(-5);
-    const avgPace5B = last5B.length > 0
-        ? last5B.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5B.length
-        : 0;
-
+    const avgPace5B = last5B.length > 0 ? last5B.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5B.length : 0;
     const normB = normalizeTeamName(teamB.name);
-    const h2hGames = (teamA.record || []).filter(g =>
-        g.opponent && normalizeTeamName(g.opponent).includes(normB)
-    ).slice(-2);
-
+    const h2hGames = (teamA.record || []).filter(g => g.opponent && normalizeTeamName(g.opponent).includes(normB)).slice(-2);
     let avgPaceH2H = 0;
-    const hasH2H = h2hGames.length > 0;
-
-    if (hasH2H) {
+    if (h2hGames.length > 0) {
         avgPaceH2H = h2hGames.reduce((sum, g) => sum + getGamePace(g.score), 0) / h2hGames.length;
     } else if (avgPace5A > 0 && avgPace5B > 0) {
         avgPaceH2H = (avgPace5A + avgPace5B) / 2;
     }
-
     let finalPace = 0;
-    if (avgPace5A > 0 && avgPace5B > 0 && avgPaceH2H > 0) {
-        finalPace = (avgPace5A + avgPace5B + avgPaceH2H) / 3;
-    }
-
-    return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H };
+    if (avgPace5A > 0 && avgPace5B > 0 && avgPaceH2H > 0) finalPace = (avgPace5A + avgPace5B + avgPaceH2H) / 3;
+    return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H: h2hGames.length > 0 };
 };
 
 export const calculateUnderdogValue = (
@@ -395,18 +369,10 @@ export const calculateUnderdogValue = (
     const isUnderdogA = marketSpread > 0;
     const fairSpread = analysis.deltaB - analysis.deltaA;
     const edge = marketSpread - fairSpread;
-
     if (isUnderdogA) rules.push('Underdog_Casa');
     const defA = teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 115;
     if (defA < 109.5) rules.push('Defesa_Forte');
     if (analysis.totalPayload < 210) rules.push('Total_Baixo');
     if (Math.abs(edge) >= 4.5) rules.push('Value_Bet');
-
-    return {
-        hasValue: rules.length >= 2,
-        rules,
-        edge: edge.toFixed(1),
-        levels: { home: 0, away: 0 },
-        kelly: 0
-    };
+    return { hasValue: rules.length >= 2, rules, edge: edge.toFixed(1), levels: { home: 0, away: 0 }, kelly: 0 };
 };
