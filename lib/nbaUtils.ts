@@ -153,44 +153,78 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
     return { adjA, adjB };
 };
 
-const applyTeamSuperiority = (targetScore: number, opponentScore: number, targetRtg: { offRtg: number; defRtg: number }, opponentRtg: { offRtg: number; defRtg: number }, isFavorite: boolean) => {
-    let adjTarget = targetScore;
-    let adjOpponent = opponentScore;
-    if (targetRtg.defRtg < opponentRtg.defRtg) {
-        const mult = isFavorite ? PROJECTION_CONFIG.DEF_FILTER_FAVORITE_MULT : PROJECTION_CONFIG.DEF_FILTER_UNDERDOG_MULT;
-        adjOpponent -= (opponentRtg.defRtg - targetRtg.defRtg) * mult;
-    }
-    if (targetRtg.offRtg > opponentRtg.offRtg) {
-        adjTarget += (targetRtg.offRtg - opponentRtg.offRtg) * PROJECTION_CONFIG.ATK_FILTER_MULT;
-    }
-    return { adjTarget, adjOpponent };
-};
-
+// ─────────────────────────────────────────────────────────────────────────────
+// KERNEL V5.2 - PATCH 1: SUPRESSÃO DE INFLAÇÃO POR SUPERIORIDADE
+// ─────────────────────────────────────────────────────────────────────────────
 const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, teamB: Team, rtgA: { offRtg: number; defRtg: number }, rtgB: { offRtg: number; defRtg: number }, powerA: number, powerB: number) => {
     let adjA = scoreA;
     let adjB = scoreB;
-    const powerDiff = powerA - powerB;
+    const powerDiff = Math.abs(powerA - powerB);
+    
+    // [ ESTADO DE TRINCHEIRA ] Se a diferença for < 1.5, o jogo é denso.
+    const isDogfight = powerDiff < 1.5;
+    
+    // Corta a eficiência do multiplicador de ataque em 40% em jogos parelhos
+    const currentAtkMult = isDogfight ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6) : PROJECTION_CONFIG.ATK_FILTER_MULT;
+
+    const applyTeamSuperiorityV5 = (targetScore: number, opponentScore: number, targetRtg: any, opponentRtg: any, isFavorite: boolean) => {
+        let adjT = targetScore;
+        let adjO = opponentScore;
+        if (targetRtg.defRtg < opponentRtg.defRtg) {
+            const mult = isFavorite ? PROJECTION_CONFIG.DEF_FILTER_FAVORITE_MULT : PROJECTION_CONFIG.DEF_FILTER_UNDERDOG_MULT;
+            adjO -= (opponentRtg.defRtg - targetRtg.defRtg) * mult;
+        }
+        if (targetRtg.offRtg > opponentRtg.offRtg) {
+            adjT += (targetRtg.offRtg - opponentRtg.offRtg) * currentAtkMult;
+        }
+        return { adjT, adjO };
+    };
+
     if (powerA > powerB) {
         adjA += powerDiff * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
-        const { adjTarget, adjOpponent } = applyTeamSuperiority(adjA, adjB, rtgA, rtgB, true);
-        adjA = adjTarget; adjB = adjOpponent;
+        const { adjT, adjO } = applyTeamSuperiorityV5(adjA, adjB, rtgA, rtgB, true);
+        adjA = adjT; adjB = adjO;
     } else if (powerB > powerA) {
-        adjB += Math.abs(powerDiff) * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
-        const { adjTarget, adjOpponent } = applyTeamSuperiority(adjB, adjA, rtgB, rtgA, false);
-        adjB = adjTarget; adjA = adjOpponent;
+        adjB += powerDiff * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
+        const { adjT, adjO } = applyTeamSuperiorityV5(adjB, adjA, rtgB, rtgA, false);
+        adjB = adjT; adjA = adjO;
+    } else {
+        const supA = applyTeamSuperiorityV5(adjA, adjB, rtgA, rtgB, false);
+        const supB = applyTeamSuperiorityV5(adjB, adjA, rtgB, rtgA, false);
+        adjA = (supA.adjT + supB.adjO) / 2;
+        adjB = (supA.adjO + supB.adjT) / 2;
     }
+
+    // Aplica gravidade estática de contenção (Reduz pontuação total em dogfights)
+    if (isDogfight) {
+        adjA -= 3.5;
+        adjB -= 3.5;
+    }
+
     return { adjA, adjB };
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// KERNEL V5.2 - PATCH 2: CORREÇÃO DO FILTRO DE VOLATILIDADE
+// ─────────────────────────────────────────────────────────────────────────────
 const applyVolatilityFilter = (scoreA: number, scoreB: number, databallrA?: DataballrInput | null, databallrB?: DataballrInput | null, powerA: number = 0, powerB: number = 0) => {
     let adjA = scoreA;
     let adjB = scoreB;
-    const netA = databallrA?.net_rating ?? NaN;
-    const netB = databallrB?.net_rating ?? NaN;
-    if (powerA > 0 && powerB > 0 && powerA <= 3.5 && powerB <= 3.5 && !isNaN(Number(netA)) && !isNaN(Number(netB))) {
-        adjA += Math.abs(Number(netB));
-        adjB += Math.abs(Number(netA));
+    const netA = databallrA?.net_rating ?? 0;
+    const netB = databallrB?.net_rating ?? 0;
+    
+    // OTIMIZAÇÃO: A inflação matemática indiscriminada (Math.abs) foi erradicada.
+    if (powerA > 0 && powerB > 0 && powerA <= 3.5 && powerB <= 3.5) {
+        
+        // A equipe explora falhas: Lucra apenas se o oponente tiver Net Rating NEGATIVO (Teto: +4.0 pts)
+        if (netB < 0) adjA += Math.min(Math.abs(netB), 4.0);
+        if (netA < 0) adjB += Math.min(Math.abs(netA), 4.0);
+        
+        // A equipe sofre pelo próprio defeito: Penalizada se o seu Net Rating for NEGATIVO (Teto: -3.0 pts)
+        if (netA < 0) adjA -= Math.min(Math.abs(netA) * 0.6, 3.0);
+        if (netB < 0) adjB -= Math.min(Math.abs(netB) * 0.6, 3.0);
     }
+    
     return { adjA, adjB };
 };
 
