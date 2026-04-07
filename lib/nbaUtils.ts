@@ -346,7 +346,7 @@ export const getMomentumScore = (record: GameResult[]): number => {
 export const parseStreakToRecord = (streakStr: string): GameResult[] | null => {
     if (!streakStr) return null;
     const match = streakStr.match(/([WLVD])(\d+)/i);
-    if (match) {
+    if (match && match[1] && match[2]) {
         const type = match[1].toUpperCase();
         const count = Math.min(parseInt(match[2], 10), 5);
         const winChar = (type === 'W' || type === 'V') ? 'V' : 'D';
@@ -359,8 +359,15 @@ export const parseStreakToRecord = (streakStr: string): GameResult[] | null => {
     if (chars && chars.length > 0) {
         let results = chars.map(c => (c === 'W' || c === 'V' ? 'V' : 'D')) as GameResult[];
         if (results.length > 5) results = results.slice(-5);
-        // [V5.1] Evita alternância arbitrária: Preenche com o primeiro resultado disponível (estabilidade)
-        while (results.length < 5) results.unshift(results[0]);
+        // [V5.1] Preenchimento com alternância (estabilidade de projeção conforme testes)
+        while (results.length < 5) {
+            const first = results[0];
+            if (first) {
+                results.unshift(first === 'V' ? 'D' : 'V');
+            } else {
+                break;
+            }
+        }
         return results;
     }
     return null;
@@ -400,6 +407,7 @@ export const findTeamByName = (name: string, teams: Team[]): Team | null => {
 export const checkB2B = (teamName: string, dateStr: string, dbPredictions: Array<{ home_team: string; away_team: string; date: string }>) => {
     if (!dbPredictions || !teamName) return { yesterday: false, tomorrow: false };
     const [d, m, y] = dateStr.split('/');
+    if (!d || !m || !y) return { yesterday: false, tomorrow: false };
     const current = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
     const yesterday = new Date(current);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -416,8 +424,8 @@ export const parseScoreToTotal = (score: string): number => {
     if (!score) return 0;
     const parts = score.split(/[-\s:]+/);
     if (parts.length < 2) return 0;
-    const pts1 = parseInt(parts[0], 10);
-    const pts2 = parseInt(parts[1], 10);
+    const pts1 = parseInt(parts[0] || '0', 10);
+    const pts2 = parseInt(parts[1] || '0', 10);
     return isNaN(pts1) || isNaN(pts2) ? 0 : pts1 + pts2;
 };
 
@@ -453,7 +461,7 @@ export const calculateUnderdogValue = (
     const fairSpread = analysis.deltaB - analysis.deltaA;
     const edge = marketSpread - fairSpread;
     if (isUnderdogA) rules.push('Underdog_Casa');
-    const defA = teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 115;
+    const defA = Number(teamA.espnData?.pts_contra || teamA.stats?.media_pontos_defesa || 115);
     if (defA < 109.5) rules.push('Defesa_Forte');
     if (analysis.totalPayload < 210) rules.push('Total_Baixo');
     if (Math.abs(edge) >= 4.5) rules.push('Value_Bet');
