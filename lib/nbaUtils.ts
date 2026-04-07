@@ -111,17 +111,17 @@ export const calculateDeterministicPace = (
             // (Defensive Control II) Confrontos de times desequilibrados
             if (defDelta > 0) {
                 // Time A tem a melhor defesa -> Peso 0.9 + controlFactor
-                projectedPace = (blendedPaceA * (0.7 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
+                projectedPace = (blendedPaceA * (0.9 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
             } else {
                 // Time B tem a melhor defesa -> Peso 0.9 + controlFactor
-                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.7 + controlFactor));
+                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.9 + controlFactor));
             }
         } else {
             // (Defensive Control I) Confrontos equilibrados (diff < 2.0)
-            if (defDelta <= 1.5) {
-                projectedPace = (blendedPaceA * (0.5 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
+            if (defDelta > 0) {
+                projectedPace = (blendedPaceA * (0.7 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
             } else {
-                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
+                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.7 + controlFactor));
             }
         }
         console.log(`[SYS-OP] Pace Control: ${projectedPace.toFixed(2)} (DefDelta: ${defDelta.toFixed(1)}, PowerDiff: ${powerDiff.toFixed(1)})`);
