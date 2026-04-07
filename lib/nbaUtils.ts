@@ -104,7 +104,7 @@ export const calculateDeterministicPace = (
 
     // [MATRIZ HÍBRIDA V5.1]
     // Força (70%) dita a velocidade | Defesa (30%) atua como atrito
-    let projectedPace = (strongestTeamPace * 0.70) + (bestDefenderPace * 0.30);
+    let projectedPace = (strongestTeamPace * 0.30) + (bestDefenderPace * 0.70);
 
     // [GATILHO DE OVERCLOCK]
     // Se a disparidade de força for severa, injeta aceleração para evitar o "Defensive Lock"
