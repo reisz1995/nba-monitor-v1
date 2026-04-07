@@ -24,30 +24,34 @@ export interface DataballrInput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HUD DE CONFIGURAÇÃO - TEMPORADA 2025-26
+// HUD DE CONFIGURAÇÃO - KERNEL V5.1 (Matriz Híbrida)
 // ─────────────────────────────────────────────────────────────────────────────
 const SEASON_25_26_METRICS = {
     AVG_ORTG: 115.5,
     AVG_PACE: 99.3,
     AVG_TOV: 14.8,
     AVG_TS: 58.8,
-    MIN_PACE: 99.3,
+    MIN_PACE: 95.0,
     MAX_PACE: 107.0,
     AVG_ORB: 23.5
 } as const;
 
 const PROJECTION_CONFIG = {
-    POWER_DIFF_WEIGHT: 1.0,
+    // Peso do Power Score na pontuação final (Ajustado para não inflar)
+    POWER_DIFF_WEIGHT: 1.1, 
     DEF_FILTER_FAVORITE_MULT: 2.5,
-    DEF_FILTER_UNDERDOG_MULT: 2.5,
+    DEF_FILTER_UNDERDOG_MULT: 1.4,
     ATK_FILTER_MULT: 0.75,
     HOME_ADVANTAGE: 1.75,
     LAST_MARGIN_THRESHOLD: 22,
     LAST_MARGIN_PENALTY: 1.5,
-    SCORE_FLOOR_MIN: 95,
+    SCORE_FLOOR_MIN: 92,
     SCORE_CEILING_MAX: 148,
-    PACE_ADJUSTMENT_FACTOR: 0.05,
-    PACE_THRESHOLD_SLOW: 97.5
+    PACE_ADJUSTMENT_FACTOR: 0.03,
+    PACE_THRESHOLD_SLOW: 97.5,
+    // V5.1 Specifics
+    OVERCLOCK_THRESHOLD: 2.0,
+    OVERCLOCK_BOOST: 1.04, // +4% de aceleração de payload
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,18 +73,15 @@ const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
     const def = Number(entity.espnData?.pts_contra || entity.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
     const pace = Number(entity.espnData?.pace) || getFallbackPace(entity);
 
-    const seasonOrtg = (ppg / pace) * 100;
-    const seasonDrtg = (def / pace) * 100;
-
     return {
-        offRtg: databallr?.ortg || seasonOrtg,
-        defRtg: databallr?.drtg || seasonDrtg,
+        offRtg: databallr?.ortg || (ppg / pace) * 100,
+        defRtg: databallr?.drtg || (def / pace) * 100,
         seasonPPG: ppg
     };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUBSISTEMA DE PACE (v4.5 - Defensive Control)
+// SUBSISTEMA DE PACE (v5.1 - MATRIZ HÍBRIDA)
 // ─────────────────────────────────────────────────────────────────────────────
 export const calculateDeterministicPace = (
     teamA: Team,
@@ -94,51 +95,31 @@ export const calculateDeterministicPace = (
     powerA: number = 0,
     powerB: number = 0
 ): number => {
-    const blendedPaceA = getBlendedPace(teamA, databallrA);
-    const blendedPaceB = getBlendedPace(teamB, databallrB);
+    const paceA = getBlendedPace(teamA, databallrA);
+    const paceB = getBlendedPace(teamB, databallrB);
 
-    let projectedPace: number;
     const powerDiff = Math.abs(powerA - powerB);
+    const strongestTeamPace = powerA >= powerB ? paceA : paceB;
+    const bestDefenderPace = (rtgA && rtgB && rtgA.defRtg < rtgB.defRtg) ? paceA : paceB;
 
-    // LÓGICA DE CONTROLE DEFENSIVO
-    if (rtgA && rtgB) {
-        const defDelta = rtgB.defRtg - rtgA.defRtg; // Positivo se A for melhor defesa
+    // [MATRIZ HÍBRIDA V5.1]
+    // Força (70%) dita a velocidade | Defesa (30%) atua como atrito
+    let projectedPace = (strongestTeamPace * 0.70) + (bestDefenderPace * 0.30);
 
-        // Fator de Controle: Quanto maior a diferença, mais o ritmo pende para o melhor
-        const controlFactor = Math.min(0.20, Math.abs(defDelta) / 40);
-
-        if (powerDiff >= 2.0) {
-            // (Defensive Control II) Confrontos de times desequilibrados (>= 2.0)
-            if (defDelta > 0) {
-                // Time A tem a melhor defesa
-                projectedPace = (blendedPaceA * (0.9 + controlFactor)) + (blendedPaceB * (0.2 - controlFactor));
-            } else {
-                // Time B tem a melhor defesa
-                projectedPace = (blendedPaceA * (0.2 - controlFactor)) + (blendedPaceB * (0.9 + controlFactor));
-            }
-        } else {
-            // (Defensive Control I) Confrontos equilibrados (diff < 2.0)
-            if (defDelta > 0) {
-                // Viés moderado para a defesa (0.6 base)
-                projectedPace = (blendedPaceA * (0.6 + controlFactor)) + (blendedPaceB * (0.4 - controlFactor));
-            } else {
-                // Viés moderado para a defesa (0.6 base)
-                projectedPace = (blendedPaceA * (0.4 - controlFactor)) + (blendedPaceB * (0.6 + controlFactor));
-            }
-        }
-        console.log(`[SYS-OP] Pace Control: ${projectedPace.toFixed(2)} (DefDelta: ${defDelta.toFixed(1)}, PowerDiff: ${powerDiff.toFixed(1)})`);
-    } else {
-        // Fallback para média simples se não houver ratings
-        projectedPace = (blendedPaceA + blendedPaceB) / 2;
+    // [GATILHO DE OVERCLOCK]
+    // Se a disparidade de força for severa, injeta aceleração para evitar o "Defensive Lock"
+    if (powerDiff >= PROJECTION_CONFIG.OVERCLOCK_THRESHOLD) {
+        projectedPace *= PROJECTION_CONFIG.OVERCLOCK_BOOST;
+        console.log(`[SYS-OP] OVERCLOCK ATIVADO: PowerDiff ${powerDiff.toFixed(1)} -> Payload Acelerado`);
     }
 
-    // Ajustes de lesões
+    // Ajustes de lesões (Alocação Zero)
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
         (injuries || []).filter(i => i.isOut && i.weight >= 7).reduce((sum) => sum + 0.05, 0);
 
-    projectedPace -= injuryPaceReduction(injuriesA);
-    projectedPace -= injuryPaceReduction(injuriesB);
+    projectedPace -= (injuryPaceReduction(injuriesA) + injuryPaceReduction(injuriesB));
 
+    console.log(`[KERNEL V5.1] Pace: ${projectedPace.toFixed(2)} | Driver: ${powerA >= powerB ? 'TeamA' : 'TeamB'}`);
     return projectedPace;
 };
 
@@ -148,17 +129,14 @@ export const calculateDeterministicPace = (
 const calculatePenalty = (injuries?: { isOut: boolean; isDayToDay?: boolean; weight: number }[]): number => {
     let p = 0;
     (injuries || []).forEach(inj => {
-        if (inj.isOut) {
-            p += inj.weight >= 9 ? (inj.weight * 2.0) + 2 : inj.weight;
-        } else if (inj.isDayToDay) {
-            p += inj.weight * 0.10;
-        }
+        if (inj.isOut) p += inj.weight >= 9 ? (inj.weight * 2.0) + 2 : inj.weight;
+        else if (inj.isDayToDay) p += inj.weight * 0.10;
     });
     return p;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KERNEL DE PROJEÇÃO (v4.5)
+// KERNEL DE PROJEÇÃO (v5.1)
 // ─────────────────────────────────────────────────────────────────────────────
 const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: number, options?: PaceOptions) => {
     let adjA = scoreA;
@@ -235,17 +213,12 @@ export const calculateProjectedScores = (
 ) => {
     const rtgA = getTeamRatings(teamA, databallrA);
     const rtgB = getTeamRatings(teamB, databallrB);
+    
     const matchPace = calculateDeterministicPace(
-        teamA,
-        teamB,
-        databallrA,
-        databallrB,
-        options?.injuriesA,
-        options?.injuriesB,
-        rtgA,
-        rtgB,
-        options?.aiScoreA ?? 0,
-        options?.aiScoreB ?? 0
+        teamA, teamB, databallrA, databallrB,
+        options?.injuriesA, options?.injuriesB,
+        rtgA, rtgB,
+        options?.aiScoreA ?? 0, options?.aiScoreB ?? 0
     );
 
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
@@ -261,7 +234,7 @@ export const calculateProjectedScores = (
     projA = volatility.adjA; projB = volatility.adjB;
 
     const homeAdv = PROJECTION_CONFIG.HOME_ADVANTAGE;
-    if (options?.isHomeA) { projA += homeAdv; projB -= homeAdv; }
+    if (options?.isHomeA) { projA += homeAdv; projB -= homeAdv; } 
     else { projB += homeAdv; projA -= homeAdv; }
 
     projA -= calculatePenalty(options?.injuriesA);
@@ -280,9 +253,8 @@ export const calculateProjectedScores = (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UTILITÁRIOS E PARSERS (SISTEMA COMPLETO)
+// UTILITÁRIOS E PARSERS (COMPATIBILIDADE SISTÊMICA)
 // ─────────────────────────────────────────────────────────────────────────────
-
 export const getMomentumScore = (record: GameResult[]): number => {
     return record.reduce((score, res, idx) => {
         const rStr = typeof res === 'object' && res !== null ? (res as { result: string }).result : res;
@@ -353,13 +325,8 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: Array
     const tomorrow = new Date(current);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tStr = tomorrow.toISOString().split('T')[0];
-
-    const playedYesterday = dbPredictions.some(p =>
-        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) || p.away_team.toLowerCase().includes(teamName.toLowerCase())) && p.date === yStr
-    );
-    const playsTomorrow = dbPredictions.some(p =>
-        (p.home_team.toLowerCase().includes(teamName.toLowerCase()) || p.away_team.toLowerCase().includes(teamName.toLowerCase())) && p.date === tStr
-    );
+    const playedYesterday = dbPredictions.some(p => (p.home_team.toLowerCase().includes(teamName.toLowerCase()) || p.away_team.toLowerCase().includes(teamName.toLowerCase())) && p.date === yStr);
+    const playsTomorrow = dbPredictions.some(p => (p.home_team.toLowerCase().includes(teamName.toLowerCase()) || p.away_team.toLowerCase().includes(teamName.toLowerCase())) && p.date === tStr);
     return { yesterday: playedYesterday, tomorrow: playsTomorrow };
 };
 
