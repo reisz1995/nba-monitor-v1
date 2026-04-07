@@ -166,7 +166,7 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais
     // Protege placares estabilizados de equipes medianas
     const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
-    const isShootout = combinedOffense >= 125.5 && rtgA.offRtg >= 114.0 && rtgB.offRtg >= 114.0;
+    const isShootout = combinedOffense >= 124.0 && rtgA.offRtg >= 114.0 && rtgB.offRtg >= 114.0;
 
     // OTIMIZAÇÃO: A eficiência de ataque só é restaurada em Shootouts reais
     const currentAtkMult = (isDogfight && !isShootout)
