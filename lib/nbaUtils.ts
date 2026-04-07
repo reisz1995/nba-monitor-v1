@@ -31,22 +31,22 @@ const SEASON_25_26_METRICS = {
     AVG_PACE: 99.3,
     AVG_TOV: 14.8,
     AVG_TS: 58.8,
-    MIN_PACE: 95.0,
-    MAX_PACE: 104.0,
+    MIN_PACE: 99.3,
+    MAX_PACE: 110.0,
     AVG_ORB: 23.5
 } as const;
 
 const PROJECTION_CONFIG = {
     POWER_DIFF_WEIGHT: 0.85,
-    DEF_FILTER_FAVORITE_MULT: 20,
-    DEF_FILTER_UNDERDOG_MULT: 1.4,
+    DEF_FILTER_FAVORITE_MULT: 2.5,
+    DEF_FILTER_UNDERDOG_MULT: 2.5,
     ATK_FILTER_MULT: 0.75,
     HOME_ADVANTAGE: 1.75,
     LAST_MARGIN_THRESHOLD: 22,
     LAST_MARGIN_PENALTY: 1.5,
     SCORE_FLOOR_MIN: 99,
     SCORE_CEILING_MAX: 148,
-    PACE_ADJUSTMENT_FACTOR: 2,
+    PACE_ADJUSTMENT_FACTOR: 0.5, 
     PACE_THRESHOLD_SLOW: 97.5
 } as const;
 
@@ -107,7 +107,7 @@ export const calculateDeterministicPace = (
             projectedPace = (blendedPaceA * (0.5 - controlFactor)) + (blendedPaceB * (0.5 + controlFactor));
         }
     } else {
-        projectedPace = (blendedPaceA + blendedPaceB) / 4;
+        projectedPace = (blendedPaceA + blendedPaceB) / 2;
     }
 
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
