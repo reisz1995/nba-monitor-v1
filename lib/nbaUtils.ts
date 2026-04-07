@@ -201,21 +201,32 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
         adjB = (supA.adjO + supB.adjT) / 2;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+// KERNEL V5.3.3 - PATCH: ATENUAÇÃO DA MATRIZ DE SHOOTOUT
+// ─────────────────────────────────────────────────────────────────────────────
+    
     // MATRIZ DE GRAVIDADE APLICADA COM PRECISÃO
     if (isDogfight && !isShootout) {
-        // [ STATUS ]: Retém a perfeição do placar da sua imagem (Atrito aplicado)
+        // [ STATUS ]: Retém a perfeição do placar padrão (Atrito aplicado)
         adjA -= 3.5;
         adjB -= 3.5;
     } else if (isShootout) {
-        // [ STATUS ]: Acelera apenas anomalias ofensivas como Suns e Rockets
-        const shootoutBonus = Math.min((combinedOffense - 118.0) * 1.8, 7.5);
-        adjA += shootoutBonus;
-        adjB += shootoutBonus;
-        console.log(`[SYS-OP] ISOLAMENTO ROMPIDO (SHOOTOUT): +${shootoutBonus.toFixed(1)} pts alocados.`);
+        // [ STATUS ]: Válvula de escape atenuada. O sistema já se beneficia 
+        // pela remoção do atrito (-3.5) e restauração do ATK_MULT.
+        // A injeção extra atua apenas como ajuste fino de volatilidade térmica.
+        
+        const shootoutBonus = Math.min((combinedOffense - 120.0) * 0.8, 3.0); 
+        
+        if (shootoutBonus > 0) {
+            adjA += shootoutBonus;
+            adjB += shootoutBonus;
+            console.log(`[SYS-OP] ISOLAMENTO ROMPIDO (SHOOTOUT): Bônus atenuado de +${shootoutBonus.toFixed(1)} pts alocados.`);
+        }
     }
 
     return { adjA, adjB };
 };
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
