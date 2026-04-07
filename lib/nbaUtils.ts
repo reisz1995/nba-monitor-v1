@@ -43,7 +43,7 @@ const PROJECTION_CONFIG = {
     POWER_DIFF_WEIGHT: 0.85,
 
     // Quando o favorito tem a melhor defesa, ele suprime o adversário com mais força.
-    DEF_FILTER_FAVORITE_MULT: 20,
+    DEF_FILTER_FAVORITE_MULT: 80,
 
     // Quando o underdog tem a melhor defesa, ele consegue segurar o favorito, mas menos que o inverso.
     DEF_FILTER_UNDERDOG_MULT: 1.4,
