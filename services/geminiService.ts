@@ -281,10 +281,13 @@ export const compareTeams = async (
     edgeBlock = `Spread de Mercado: ${marketSpread} | Spread Projetado: ${projectedSpread.toFixed(1)} | Edge: ${edge.toFixed(1)} pts | ${classification}`;
   }
 
-  // VETOR 6: formata tensores Databallr para o contexto da IA
-  const homeLabel = isHomeA ? teamA.name : teamB.name;
-  const awayLabel = isHomeA ? teamB.name : teamA.name;
-  const databallrModeTag = databallrEnhanced ? 'DATABALLR_ENHANCED_v3' : 'ESPN_FALLBACK_v2';
+const homeLabel = isHomeA ? teamA.name : teamB.name;
+const awayLabel = isHomeA ? teamB.name : teamA.name;
+const databallrModeTag = databallrEnhanced ? 'DATABALLR_ENHANCED_v3' : 'ESPN_FALLBACK_v2';
+const tensorA = formatDataballrTensor(`CASA ${homeLabel}`, databallrA);  // usa homeLabel para clareza
+const tensorB = formatDataballrTensor(`FORA ${awayLabel}`, databallrB);
+
+const prompt = `...`;
 
   const prompt = `ALVO DE COMPUTAÇÃO: ${homeLabel} (CASA) vs ${awayLabel} (FORA). MODO: ${databallrModeTag}
   
