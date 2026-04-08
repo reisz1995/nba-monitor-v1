@@ -70,13 +70,15 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
 const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
     const ppg = Number(entity.espnData?.pts || entity.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
     const def = Number(entity.espnData?.pts_contra || entity.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
-    const pace = Number(entity.espnData?.pace) || getFallbackPace();
+    
+    // Usa getBlendedPace para manter coerência com o matchPace calculado depois
+    const pace = getBlendedPace(entity, databallr);
 
     return {
         offRtg: databallr?.ortg || (ppg / pace) * 100,
         defRtg: databallr?.drtg || (def / pace) * 100,
         seasonPPG: ppg,
-        pace
+        pace  // agora reflete o mesmo pace que será usado na projeção
     };
 };
 
