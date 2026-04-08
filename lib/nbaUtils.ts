@@ -321,6 +321,7 @@ export const calculateProjectedScores = (
     teamA: Team,
     teamB: Team,
     options?: PaceOptions & {
+        const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 30, rtgB.seasonPPG - 30, matchPace);
         injuriesA?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number }[];
         injuriesB?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number }[];
         defenseData?: any[];
