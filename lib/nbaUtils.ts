@@ -118,7 +118,7 @@ export const calculateDeterministicPace = (
         }, 0) / h2hFromDefense.length;
 
         if (h2hPace > 0) {
-            basePace = (basePace * 0.75) + (h2hPace * 0.25);
+            basePace = (basePace * 0.90) + (h2hPace * 0.10);
         }
     }
 
@@ -135,7 +135,7 @@ export const calculateDeterministicPace = (
 
     // Ajustes de lesões (Alocação Zero)
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
-        (injuries || []).filter(i => i.isOut && i.weight >= 7).reduce((sum, _) => sum + 0.05, 0);
+        (injuries || []).filter(i => i.isOut && i.weight >= 7).reduce((sum, _) => sum + 0.1, 0);
 
     projectedPace -= (injuryPaceReduction(injuriesA) + injuryPaceReduction(injuriesB));
 
@@ -187,7 +187,7 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     const powerDiff = Math.abs(powerA - powerB);
 
     // [ ESTADO DE TRINCHEIRA ]: Diferença de força inferior a 1.5
-    const isDogfight = powerDiff < 1.5;
+    const isDogfight = powerDiff < 0.5;
 
     // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais no ataque
     const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
@@ -195,11 +195,11 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
 
     // [ GATILHO DE VÁCUO DEFENSIVO ]: Exige que AMBAS as equipes tenham defesas colapsadas
     const combinedDefense = (rtgA.defRtg + rtgB.defRtg) / 2;
-    const isDefensiveCollapse = combinedDefense >= 116.5 && rtgA.defRtg >= 114.0 && rtgB.defRtg >= 114.0;
+    const isDefensiveCollapse = combinedDefense >= 114.5 && rtgA.defRtg >= 114.0 && rtgB.defRtg >= 114.0;
 
     // OTIMIZAÇÃO: A eficiência de ataque é restaurada em Shootouts E em Colapsos Defensivos
     const currentAtkMult = (isDogfight && !isShootout && !isDefensiveCollapse)
-        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6)
+        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.9)
         : PROJECTION_CONFIG.ATK_FILTER_MULT;
 
     const applyTeamSuperiorityV5 = (targetScore: number, opponentScore: number, targetRtg: any, opponentRtg: any, isFavorite: boolean) => {
