@@ -302,10 +302,14 @@ const applyVolatilityFilter = (scoreA: number, scoreB: number, databallrA?: Data
     return { adjA, adjB };
 };
 
-const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: number) => {
-    // [V5.1] Proteção dinâmica contra floors excessivamente altos ou baixos
-    const finalFloorA = Math.max(floorA, PROJECTION_CONFIG.SCORE_FLOOR_MIN);
-    const finalFloorB = Math.max(floorB, PROJECTION_CONFIG.SCORE_FLOOR_MIN);
+const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: number, matchPace?: number) => {
+    // Floor dinâmico: reduz em 2pts para cada 2pts de pace abaixo de 99.3 (média da liga)
+    const avgPace = SEASON_25_26_METRICS.AVG_PACE;
+    const paceAdjustment = matchPace ? Math.max(-6, (matchPace - avgPace) * 0.5) : 0;
+    const dynamicFloor = PROJECTION_CONFIG.SCORE_FLOOR_MIN + paceAdjustment; // range: ~86 a 98
+
+    const finalFloorA = Math.max(floorA, dynamicFloor);
+    const finalFloorB = Math.max(floorB, dynamicFloor);
 
     return {
         finalA: Math.max(finalFloorA, Math.min(PROJECTION_CONFIG.SCORE_CEILING_MAX, scoreA)),
