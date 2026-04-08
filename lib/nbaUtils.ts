@@ -342,8 +342,6 @@ export const calculateProjectedScores = (
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
     let projB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
 
-    const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 30, rtgB.seasonPPG - 30, matchPace);
-    
     const context = applyContextualAdjustments(projA, projB, matchPace, options);
     projA = context.adjA; projB = context.adjB;
 
@@ -360,7 +358,7 @@ export const calculateProjectedScores = (
     projA -= calculatePenalty(options?.injuriesA);
     projB -= calculatePenalty(options?.injuriesB);
 
-    const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 30, rtgB.seasonPPG - 30);
+    const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 30, rtgB.seasonPPG - 30, matchPace);
 
     return {
         matchPace,
