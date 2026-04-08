@@ -67,20 +67,16 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
     return getFallbackPace();
 };
 
-
-// 
 const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
     const ppg = Number(entity.espnData?.pts || entity.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
     const def = Number(entity.espnData?.pts_contra || entity.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
-    
-    // Usa getBlendedPace para manter coerência com o matchPace calculado depois
-    const pace = getBlendedPace(entity, databallr);
+    const pace = Number(entity.espnData?.pace) || getFallbackPace();
 
     return {
         offRtg: databallr?.ortg || (ppg / pace) * 100,
         defRtg: databallr?.drtg || (def / pace) * 100,
         seasonPPG: ppg,
-        pace  // agora reflete o mesmo pace que será usado na projeção
+        pace
     };
 };
 
@@ -120,7 +116,7 @@ export const calculateDeterministicPace = (
         }, 0) / h2hFromDefense.length;
 
         if (h2hPace > 0) {
-            basePace = (basePace * 0.90) + (h2hPace * 0.10);
+            basePace = (basePace * 0.75) + (h2hPace * 0.25);
         }
     }
 
@@ -225,29 +221,16 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
         adjB += powerDiff * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
         const { adjT, adjO } = applyTeamSuperiorityV5(adjB, adjA, rtgB, rtgA, false);
         adjB = adjT; adjA = adjO;
-    } } else {
-    // Empate de poder: cada time aplica seus ajustes de eficiência de forma independente
-    // A vantagem de ataque de A sobre B afeta o score de A
-    // A vantagem defensiva de A sobre B reduz o score de B
-    // (e vice-versa para o time B) — sem cancelamento por média
-    const supA = applyTeamSuperiorityV5(adjA, adjB, rtgA, rtgB, false);
-    const supB = applyTeamSuperiorityV5(adjB, adjA, rtgB, rtgA, false);
+    } else {
+        // [BUG FIX]: Evita o cancelamento mútuo na média de empate assimétrico
+        const supA = applyTeamSuperiorityV5(adjA, adjB, rtgA, rtgB, false);
+        const supB = applyTeamSuperiorityV5(adjB, adjA, rtgB, rtgA, false);
 
-    // supA.adjT = score de A ajustado pelo próprio ataque
-    // supA.adjO = score de B ajustado pela defesa de A
-    // supB.adjT = score de B ajustado pelo próprio ataque
-    // supB.adjO = score de A ajustado pela defesa de B
-    adjA = (supA.adjT + supB.adjO) / 2;  // média do que A merece ofensivamente + o que B concede
-    adjB = (supB.adjT + supA.adjO) / 2;  // média do que B merece ofensivamente + o que A concede
-
-    // PATCH: Se os ratings forem idênticos, os ajustes se cancelam (comportamento correto).
-    // Se forem diferentes, o time mais eficiente leva vantagem — sem depender do powerDiff.
-    // Nenhuma mudança de lógica necessária além da clareza acima, MAS:
-    // Adicione um log para monitorar se os empates estão gerando spreads zero:
-    if (process.env.NODE_ENV === 'development') {
-        console.log(`[EMPATE] adjA=${adjA.toFixed(1)} adjB=${adjB.toFixed(1)} | spread=${(adjA - adjB).toFixed(1)}`);
+        // Mantém a simetria: O efeito favorável de A contra B e o efeito de B contra A
+        adjA = (supA.adjT + supB.adjO) / 2;
+        adjB = (supB.adjT + supA.adjO) / 2;
     }
-}
+
     // ─────────────────────────────────────────────────────────────────────────────
     // MATRIZ DE GRAVIDADE MULTI-VETORIAL (V5.3.4)
     // ─────────────────────────────────────────────────────────────────────────────
