@@ -187,11 +187,11 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     const powerDiff = Math.abs(powerA - powerB);
 
     // [ ESTADO DE TRINCHEIRA ]: Diferença de força inferior a 1.5
-    const isDogfight = powerDiff < 0.5;
+    const isDogfight = powerDiff < 1.5;
 
     // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais no ataque
     const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
-    const isShootout = combinedOffense >= 120.5 && rtgA.offRtg >= 113.0 && rtgB.offRtg >= 113.0;
+    const isShootout = combinedOffense >= 120.5 && rtgA.offRtg >= 117.0 && rtgB.offRtg >= 117.0;
 
     // [ GATILHO DE VÁCUO DEFENSIVO ]: Exige que AMBAS as equipes tenham defesas colapsadas
     const combinedDefense = (rtgA.defRtg + rtgB.defRtg) / 2;
