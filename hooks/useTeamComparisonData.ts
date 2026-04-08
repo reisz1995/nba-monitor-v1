@@ -12,6 +12,7 @@ interface UseTeamComparisonDataProps {
     playerStats: PlayerStat[];
     unavailablePlayers: UnavailablePlayer[];
     initialAnalysis?: MatchupAnalysis;
+    dbPredictions?: any[];
 }
 
 export const useTeamComparisonData = ({
@@ -19,12 +20,28 @@ export const useTeamComparisonData = ({
     teamB,
     playerStats,
     unavailablePlayers,
-    initialAnalysis
+    initialAnalysis,
+    dbPredictions = []
 }: UseTeamComparisonDataProps) => {
     const [analysis, setAnalysis] = useState<MatchupAnalysis | null>(initialAnalysis || null);
     const [loading, setLoading] = useState(!initialAnalysis);
     const [savedToCloud, setSavedToCloud] = useState(!!initialAnalysis);
     const [marketData, setMarketData] = useState<MarketData | null>(null);
+
+    // Encontra a predição específica para extrair H2H (defense_data)
+    const currentPrediction = useMemo(() => {
+        return dbPredictions.find(p =>
+        (getStandardTeamName(p.home_team) === getStandardTeamName(teamA.name) &&
+            getStandardTeamName(p.away_team) === getStandardTeamName(teamB.name))
+        );
+    }, [dbPredictions, teamA.name, teamB.name]);
+
+    const defenseData = useMemo(() => {
+        if (!currentPrediction?.defense_data) return [];
+        return typeof currentPrediction.defense_data === 'string'
+            ? JSON.parse(currentPrediction.defense_data)
+            : currentPrediction.defense_data;
+    }, [currentPrediction]);
     const [notas, setNotas] = useState<{ a: number, b: number }>({
         a: teamA.ai_score || 0,
         b: teamB.ai_score || 0
@@ -160,7 +177,8 @@ export const useTeamComparisonData = ({
             injuriesA: mappedInjuriesA,
             injuriesB: mappedInjuriesB,
             powerA: notas.a,
-            powerB: notas.b
+            powerB: notas.b,
+            defenseData: defenseData
         }, databallrA, databallrB
         );
         let projA = deltaA;

@@ -64,6 +64,11 @@ export interface PredictionIA {
     handicap_line?: string;
     [key: string]: unknown;
   };
+  defense_data?: Array<{
+    date: string;
+    score: string;
+    result: string;
+  }>;
   [key: string]: unknown;
 }
 

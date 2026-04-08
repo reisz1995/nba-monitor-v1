@@ -44,6 +44,7 @@ interface TeamComparisonProps {
   unavailablePlayers: UnavailablePlayer[];
   onClose: () => void;
   initialAnalysis?: MatchupAnalysis;
+  dbPredictions?: any[];
 }
 
 const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerStats, unavailablePlayers, onClose, initialAnalysis }) => {
@@ -58,7 +59,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
     bettingLines,
     advantageMatrix,
     marketData
-  } = useTeamComparisonData({ teamA, teamB, playerStats, unavailablePlayers, initialAnalysis });
+  } = useTeamComparisonData({ teamA, teamB, playerStats, unavailablePlayers, initialAnalysis, dbPredictions });
 
   const databallrEnhanced = bettingLines.databallrEnhanced;
   const contentRef = useRef<HTMLDivElement>(null);
@@ -338,7 +339,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                       teamB={teamB}
                       homeRecord={analysis.momentumData?.home_record || []}
                       awayRecord={analysis.momentumData?.away_record || []}
-                      h2hRecord={analysis.momentumData?.momentum_data?.home_vs_away || []}
+                      h2hRecord={analysis.momentumData?.defense_data || analysis.momentumData?.momentum_data?.home_vs_away || []}
                     />
                   )}
                 </div>

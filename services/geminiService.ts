@@ -181,6 +181,7 @@ export const fetchGameWithMomentum = async (gameId: string) => {
     home_record: parseJSONField(homeTeamData?.record, []),
     away_record: parseJSONField(awayTeamData?.record, []),
     momentum_data: parseJSONField(data.momentum_data, { home_vs_away: [] }),
+    defense_data: parseJSONField(data.defense_data, []),
   };
 };
 
@@ -264,8 +265,9 @@ export const compareTeams = async (
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
   const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);
-  const h2hContext = momentumData?.momentum_data?.home_vs_away && momentumData.momentum_data.home_vs_away.length > 0
-    ? JSON.stringify(momentumData.momentum_data.home_vs_away)
+  const baseH2H = momentumData?.defense_data || momentumData?.momentum_data?.home_vs_away;
+  const h2hContext = baseH2H && baseH2H.length > 0
+    ? JSON.stringify(baseH2H)
     : "DADOS_H2H_INDISPONIVEIS";
 
   const projectedSpread = deltaB - deltaA;

@@ -93,7 +93,8 @@ export const calculateDeterministicPace = (
     rtgA?: { defRtg: number },
     rtgB?: { defRtg: number },
     powerA: number = 0,
-    powerB: number = 0
+    powerB: number = 0,
+    h2hFromDefense?: any[]
 ): number => {
     const paceA = getBlendedPace(teamA, databallrA);
     const paceB = getBlendedPace(teamB, databallrB);
@@ -104,7 +105,22 @@ export const calculateDeterministicPace = (
 
     // [MATRIZ HÍBRIDA V5.1]
     // Força (70%) dita a velocidade | Defesa (30%) atua como atrito
-    let projectedPace = (strongestTeamPace * 0.60) + (bestDefenderPace * 0.40);
+    let basePace = (strongestTeamPace * 0.60) + (bestDefenderPace * 0.40);
+
+    // [INFLUÊNCIA H2H] - Se dados de colisão direta existirem, pesam 25% no pace base
+    if (h2hFromDefense && h2hFromDefense.length > 0) {
+        const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
+        const h2hPace = h2hFromDefense.reduce((sum, g) => {
+            const total = parseScoreToTotal(g.score);
+            return sum + (total / (2 * PACE_FACTOR));
+        }, 0) / h2hFromDefense.length;
+
+        if (h2hPace > 0) {
+            basePace = (basePace * 0.75) + (h2hPace * 0.25);
+        }
+    }
+
+    let projectedPace = basePace;
 
     // [GATILHO DE OVERCLOCK]
     // Se a disparidade de força for severa, injeta aceleração para evitar o "Defensive Lock"
@@ -288,6 +304,7 @@ export const calculateProjectedScores = (
     options?: PaceOptions & {
         injuriesA?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number }[];
         injuriesB?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number }[];
+        defenseData?: any[];
     },
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null
@@ -299,7 +316,8 @@ export const calculateProjectedScores = (
         teamA, teamB, databallrA, databallrB,
         options?.injuriesA, options?.injuriesB,
         rtgA, rtgB,
-        options?.powerA ?? 0, options?.powerB ?? 0
+        options?.powerA ?? 0, options?.powerB ?? 0,
+        options?.defenseData
     );
 
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
@@ -429,23 +447,34 @@ export const parseScoreToTotal = (score: string): number => {
     return isNaN(pts1) || isNaN(pts2) ? 0 : pts1 + pts2;
 };
 
-export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team) => {
+export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team, h2hFromDefense?: any[]) => {
     const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
     const getGamePace = (score: string) => parseScoreToTotal(score) / (2 * PACE_FACTOR);
+
     const last5A = (teamA.record || []).slice(-5);
     const avgPace5A = last5A.length > 0 ? last5A.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5A.length : 0;
     const last5B = (teamB.record || []).slice(-5);
     const avgPace5B = last5B.length > 0 ? last5B.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5B.length : 0;
+
     const normB = normalizeTeamName(teamB.name);
-    const h2hGames = (teamA.record || []).filter(g => g.opponent && normalizeTeamName(g.opponent).includes(normB)).slice(-2);
+    // Prioriza h2hFromDefense (defense_data do Supabase) se disponível
+    let h2hGames = h2hFromDefense && h2hFromDefense.length > 0 ? h2hFromDefense : [];
+
+    // Fallback para o histórico embutido no Team (menos confiável/granular)
+    if (h2hGames.length === 0) {
+        h2hGames = (teamA.record || []).filter(g => g.opponent && normalizeTeamName(g.opponent).includes(normB)).slice(-2);
+    }
+
     let avgPaceH2H = 0;
     if (h2hGames.length > 0) {
         avgPaceH2H = h2hGames.reduce((sum, g) => sum + getGamePace(g.score), 0) / h2hGames.length;
     } else if (avgPace5A > 0 && avgPace5B > 0) {
         avgPaceH2H = (avgPace5A + avgPace5B) / 2;
     }
+
     let finalPace = 0;
     if (avgPace5A > 0 && avgPace5B > 0 && avgPaceH2H > 0) finalPace = (avgPace5A + avgPace5B + avgPaceH2H) / 3;
+
     return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H: h2hGames.length > 0 };
 };
 

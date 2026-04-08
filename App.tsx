@@ -189,6 +189,7 @@ const App: React.FC = () => {
             teamB={comparisonTeams.teamB}
             playerStats={playerStats}
             unavailablePlayers={unavailablePlayers}
+            dbPredictions={dbPredictions}
             onClose={() => setSelectedTeamIds([])}
           />
         </Suspense>
@@ -201,6 +202,7 @@ const App: React.FC = () => {
             teamB={historySelection.teamB}
             playerStats={playerStats}
             unavailablePlayers={unavailablePlayers}
+            dbPredictions={dbPredictions}
             initialAnalysis={historySelection.analysis}
             onClose={() => setHistorySelection(null)}
           />
