@@ -221,7 +221,8 @@ export const compareTeams = async (
   marketData?: MarketData | null,
   momentumData?: any,
   databallrA?: DataballrInput | null,
-  databallrB?: DataballrInput | null
+  databallrB?: DataballrInput | null,
+  isHomeA: boolean = true  // <-- novo parâmetro, default true por retrocompatibilidade
 ): Promise<MatchupAnalysis> => {
 
   const [dbStats, dbInjuries, dbStandings, dbNotas] = await Promise.all([
@@ -254,14 +255,15 @@ export const compareTeams = async (
   const injuriesA = mapInjToHW(teamA.name, dbInjuries.data || injuries, dbStats.data || playerStats);
   const injuriesB = mapInjToHW(teamB.name, dbInjuries.data || injuries, dbStats.data || playerStats);
 
+
   const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced } =
-    calculateProjectedScores(teamA, teamB, {
-      isHomeA: true,
-      injuriesA,
-      injuriesB,
-      powerA: notaA,
-      powerB: notaB
-    }, databallrA, databallrB);
+  calculateProjectedScores(teamA, teamB, {
+    isHomeA,   // <-- usa o parâmetro recebido
+    injuriesA,
+    injuriesB,
+    powerA: notaA,
+    powerB: notaB
+  }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
   const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);
@@ -280,11 +282,12 @@ export const compareTeams = async (
   }
 
   // VETOR 6: formata tensores Databallr para o contexto da IA
-  const tensorA = formatDataballrTensor(`CASA ${teamA.name}`, databallrA);
-  const tensorB = formatDataballrTensor(`FORA ${teamB.name}`, databallrB);
+  const homeLabel = isHomeA ? teamA.name : teamB.name;
+  const awayLabel = isHomeA ? teamB.name : teamA.name;
   const databallrModeTag = databallrEnhanced ? 'DATABALLR_ENHANCED_v3' : 'ESPN_FALLBACK_v2';
 
-  const prompt = `ALVO DE COMPUTAÇÃO: ${teamA.name} vs ${teamB.name}. MODO: ${databallrModeTag}
+  const prompt = `ALVO DE COMPUTAÇÃO: ${homeLabel} (CASA) vs ${awayLabel} (FORA). MODO: ${databallrModeTag}
+  
 
   [VETOR 1: EFICIÊNCIA ESTRUTURAL]
   Rating AI ${teamA.name}: ${notaA.toFixed(1)}/5.0
