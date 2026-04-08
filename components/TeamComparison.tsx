@@ -47,7 +47,7 @@ interface TeamComparisonProps {
   dbPredictions?: any[];
 }
 
-const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerStats, unavailablePlayers, onClose, initialAnalysis }) => {
+const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerStats, unavailablePlayers, onClose, initialAnalysis, dbPredictions }) => {
   const {
     analysis,
     loading,
