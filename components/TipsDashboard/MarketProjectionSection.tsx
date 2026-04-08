@@ -108,8 +108,8 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                     isB2BB: isB2BAway,
                     injuriesA,
                     injuriesB,
-                    aiScoreA: Number(notaCasa) || 0,
-                    aiScoreB: Number(notaFora) || 0
+                    powerA: Number(notaCasa) || 0,
+                    powerB: Number(notaFora) || 0
                 }, databallrA, databallrB);
 
                 const fairHandicapNum = Number((analysis.deltaB - analysis.deltaA).toFixed(1));

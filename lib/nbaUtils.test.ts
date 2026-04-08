@@ -130,8 +130,8 @@ describe('nbaUtils', () => {
             const databallrA = { ortg: 100, drtg: 100, net_rating: -17.2, pace: 100 };
             const databallrB = { ortg: 100, drtg: 100, net_rating: -19.2, pace: 100 };
 
-            const optionsNoVol = { aiScoreA: 10.0, aiScoreB: 10.0, isHomeA: true };
-            const optionsWithVol = { aiScoreA: 3.0, aiScoreB: 3.0, isHomeA: true };
+            const optionsNoVol = { powerA: 10.0, powerB: 10.0, isHomeA: true };
+            const optionsWithVol = { powerA: 3.0, powerB: 3.0, isHomeA: true };
 
             const resultNoVol = calculateProjectedScores(teamA, teamB, optionsNoVol, databallrA, databallrB);
             const resultWithVol = calculateProjectedScores(teamA, teamB, optionsWithVol, databallrA, databallrB);

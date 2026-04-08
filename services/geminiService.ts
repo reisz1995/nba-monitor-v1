@@ -257,7 +257,9 @@ export const compareTeams = async (
     calculateProjectedScores(teamA, teamB, {
       isHomeA: true,
       injuriesA,
-      injuriesB
+      injuriesB,
+      powerA: notaA,
+      powerB: notaB
     }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);

@@ -159,8 +159,8 @@ export const useTeamComparisonData = ({
             isHomeA: true,
             injuriesA: mappedInjuriesA,
             injuriesB: mappedInjuriesB,
-            aiScoreA: notas.a,
-            aiScoreB: notas.b
+            powerA: notas.a,
+            powerB: notas.b
         }, databallrA, databallrB
         );
         let projA = deltaA;

@@ -6,8 +6,8 @@ export interface PaceOptions {
     isB2BB?: boolean;
     lastMarginA?: number;
     lastMarginB?: number;
-    aiScoreA?: number;
-    aiScoreB?: number;
+    powerA?: number;
+    powerB?: number;
 }
 
 export interface DataballrInput {
@@ -92,14 +92,14 @@ export const calculateDeterministicPace = (
     injuriesB?: { isOut: boolean; weight: number }[],
     rtgA?: { defRtg: number },
     rtgB?: { defRtg: number },
-    aiScoreA: number = 0,
-    aiScoreB: number = 0
+    powerA: number = 0,
+    powerB: number = 0
 ): number => {
     const paceA = getBlendedPace(teamA, databallrA);
     const paceB = getBlendedPace(teamB, databallrB);
 
-    const powerDiff = Math.abs(aiScoreA - aiScoreB);
-    const strongestTeamPace = aiScoreA >= aiScoreB ? paceA : paceB;
+    const powerDiff = Math.abs(powerA - powerB);
+    const strongestTeamPace = powerA >= powerB ? paceA : paceB;
     const bestDefenderPace = (rtgA && rtgB && rtgA.defRtg < rtgB.defRtg) ? paceA : paceB;
 
     // [MATRIZ HÍBRIDA V5.1]
@@ -122,7 +122,7 @@ export const calculateDeterministicPace = (
     projectedPace -= (injuryPaceReduction(injuriesA) + injuryPaceReduction(injuriesB));
 
     if (process.env.NODE_ENV === 'development') {
-        console.log(`[KERNEL V5.1] Pace: ${projectedPace.toFixed(2)} | Driver: ${aiScoreA >= aiScoreB ? 'TeamA' : 'TeamB'}`);
+        console.log(`[KERNEL V5.1] Pace: ${projectedPace.toFixed(2)} | Driver: ${powerA >= powerB ? 'TeamA' : 'TeamB'}`);
     }
     return projectedPace;
 };
@@ -299,7 +299,7 @@ export const calculateProjectedScores = (
         teamA, teamB, databallrA, databallrB,
         options?.injuriesA, options?.injuriesB,
         rtgA, rtgB,
-        options?.aiScoreA ?? 0, options?.aiScoreB ?? 0
+        options?.powerA ?? 0, options?.powerB ?? 0
     );
 
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
@@ -308,10 +308,10 @@ export const calculateProjectedScores = (
     const context = applyContextualAdjustments(projA, projB, matchPace, options);
     projA = context.adjA; projB = context.adjB;
 
-    const superiority = applySuperiorityFilters(projA, projB, teamA, teamB, rtgA, rtgB, options?.aiScoreA ?? 0, options?.aiScoreB ?? 0);
+    const superiority = applySuperiorityFilters(projA, projB, teamA, teamB, rtgA, rtgB, options?.powerA ?? 0, options?.powerB ?? 0);
     projA = superiority.adjA; projB = superiority.adjB;
 
-    const volatility = applyVolatilityFilter(projA, projB, databallrA, databallrB, options?.aiScoreA, options?.aiScoreB);
+    const volatility = applyVolatilityFilter(projA, projB, databallrA, databallrB, options?.powerA, options?.powerB);
     projA = volatility.adjA; projB = volatility.adjB;
 
     const homeAdv = PROJECTION_CONFIG.HOME_ADVANTAGE;
