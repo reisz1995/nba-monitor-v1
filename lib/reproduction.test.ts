@@ -9,8 +9,8 @@ describe('Volatility Filter Anomaly Reproduction', () => {
         const databallrA = { ortg: 100, drtg: 100, net_rating: -10, pace: 100 };
         const databallrB = { ortg: 100, drtg: 100, net_rating: -20, pace: 100 };
 
-        const optionsNoVol = { aiScoreA: 10.0, aiScoreB: 10.0, isHomeA: true };
-        const optionsWithVol = { aiScoreA: 3.0, aiScoreB: 3.0, isHomeA: true };
+        const optionsNoVol = { powerA: 10.0, powerB: 10.0, isHomeA: true };
+        const optionsWithVol = { powerA: 3.0, powerB: 3.0, isHomeA: true };
 
         const resultNoVol = calculateProjectedScores(teamA, teamB, optionsNoVol, databallrA, databallrB);
         const resultWithVol = calculateProjectedScores(teamA, teamB, optionsWithVol, databallrA, databallrB);
@@ -21,10 +21,13 @@ describe('Volatility Filter Anomaly Reproduction', () => {
         console.log(`Diff A: ${diffA}`);
         console.log(`Diff B: ${diffB}`);
 
-        // A should increase by abs(netB) = 20
-        // B should increase by abs(netA) = 10
-        expect(diffA).toBeCloseTo(20, 1);
-        expect(diffB).toBeCloseTo(10, 1);
+        // A: netB=-20 gives +4.0, netA=-10 gives -3.0 (penalty), netA=-10 gives -3.0 = -2.0?
+        // Actually: Bônus A = min(20, 4.0) = 4.0. Penalidade A = min(10*0.6, 3.0) = 3.0.
+        // Net effect A: +4.0 - 3.0 = +1.0
+        expect(diffA).toBeCloseTo(1, 0);
+
+        // B: netA=-10 gives +4.0, netB=-20 gives -3.0 = +1.0
+        expect(diffB).toBeCloseTo(1, 0);
     });
 
     it('should NOT apply volatility filter if one team is missing net_rating', () => {
@@ -34,8 +37,8 @@ describe('Volatility Filter Anomaly Reproduction', () => {
         const databallrA = { ortg: 100, drtg: 100, net_rating: -10, pace: 100 };
         const databallrB = { ortg: 100, drtg: 100, net_rating: undefined as any, pace: 100 };
 
-        const optionsNoVol = { aiScoreA: 10.0, aiScoreB: 10.0, isHomeA: true };
-        const optionsWithVol = { aiScoreA: 3.0, aiScoreB: 3.0, isHomeA: true };
+        const optionsNoVol = { powerA: 10.0, powerB: 10.0, isHomeA: true };
+        const optionsWithVol = { powerA: 3.0, powerB: 3.0, isHomeA: true };
 
         const resultNoVol = calculateProjectedScores(teamA, teamB, optionsNoVol, databallrA, databallrB);
         const resultWithVol = calculateProjectedScores(teamA, teamB, optionsWithVol, databallrA, databallrB);

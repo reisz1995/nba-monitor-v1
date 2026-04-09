@@ -47,7 +47,7 @@ describe('nbaUtils - Kernels Avançados', () => {
         } as any;
 
         it('should identify and boost Shootouts (combined Offense >= 124)', () => {
-            const result = calculateProjectedScores(eliteTeamA, eliteTeamB, { aiScoreA: 10, aiScoreB: 10, isHomeA: true });
+            const result = calculateProjectedScores(eliteTeamA, eliteTeamB, { powerA: 10, powerB: 10, isHomeA: true });
             expect(result.totalPayload).toBeGreaterThan(240);
         });
 
@@ -60,7 +60,7 @@ describe('nbaUtils - Kernels Avançados', () => {
             // HomeAdv = 1.75 (A is home)
             // deltaA = 109.23 - 3.5 + 1.75 = 107.48
             // deltaB = 109.78 - 3.5 - 1.75 = 104.53
-            const result = calculateProjectedScores(averageTeamA, averageTeamB, { aiScoreA: 5.0, aiScoreB: 5.5, isHomeA: true });
+            const result = calculateProjectedScores(averageTeamA, averageTeamB, { powerA: 5.0, powerB: 5.5, isHomeA: true });
 
             expect(result.deltaA).toBeCloseTo(107.48, 0.1);
             expect(result.deltaB).toBeCloseTo(104.53, 0.1);

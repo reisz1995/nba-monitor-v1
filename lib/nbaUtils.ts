@@ -70,15 +70,13 @@ const getBlendedPace = (team: Team, databallr?: DataballrInput | null): number =
 const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
     const ppg = Number(entity.espnData?.pts || entity.stats?.media_pontos_ataque || SEASON_25_26_METRICS.AVG_ORTG);
     const def = Number(entity.espnData?.pts_contra || entity.stats?.media_pontos_defesa || SEASON_25_26_METRICS.AVG_ORTG);
-    
-    // Usa getBlendedPace para manter coerência com o matchPace calculado depois
-    const pace = getBlendedPace(entity, databallr);
+    const pace = Number(entity.espnData?.pace) || getFallbackPace();
 
     return {
         offRtg: databallr?.ortg || (ppg / pace) * 100,
         defRtg: databallr?.drtg || (def / pace) * 100,
         seasonPPG: ppg,
-        pace  // agora reflete o mesmo pace que será usado na projeção
+        pace
     };
 };
 
@@ -118,7 +116,7 @@ export const calculateDeterministicPace = (
         }, 0) / h2hFromDefense.length;
 
         if (h2hPace > 0) {
-            basePace = (basePace * 0.90) + (h2hPace * 0.10);
+            basePace = (basePace * 0.75) + (h2hPace * 0.25);
         }
     }
 
@@ -135,7 +133,7 @@ export const calculateDeterministicPace = (
 
     // Ajustes de lesões (Alocação Zero)
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
-        (injuries || []).filter(i => i.isOut && i.weight >= 7).reduce((sum, _) => sum + 0.1, 0);
+        (injuries || []).filter(i => i.isOut && i.weight >= 7).reduce((sum, _) => sum + 0.05, 0);
 
     projectedPace -= (injuryPaceReduction(injuriesA) + injuryPaceReduction(injuriesB));
 
@@ -191,15 +189,15 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
 
     // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais no ataque
     const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
-    const isShootout = combinedOffense >= 120.5 && rtgA.offRtg >= 117.0 && rtgB.offRtg >= 117.0;
+    const isShootout = combinedOffense >= 122.0 && rtgA.offRtg >= 112.0 && rtgB.offRtg >= 112.0;
 
     // [ GATILHO DE VÁCUO DEFENSIVO ]: Exige que AMBAS as equipes tenham defesas colapsadas
     const combinedDefense = (rtgA.defRtg + rtgB.defRtg) / 2;
-    const isDefensiveCollapse = combinedDefense >= 114.5 && rtgA.defRtg >= 114.0 && rtgB.defRtg >= 114.0;
+    const isDefensiveCollapse = combinedDefense >= 116.5 && rtgA.defRtg >= 114.0 && rtgB.defRtg >= 114.0;
 
     // OTIMIZAÇÃO: A eficiência de ataque é restaurada em Shootouts E em Colapsos Defensivos
     const currentAtkMult = (isDogfight && !isShootout && !isDefensiveCollapse)
-        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.9)
+        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6)
         : PROJECTION_CONFIG.ATK_FILTER_MULT;
 
     const applyTeamSuperiorityV5 = (targetScore: number, opponentScore: number, targetRtg: any, opponentRtg: any, isFavorite: boolean) => {
@@ -223,35 +221,22 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
         adjB += powerDiff * PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
         const { adjT, adjO } = applyTeamSuperiorityV5(adjB, adjA, rtgB, rtgA, false);
         adjB = adjT; adjA = adjO;
-        } else {
-    // Empate de poder: cada time aplica seus ajustes de eficiência de forma independente
-    // A vantagem de ataque de A sobre B afeta o score de A
-    // A vantagem defensiva de A sobre B reduz o score de B
-    // (e vice-versa para o time B) — sem cancelamento por média
-    const supA = applyTeamSuperiorityV5(adjA, adjB, rtgA, rtgB, false);
-    const supB = applyTeamSuperiorityV5(adjB, adjA, rtgB, rtgA, false);
+    } else {
+        // [BUG FIX]: Evita o cancelamento mútuo na média de empate assimétrico
+        const supA = applyTeamSuperiorityV5(adjA, adjB, rtgA, rtgB, false);
+        const supB = applyTeamSuperiorityV5(adjB, adjA, rtgB, rtgA, false);
 
-    // supA.adjT = score de A ajustado pelo próprio ataque
-    // supA.adjO = score de B ajustado pela defesa de A
-    // supB.adjT = score de B ajustado pelo próprio ataque
-    // supB.adjO = score de A ajustado pela defesa de B
-    adjA = (supA.adjT + supB.adjO) / 2;  // média do que A merece ofensivamente + o que B concede
-    adjB = (supB.adjT + supA.adjO) / 2;  // média do que B merece ofensivamente + o que A concede
-
-    // PATCH: Se os ratings forem idênticos, os ajustes se cancelam (comportamento correto).
-    // Se forem diferentes, o time mais eficiente leva vantagem — sem depender do powerDiff.
-    // Nenhuma mudança de lógica necessária além da clareza acima, MAS:
-    // Adicione um log para monitorar se os empates estão gerando spreads zero:
-    if (process.env.NODE_ENV === 'development') {
-        console.log(`[EMPATE] adjA=${adjA.toFixed(1)} adjB=${adjB.toFixed(1)} | spread=${(adjA - adjB).toFixed(1)}`);
+        // Mantém a simetria: O efeito favorável de A contra B e o efeito de B contra A
+        adjA = (supA.adjT + supB.adjO) / 2;
+        adjB = (supB.adjT + supA.adjO) / 2;
     }
-}
+
     // ─────────────────────────────────────────────────────────────────────────────
     // MATRIZ DE GRAVIDADE MULTI-VETORIAL (V5.3.4)
     // ─────────────────────────────────────────────────────────────────────────────
     if (isShootout) {
-        // [ STATUS ]: Tiroteio de Elite
-        const shootoutBonus = Math.min((combinedOffense - 120.0) * 0.8, 3.0);
+        // [ STATUS ]: Tiroteio de Elite - boost maior para atingir 240+
+        const shootoutBonus = Math.min((combinedOffense - 120.0) * 1.5, 6.0);
         if (shootoutBonus > 0) {
             adjA += shootoutBonus;
             adjB += shootoutBonus;
@@ -261,7 +246,7 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
         }
     } else if (isDefensiveCollapse) {
         // [ STATUS ]: Vácuo Defensivo. Equipes não marcam. Inversão da penalidade de trincheira.
-        const collapseBonus = Math.min((combinedDefense - 116.0) * 1.2, 4.5);
+        const collapseBonus = Math.min((combinedDefense - 116.0) * 1.5, 5.5);
         adjA += collapseBonus;
         adjB += collapseBonus;
         if (process.env.NODE_ENV === 'development') {
@@ -283,13 +268,21 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
 const applyVolatilityFilter = (scoreA: number, scoreB: number, databallrA?: DataballrInput | null, databallrB?: DataballrInput | null, powerA: number = 0, powerB: number = 0) => {
     let adjA = scoreA;
     let adjB = scoreB;
-    const netA = databallrA?.net_rating ?? 0;
-    const netB = databallrB?.net_rating ?? 0;
 
-    // OTIMIZAÇÃO: A inflação matemática indiscriminada (Math.abs) foi erradicada.
-    // OTIMIZAÇÃO: Condição >= 0 permite ativação com defaults
-    if (powerA >= 0 && powerB >= 0 && powerA <= 3.5 && powerB <= 3.5) {
+    // Verificar se temos dados de net_rating válidos para AMBOS os times
+    const netA = databallrA?.net_rating !== undefined ? databallrA.net_rating : null;
+    const netB = databallrB?.net_rating !== undefined ? databallrB.net_rating : null;
 
+    // Se qualquer time não tem net_rating, não aplicar filtro de volatilidade
+    if (netA === null || netB === null) {
+        return { adjA, adjB };
+    }
+
+    // O filtro é ativado quando times estão em situação de incerteza (power <= 3.5)
+    // Times com power alto (>3.5) já são claramente superiores/inferiores
+    const shouldApply = powerA >= 0 && powerB >= 0 && powerA <= 3.5 && powerB <= 3.5;
+
+    if (shouldApply) {
         // A equipe explora falhas: Lucra apenas se o oponente tiver Net Rating NEGATIVO (Teto: +4.0 pts)
         if (netB < 0) adjA += Math.min(Math.abs(netB), 4.0);
         if (netA < 0) adjB += Math.min(Math.abs(netA), 4.0);
@@ -302,14 +295,11 @@ const applyVolatilityFilter = (scoreA: number, scoreB: number, databallrA?: Data
     return { adjA, adjB };
 };
 
-const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: number, matchPace?: number) => {
-    // Floor dinâmico: reduz em 2pts para cada 2pts de pace abaixo de 99.3 (média da liga)
-    const avgPace = SEASON_25_26_METRICS.AVG_PACE;
-    const paceAdjustment = matchPace ? Math.max(-6, (matchPace - avgPace) * 0.5) : 0;
-    const dynamicFloor = PROJECTION_CONFIG.SCORE_FLOOR_MIN + paceAdjustment; // range: ~86 a 98
-
-    const finalFloorA = Math.max(floorA, dynamicFloor);
-    const finalFloorB = Math.max(floorB, dynamicFloor);
+const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: number) => {
+    // [V5.1] Proteção dinâmica: floor baseado na média da temporada - 17pts
+    // Não usar SCORE_FLOOR_MIN (92) como mínimo, usar o floor calculado
+    const finalFloorA = floorA;
+    const finalFloorB = floorB;
 
     return {
         finalA: Math.max(finalFloorA, Math.min(PROJECTION_CONFIG.SCORE_CEILING_MAX, scoreA)),
@@ -358,7 +348,7 @@ export const calculateProjectedScores = (
     projA -= calculatePenalty(options?.injuriesA);
     projB -= calculatePenalty(options?.injuriesB);
 
-    const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 30, rtgB.seasonPPG - 30, matchPace);
+    const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 17, rtgB.seasonPPG - 17);
 
     return {
         matchPace,
