@@ -104,8 +104,8 @@ export const calculateDeterministicPace = (
     const bestDefenderPace = (rtgA && rtgB && rtgA.defRtg < rtgB.defRtg) ? paceA : paceB;
 
     // [MATRIZ HÍBRIDA V5.1]
-    // Força (70%) dita a velocidade | Defesa (30%) atua como atrito
-    let basePace = (strongestTeamPace * 0.60) + (bestDefenderPace * 0.40);
+    // Força (80%) dita a velocidade | Defesa (20%) atua como atrito
+    let basePace = (strongestTeamPace * 0.80) + (bestDefenderPace * 0.20);
 
     // [INFLUÊNCIA H2H] - Se dados de colisão direta existirem, pesam 25% no pace base
     if (h2hFromDefense && h2hFromDefense.length > 0) {
@@ -116,7 +116,7 @@ export const calculateDeterministicPace = (
         }, 0) / h2hFromDefense.length;
 
         if (h2hPace > 0) {
-            basePace = (basePace * 0.75) + (h2hPace * 0.25);
+            basePace = (basePace * 0.80) + (h2hPace * 0.20);
         }
     }
 
@@ -150,7 +150,7 @@ const calculatePenalty = (injuries?: { isOut: boolean; isDayToDay?: boolean; wei
     let p = 0;
     (injuries || []).forEach(inj => {
         if (inj.isOut) p += inj.weight >= 9 ? (inj.weight * 2.0) + 2 : inj.weight;
-        else if (inj.isDayToDay) p += inj.weight * 0.10;
+        else if (inj.isDayToDay) p += inj.weight * 0.05;
     });
     return p;
 };
@@ -197,7 +197,7 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
 
     // OTIMIZAÇÃO: A eficiência de ataque é restaurada em Shootouts E em Colapsos Defensivos
     const currentAtkMult = (isDogfight && !isShootout && !isDefensiveCollapse)
-        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.6)
+        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.7)
         : PROJECTION_CONFIG.ATK_FILTER_MULT;
 
     const applyTeamSuperiorityV5 = (targetScore: number, opponentScore: number, targetRtg: any, opponentRtg: any, isFavorite: boolean) => {
