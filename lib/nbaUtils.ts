@@ -254,8 +254,8 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
         }
     } else if (isDogfight) {
         // [ STATUS ]: Retém a perfeição do placar padrão (Atrito aplicado APENAS para times que defendem)
-        adjA -= 3.5;
-        adjB -= 3.5;
+        adjA -= 1.5;
+        adjB -= 1.5;
     }
 
     return { adjA, adjB };
