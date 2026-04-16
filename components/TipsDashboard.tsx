@@ -196,7 +196,7 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
         tableRef={tableRef}
       />
 
-      <ContextoSection tipsDate={tipsDate} />
+      <ContextoSection tipsDate={tipsDate} getTeamLogo={getTeamLogo} />
 
       <PropsSection
         playersPlayingToday={playersPlayingToday}
