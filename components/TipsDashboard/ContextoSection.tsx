@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 
 interface ContextoSectionProps {
     tipsDate?: string;
+    getTeamLogo?: (teamName: string) => string;
 }
 
 interface NbaGameSchedule {
@@ -77,7 +78,7 @@ Liste os key_factors com emojis:
 5. **Números**: Sempre cite estatísticas específicas
 `;
 
-const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '' }) => {
+const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTeamLogo }) => {
     const [schedules, setSchedules] = useState<NbaGameSchedule[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [formattingId, setFormattingId] = useState<number | null>(null);
