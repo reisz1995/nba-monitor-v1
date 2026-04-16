@@ -14,6 +14,7 @@ export interface AnalysisRecord {
   sources: any[];
   result: 'green' | 'red' | 'pending';
   momentum_ma?: any;
+  pick_total?: string;
   created_at: string;
 }
 
@@ -58,9 +59,9 @@ const HistoryRow = memo(({
     <div
       style={style}
       onClick={() => onItemClick(record)}
-      className="flex items-center border-b border-slate-900 hover:bg-white/[0.02] transition-all group cursor-pointer w-full min-w-[900px]"
+      className="flex items-center border-b border-slate-900 hover:bg-white/[0.02] transition-all group cursor-pointer w-full min-w-[1050px]"
     >
-      <div className="w-[35%] px-6 py-4 flex items-center gap-5">
+      <div className="w-[30%] px-6 py-4 flex items-center gap-5">
         <div className="flex items-center -space-x-4">
           <div className="w-12 h-12 bg-slate-900 border-2 border-slate-800 p-2 transform -rotate-3 group-hover:rotate-0 transition-transform shadow-lg overflow-hidden flex items-center justify-center">
             {teamA?.logo && <img src={teamA.logo} className="max-w-full max-h-full object-contain" alt="" />}
@@ -104,8 +105,8 @@ const HistoryRow = memo(({
           )}
         </div>
       </div>
-      
-      <div className="w-[25%] px-6 py-4 flex flex-col gap-1">
+
+      <div className="w-[20%] px-6 py-4 flex flex-col gap-1">
         <span className="text-sm font-black text-indigo-400 italic uppercase leading-none border-l-2 border-indigo-500/30 pl-3 font-mono">
           {record.winner}
         </span>
@@ -113,8 +114,23 @@ const HistoryRow = memo(({
           {record.key_factor}
         </p>
       </div>
-      
-      <div className="w-[20%] px-6 py-4 flex items-center justify-center gap-1.5">
+
+      <div className="w-[12%] px-4 py-4 flex items-center justify-center">
+        {record.pick_total ? (
+          <span className={`text-[10px] font-black uppercase px-2 py-1 border-2 font-mono tracking-tight ${record.pick_total.startsWith('PREV_OVER')
+              ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
+              : record.pick_total.startsWith('PREV_UNDER')
+                ? 'bg-rose-600/20 border-rose-500 text-rose-400'
+                : 'bg-slate-700/30 border-slate-600 text-slate-400'
+            }`}>
+            {record.pick_total}
+          </span>
+        ) : (
+          <span className="text-[9px] text-slate-700 font-mono">—</span>
+        )}
+      </div>
+
+      <div className="w-[18%] px-6 py-4 flex items-center justify-center gap-1.5">
         <button
           onClick={(e) => onUpdateStatus(e, record.id, 'green')}
           className={`w-10 h-10 border-2 transition-all flex items-center justify-center ${record.result === 'green'
@@ -143,7 +159,7 @@ const HistoryRow = memo(({
           <Clock className="w-5 h-5" />
         </button>
       </div>
-      
+
       <div className="w-[10%] px-6 py-4 text-center">
         <div className="inline-block px-3 py-1 bg-slate-900 border border-slate-800 rounded-sm">
           <span className="text-base font-black text-white italic font-mono">
@@ -151,7 +167,7 @@ const HistoryRow = memo(({
           </span>
         </div>
       </div>
-      
+
       <div className="w-[10%] px-6 py-4 text-center">
         <button
           onClick={(e) => onDeleteRecord(e, record.id)}
@@ -164,7 +180,7 @@ const HistoryRow = memo(({
   );
 }, (prevProps, nextProps) => {
   return prevProps.record.id === nextProps.record.id &&
-         prevProps.record.result === nextProps.record.result;
+    prevProps.record.result === nextProps.record.result;
 });
 
 interface RowData {
@@ -180,7 +196,7 @@ const Row = memo(({ index, style, records, teams, onItemClick, onUpdateStatus, o
   if (!Array.isArray(records) || !Array.isArray(teams)) {
     return null;
   }
-  
+
   const record = records[index];
 
   if (!record) return null;
@@ -206,11 +222,11 @@ const VirtualizedTable = memo(({
   rowHeight = 120,
   height = 600
 }: VirtualizedTableProps) => {
-  
+
   // ✅ Garantir arrays válidos
   const safeRecords = Array.isArray(records) ? records : [];
   const safeTeams = Array.isArray(teams) ? teams : [];
-  
+
   const rowProps = React.useMemo(() => ({
     records: safeRecords,
     teams: safeTeams,
@@ -225,11 +241,12 @@ const VirtualizedTable = memo(({
   }
 
   return (
-    <div className="w-full min-w-[900px]">
+    <div className="w-full min-w-[1050px]">
       <div className="flex bg-slate-900/80 backdrop-blur-md text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b-2 border-slate-800 font-mono">
-        <div className="w-[35%] px-6 py-4">CONFRONTATION</div>
-        <div className="w-[25%] px-6 py-4">AI SELECTION</div>
-        <div className="w-[20%] px-6 py-4 text-center">RESULT</div>
+        <div className="w-[30%] px-6 py-4">CONFRONTATION</div>
+        <div className="w-[20%] px-6 py-4">AI SELECTION</div>
+        <div className="w-[12%] px-4 py-4 text-center">PICK TOTAL</div>
+        <div className="w-[18%] px-6 py-4 text-center">RESULT</div>
         <div className="w-[10%] px-6 py-4 text-center">CONFIDENCE</div>
         <div className="w-[10%] px-6 py-4 text-center">ACTIONS</div>
       </div>
@@ -237,7 +254,7 @@ const VirtualizedTable = memo(({
         height={height}
         rowCount={safeRecords.length}
         rowHeight={rowHeight}
-        width={900}
+        width={1050}
         rowProps={rowProps}
         rowComponent={Row}
         className="custom-scrollbar"

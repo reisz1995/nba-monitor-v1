@@ -203,6 +203,7 @@ export const saveMatchupAnalysis = async (teamA: Team | number, teamB: Team | nu
       detailed_analysis: analysis.detailedAnalysis,
       sources: analysis.sources,
       momentum_ma: analysis.momentumData,
+      pick_total: analysis.pickTotal || null,
       result: 'pending',
       created_at: new Date().toISOString()
     });
@@ -257,13 +258,13 @@ export const compareTeams = async (
 
 
   const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced } =
-  calculateProjectedScores(teamA, teamB, {
-    isHomeA,   // <-- usa o parâmetro recebido
-    injuriesA,
-    injuriesB,
-    powerA: notaA,
-    powerB: notaB
-  }, databallrA, databallrB);
+    calculateProjectedScores(teamA, teamB, {
+      isHomeA,   // <-- usa o parâmetro recebido
+      injuriesA,
+      injuriesB,
+      powerA: notaA,
+      powerB: notaB
+    }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
   const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);
@@ -286,7 +287,7 @@ export const compareTeams = async (
   const databallrModeTag = databallrEnhanced ? 'DATABALLR_ENHANCED_v3' : 'ESPN_FALLBACK_v2';
   const tensorA = formatDataballrTensor(`CASA ${homeLabel}`, databallrA);  // usa homeLabel para clareza
   const tensorB = formatDataballrTensor(`FORA ${awayLabel}`, databallrB);
- 
+
   const prompt = `ALVO DE COMPUTAÇÃO: ${homeLabel} (CASA) vs ${awayLabel} (FORA). MODO: ${databallrModeTag}
   
 

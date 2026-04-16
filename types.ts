@@ -93,6 +93,7 @@ export interface MatchupAnalysis {
   expectedScoreB?: number;
   projectedPace?: number;
   result?: 'green' | 'red' | 'pending';
+  pickTotal?: string;
   sources?: Source[];
   momentumData?: {
     scoreA: number;

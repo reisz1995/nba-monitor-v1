@@ -286,7 +286,21 @@ export const useTeamComparisonData = ({
                     databallrA, databallrB
                 );
                 setAnalysis(result);
-                await saveMatchupAnalysis(teamA.id, teamB.id, { ...result, result: 'pending' });
+
+                // Calcula pick_total (PREV_OVER/UNDER) usando projeção vs linha de mercado
+                let pickTotal: string | undefined;
+                if (marketData?.total) {
+                    const diff = bettingLines.totalProjected - marketData.total;
+                    if (diff >= 3.5) {
+                        pickTotal = `PREV_OVER ${marketData.total}`;
+                    } else if (diff <= -3.5) {
+                        pickTotal = `PREV_UNDER ${marketData.total}`;
+                    } else {
+                        pickTotal = `PASS_TOTAL ${marketData.total}`;
+                    }
+                }
+
+                await saveMatchupAnalysis(teamA.id, teamB.id, { ...result, result: 'pending', pickTotal });
                 setSavedToCloud(true);
             } catch (e: any) {
                 console.error("[SYSTEM_ERROR] Colapso na matriz vetorial:", e);
