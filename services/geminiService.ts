@@ -290,7 +290,7 @@ export const compareTeams = async (
     : "DADOS_H2H_INDISPONIVEIS";
 
   const projectedSpread = deltaB - deltaA;
-  const marketSpread = marketData?.spread ?? null;
+  const marketSpread = resolvedMarket?.spread ?? null;
   let edgeBlock = "Market_Odds: Indisponível";
   if (marketSpread !== null) {
     const edge = Math.abs(projectedSpread - marketSpread);
@@ -320,7 +320,7 @@ export const compareTeams = async (
 
   [VETOR 3: ASSIMETRIA DE MERCADO]
   ${edgeBlock}
-  Mercado (Total/ML): Total=${marketData?.total ?? 'N/D'} | ML Away=${marketData?.moneyline_away ?? 'N/D'} | ML Home=${marketData?.moneyline_home ?? 'N/D'}
+  Mercado (Total/ML): Total=${resolvedMarket?.total ?? 'N/D'} | ML Away=${resolvedMarket?.moneyline_away ?? 'N/D'} | ML Home=${resolvedMarket?.moneyline_home ?? 'N/D'}
 
   [VETOR 4: MOMENTO TERMODINÂMICO]
   Forma ${teamA.name} (Últimos 5): ${formA}
@@ -352,14 +352,14 @@ export const compareTeams = async (
 
     // Calcula pick_total (PREV_OVER/UNDER) direto na fonte
     let pickTotal: string | undefined;
-    if (marketData?.total) {
-      const diff = totalPayload - marketData.total;
+    if (resolvedMarket?.total) {
+      const diff = totalPayload - resolvedMarket.total;
       if (diff >= 3.5) {
-        pickTotal = `PREV_OVER ${marketData.total}`;
+        pickTotal = `PREV_OVER ${resolvedMarket.total}`;
       } else if (diff <= -3.5) {
-        pickTotal = `PREV_UNDER ${marketData.total}`;
+        pickTotal = `PREV_UNDER ${resolvedMarket.total}`;
       } else {
-        pickTotal = `PASS_TOTAL ${marketData.total}`;
+        pickTotal = `PASS_TOTAL ${resolvedMarket.total}`;
       }
     }
 
