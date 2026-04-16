@@ -14,6 +14,7 @@ interface NbaGameSchedule {
     away_team: string;
     tactical_prediction: string;
     groq_insight: string;
+    gemini_insight?: string;
 }
 
 const formatPrompt = (schedule: NbaGameSchedule) => `
@@ -102,6 +103,14 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                         console.error('Error fetching nba_games_schedule:', error);
                     } else if (data) {
                         setSchedules(data);
+
+                        const prefilledFormat: Record<number, string> = {};
+                        data.forEach((item: NbaGameSchedule) => {
+                            if (item.gemini_insight) {
+                                prefilledFormat[item.id] = item.gemini_insight;
+                            }
+                        });
+                        setFormattedData(prefilledFormat);
                     }
                 }
             } catch (err) {
@@ -131,10 +140,23 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
             }
 
             const data = await response.json();
+
+            // Save inside Supabase
+            const { error: updateError } = await supabase
+                .from('nba_games_schedule')
+                .update({ gemini_insight: data.text })
+                .eq('id', schedule.id);
+
+            if (updateError) {
+                console.error('Falha ao salvar gemini_insight:', updateError);
+            }
+
             setFormattedData(prev => ({
                 ...prev,
                 [schedule.id]: data.text
             }));
+
+            setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, gemini_insight: data.text } : s));
         } catch (err) {
             console.error('Erro ao formatar:', err);
             alert('Falha ao processar formatação com Gemini.');
