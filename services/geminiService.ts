@@ -1,7 +1,7 @@
 import { Type } from "@google/genai";
 import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer, MarketData } from "../types";
 import { supabase } from "../lib/supabase";
-import { calculateProjectedScores, DataballrInput } from "../lib/nbaUtils";
+import { calculateProjectedScores, DataballrInput, getStandardTeamName } from "../lib/nbaUtils";
 import { toast } from "sonner";
 import { withRetry } from "../lib/resilience";
 
@@ -225,6 +225,22 @@ export const compareTeams = async (
   databallrB?: DataballrInput | null,
   isHomeA: boolean = true  // <-- novo parâmetro, default true por retrocompatibilidade
 ): Promise<MatchupAnalysis> => {
+
+  // Busca odds diretamente se marketData não foi fornecido (race condition no hook)
+  let resolvedMarket = marketData;
+  if (!resolvedMarket?.total) {
+    try {
+      const matchupKey = `${getStandardTeamName(teamB.name)} @ ${getStandardTeamName(teamA.name)}`;
+      const { data: oddsData } = await supabase
+        .from('nba_odds_matrix')
+        .select('*')
+        .eq('matchup', matchupKey)
+        .maybeSingle();
+      if (oddsData) resolvedMarket = oddsData;
+    } catch (e) {
+      console.warn('[compareTeams] Odds fetch fallback falhou:', e);
+    }
+  }
 
   const [dbStats, dbInjuries, dbStandings, dbNotas] = await Promise.all([
     supabase.from('nba_jogadores_stats').select('*').in('time', [teamA.name, teamB.name]),
