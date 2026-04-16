@@ -334,7 +334,20 @@ export const compareTeams = async (
     // Injeção da trava de segurança termodinâmica
     const coherentAnalysis = enforceThermodynamicCoherence(rawAnalysisResult, teamA, teamB);
 
-    return { ...coherentAnalysis, sources: [], momentumData };
+    // Calcula pick_total (PREV_OVER/UNDER) direto na fonte
+    let pickTotal: string | undefined;
+    if (marketData?.total) {
+      const diff = totalPayload - marketData.total;
+      if (diff >= 3.5) {
+        pickTotal = `PREV_OVER ${marketData.total}`;
+      } else if (diff <= -3.5) {
+        pickTotal = `PREV_UNDER ${marketData.total}`;
+      } else {
+        pickTotal = `PASS_TOTAL ${marketData.total}`;
+      }
+    }
+
+    return { ...coherentAnalysis, sources: [], momentumData, pickTotal };
   } catch (error) {
     console.error("[IA_ENGINE] Colapso na matriz vetorial:", error);
     return {
