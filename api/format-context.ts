@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
@@ -64,7 +65,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const body = await parseBody(req);
-    const { prompt } = body ?? {};
+    const { prompt, scheduleId } = body ?? {};
 
     if (!prompt) {
         return res.status(400).json({ error: 'prompt ausente.' });
@@ -85,6 +86,27 @@ export default async function handler(req: any, res: any) {
 
         if (!response.text) {
             throw new Error('Payload nulo retornado pelo modelo.');
+        }
+
+        // Save to Supabase using admin key
+        if (scheduleId && process.env.VITE_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            try {
+                const supabaseAdmin = createClient(
+                    process.env.VITE_SUPABASE_URL,
+                    process.env.SUPABASE_SERVICE_ROLE_KEY
+                );
+
+                const { error: updateError } = await supabaseAdmin
+                    .from('nba_games_schedule')
+                    .update({ gemini_insight: response.text })
+                    .eq('id', scheduleId);
+
+                if (updateError) {
+                    console.error('[format-context] Erro ao salvar nó:', updateError.message);
+                }
+            } catch (dbError) {
+                console.error('[format-context] Erro DB interno:', dbError);
+            }
         }
 
         return res.status(200).json({ text: response.text });

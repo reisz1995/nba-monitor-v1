@@ -132,7 +132,7 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ prompt })
+                body: JSON.stringify({ prompt, scheduleId: schedule.id })
             });
 
             if (!response.ok) {
@@ -141,15 +141,7 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
 
             const data = await response.json();
 
-            // Save inside Supabase
-            const { error: updateError } = await supabase
-                .from('nba_games_schedule')
-                .update({ gemini_insight: data.text })
-                .eq('id', schedule.id);
 
-            if (updateError) {
-                console.error('Falha ao salvar gemini_insight:', updateError);
-            }
 
             setFormattedData(prev => ({
                 ...prev,
