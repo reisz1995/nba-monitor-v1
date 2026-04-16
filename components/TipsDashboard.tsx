@@ -8,6 +8,7 @@ import PowerRankingSection from './TipsDashboard/PowerRankingSection';
 import PredictionsSection from './TipsDashboard/PredictionsSection';
 import MarketProjectionSection from './TipsDashboard/MarketProjectionSection';
 import PropsSection from './TipsDashboard/PropsSection';
+import ContextoSection from './TipsDashboard/ContextoSection';
 
 interface TipsDashboardProps {
   teams: Team[];
@@ -194,6 +195,8 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
         onRemoveRow={removePredictionRow}
         tableRef={tableRef}
       />
+
+      <ContextoSection />
 
       <PropsSection
         playersPlayingToday={playersPlayingToday}
