@@ -139,7 +139,8 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
             });
 
             if (!response.ok) {
-                throw new Error('Falha ao acionar formatador Gemini.');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.details || errorData.error || 'Falha ao acionar formatador Gemini.');
             }
 
             const data = await response.json();
@@ -152,9 +153,9 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
             }));
 
             setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, gemini_insight: data.text } : s));
-        } catch (err) {
+        } catch (err: any) {
             console.error('Erro ao formatar:', err);
-            alert('Falha ao processar formatação com Gemini.');
+            alert(`Falha no Gemini: ${err.message}`);
         } finally {
             setFormattingId(null);
         }
