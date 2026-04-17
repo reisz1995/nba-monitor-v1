@@ -84,6 +84,9 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
     const [isLoading, setIsLoading] = useState(false);
     const [formattingId, setFormattingId] = useState<number | null>(null);
     const [formattedData, setFormattedData] = useState<Record<number, string>>({});
+    const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+
+    const pendingCount = schedules.filter(s => !formattedData[s.id]).length;
 
     useEffect(() => {
         const fetchSchedules = async () => {
@@ -157,6 +160,32 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
         }
     };
 
+    const handleGenerateAll = async () => {
+        if (!tipsDate || isGeneratingAll) return;
+        setIsGeneratingAll(true);
+        try {
+            const parts = tipsDate.split('/');
+            if (parts.length === 3) {
+                const formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                const response = await fetch('/api/generate-day-insights', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ date: formattedDate })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Falha ao acionar rotina em lote.');
+                }
+            }
+        } catch (err) {
+            console.error('Erro na automação:', err);
+            alert('Falha ao processar formatação rápida.');
+        } finally {
+            setIsGeneratingAll(false);
+            window.location.reload(); // Recarrega a aplicação para exibir as tabelas hidratadas com a I.A
+        }
+    };
+
     return (
         <section className="space-y-8">
             <div className="flex flex-col gap-4">
@@ -176,6 +205,16 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                             </div>
                         </div>
                     </div>
+                    {schedules.length > 0 && pendingCount > 0 && (
+                        <button
+                            onClick={handleGenerateAll}
+                            disabled={isGeneratingAll || isLoading}
+                            className={`flex items-center gap-2 font-black uppercase tracking-widest px-6 py-3 rounded-sm transition-all font-oswald disabled:opacity-50 ${isGeneratingAll ? 'bg-white text-nba-black' : 'bg-nba-gold text-nba-black hover:bg-white'}`}
+                        >
+                            {isGeneratingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                            {isGeneratingAll ? `PROCESSANDO ${pendingCount}... (PODE DEMORAR)` : `✨ GERAR TODOS OS INSIGHTS (${pendingCount})`}
+                        </button>
+                    )}
                 </div>
             </div>
 
