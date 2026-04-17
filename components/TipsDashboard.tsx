@@ -203,6 +203,7 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
         teams={teams}
         getInjuriesForTeam={getInjuriesForTeam}
         getTeamLogo={getTeamLogo}
+        tipsDate={tipsDate}
       />
     </div>
   );
