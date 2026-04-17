@@ -59,8 +59,13 @@ const PredictionRow: React.FC<PredictionRowProps> = ({
             </td>
 
             {/* === MUTAÇÃO INJETADA: HANDICAP_LINE === */}
-            <td className="px-3 py-2 border-r border-slate-800/50 bg-amber-500/5 transition-colors group-hover:bg-amber-500/10">
+            <td className="px-3 py-2 border-r border-slate-800/50 bg-amber-500/5 transition-colors group-hover:bg-amber-500/10 relative">
                 <div className="relative group/edge">
+                    {Math.abs(parseFloat(pred.handicap_line || '0')) >= 3.0 && (
+                        <div className="absolute -top-5 -right-3 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-[8px] px-1.5 py-0.5 rounded-sm font-black flex items-center gap-1 shadow-[0_0_15px_rgba(6,182,212,0.8)] z-10 animate-pulse border border-cyan-400 font-oswald pointer-events-none">
+                            💎 VALUE BET
+                        </div>
+                    )}
                     <input
                         value={pred.handicap_line || ''}
                         onChange={(e) => onLocalChange(pred.id!, 'handicap_line', e.target.value)}

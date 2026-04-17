@@ -104,6 +104,10 @@ const PropsSection: React.FC<PropsSectionProps> = ({
                         const isOverEdge = hasProp && edge >= edgeThreshold && !injury?.isOut;
                         const isUnderEdge = hasProp && edge <= -edgeThreshold && !injury?.isOut;
 
+                        // Variável para Gauge animation
+                        const maxGaugeEdge = activeMarket === 'player_points' ? 8 : 4;
+                        const gaugePercentage = Math.min(100, Math.max(0, (Math.abs(edge) / maxGaugeEdge) * 100));
+
                         return (
                             <div key={player.id} className={`bg-nba-surface border ${isOverEdge ? 'border-nba-success/50 shadow-glow-success' : isUnderEdge ? 'border-nba-red/50 shadow-glow-red' : injury ? (injury.isOut ? 'border-nba-red/50' : 'border-nba-gold/50') : 'border-white/5'} p-0 hover:border-nba-blue/50 transition-all group overflow-hidden shadow-[0_10px_30px_rgba(0, 0, 0, 0.5)] rounded-sm`}>
                                 <div className="bg-nba-surface-elevated border-b border-white/5 p-6 relative overflow-hidden">
@@ -147,11 +151,30 @@ const PropsSection: React.FC<PropsSectionProps> = ({
                                                 <span className="text-xl font-black text-nba-text-secondary italic font-bebas px-1 py-1 border border-white/10 rounded-sm bg-nba-background border-dashed">PENDING LINE</span>
                                             )}
                                             {hasProp ? (
-                                                isOverEdge ? <TrendingUp className="w-6 h-6 text-nba-success mb-1" /> : isUnderEdge ? <TrendingDown className="w-6 h-6 text-nba-red mt-1" /> : <ChevronRight className="w-6 h-6 text-slate-400" />
+                                                isOverEdge ? <TrendingUp className="w-6 h-6 text-nba-success mb-1 animate-bounce" /> : isUnderEdge ? <TrendingDown className="w-6 h-6 text-nba-red mt-1 animate-bounce" /> : <ChevronRight className="w-6 h-6 text-slate-400" />
                                             ) : (
                                                 <ChevronRight className="w-6 h-6 text-slate-400 group-hover:translate-x-1 group-hover:text-nba-blue transition-all" />
                                             )}
                                         </div>
+
+                                        {/* EDGE GAUGE UI PREMIUM */}
+                                        {hasProp && Math.abs(edge) >= edgeThreshold && !injury?.isOut && (
+                                            <div className="mt-4 border-t border-white/5 pt-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                                <div className="flex justify-between text-[9px] font-black font-oswald text-slate-400 mb-1 tracking-widest uppercase">
+                                                    <span>HOUSE_LINE</span>
+                                                    <span className={`${isOverEdge ? 'text-nba-success drop-shadow-[0_0_5px_rgba(0,255,0,0.8)]' : 'text-nba-red drop-shadow-[0_0_5px_rgba(255,0,0,0.8)]'}`}>
+                                                        {isOverEdge ? '+' : '-'}{Math.abs(edge).toFixed(1)} EDGE
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden flex items-center shadow-inner relative">
+                                                    <div className="absolute inset-0 bg-white/5" />
+                                                    <div
+                                                        className={`h-full transition-all duration-1000 ease-out relative z-10 ${isOverEdge ? 'bg-nba-success shadow-[0_0_15px_rgba(0,255,0,0.6)]' : 'bg-nba-red shadow-[0_0_15px_rgba(255,0,0,0.6)]'}`}
+                                                        style={{ width: `${gaugePercentage}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     {injury && (
                                         <div className={`text - [9px] font - black uppercase tracking - widest p - 2 text - center rounded - sm font - oswald ${injury.isOut ? 'bg-nba-red/20 text-nba-red border border-nba-red/30' : 'bg-nba-gold/20 text-nba-gold border border-nba-gold/30'} `}>
