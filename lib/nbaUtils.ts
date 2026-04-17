@@ -8,6 +8,7 @@ export interface PaceOptions {
     lastMarginB?: number;
     powerA?: number;
     powerB?: number;
+    editorInsight?: string;
 }
 
 export interface DataballrInput {
@@ -172,6 +173,22 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
         adjA *= reduction;
         adjB *= reduction;
     }
+
+    // [FILTRO CONTEXTO] Injeção Direta da Análise Editorial da IA (gemini_insight)
+    if (options?.editorInsight) {
+        if (options.editorInsight.match(/🎯 NOSSA APOSTA:\s*OVER/i)) {
+            // Empurrão de pontuação por validação primária de OVER da IA de Contexto (+2.5 pts cada para forçar inflação)
+            adjA += 2.5;
+            adjB += 2.5;
+            if (process.env.NODE_ENV === 'development') console.log('[SYS-OP] INSIGHT EDITOR: OVER detectado. Injetando +5.0 no Total Payload.');
+        } else if (options.editorInsight.match(/🎯 NOSSA APOSTA:\s*UNDER/i)) {
+            // Penalidade por validação primária de UNDER da IA de Contexto (-2.5 pts cada para forçar deflação)
+            adjA -= 2.5;
+            adjB -= 2.5;
+            if (process.env.NODE_ENV === 'development') console.log('[SYS-OP] INSIGHT EDITOR: UNDER detectado. Subtraindo -5.0 no Total Payload.');
+        }
+    }
+
     return { adjA, adjB };
 };
 

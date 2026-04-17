@@ -272,6 +272,22 @@ export const compareTeams = async (
   const injuriesA = mapInjToHW(teamA.name, dbInjuries.data || injuries, dbStats.data || playerStats);
   const injuriesB = mapInjToHW(teamB.name, dbInjuries.data || injuries, dbStats.data || playerStats);
 
+  // [EXTENSÃO DE CONTEXTO]: Buscar o formato gerado pelo Editor Sênior (Gemini Insight) no calendário
+  const homeTeamLabel = isHomeA ? teamA.name : teamB.name;
+  const awayTeamLabel = isHomeA ? teamB.name : teamA.name;
+
+  // Como nem todos os times tem os mesmos padrões de nome na schedule, usamos um like simples no nome
+  const { data: scheduleData } = await supabase
+    .from('nba_games_schedule')
+    .select('gemini_insight')
+    .ilike('home_team', `%${homeTeamLabel.split(' ').pop()}%`)
+    .ilike('away_team', `%${awayTeamLabel.split(' ').pop()}%`)
+    .order('game_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const editorInsight = scheduleData?.gemini_insight || null;
+
 
   const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced } =
     calculateProjectedScores(teamA, teamB, {
@@ -279,7 +295,8 @@ export const compareTeams = async (
       injuriesA,
       injuriesB,
       powerA: notaA,
-      powerB: notaB
+      powerB: notaB,
+      editorInsight
     }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
@@ -337,6 +354,10 @@ export const compareTeams = async (
   Atq.Rel e Def.Rel = performance relativa à média da liga no período de 14 dias.
   ${tensorA}
   ${tensorB}
+
+  [VETOR 7: INSIGHT TÁTICO E EDITORIAL (IA DE CONTEXTO)]
+  ${editorInsight ? editorInsight : "Nenhum insight editorial pré-gerado associado a este confronto."}
+  Instrução Crítica: O vetor de Insight Editorial carrega análises qualitativas de matchups, palpites e lesões cruciais. Sincronize a sua narração e análise de Key Factors/Detailed Analysis incorporando os fatores apontados por ele, caso haja sinergia com os dados quantitativos ou com as cotações de mercado (Exemplo: se o editor prevê um OVER, alinhe possíveis descrições táticas para endossar esse raciocínio).
 
   PROCESSE AS DIRETRIZES E RETORNE O JSON STRICT.`;
 
