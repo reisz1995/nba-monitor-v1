@@ -117,7 +117,11 @@ export const calculateDeterministicPace = (
         }, 0) / h2hFromDefense.length;
 
         if (h2hPace > 0) {
+            const oldPace = basePace;
             basePace = (basePace * 0.80) + (h2hPace * 0.20);
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[SYS-OP] H2H ATIVADO: Pace Ajustado de ${oldPace.toFixed(1)} -> ${basePace.toFixed(1)} baseado em ${h2hFromDefense.length} jogos.`);
+            }
         }
     }
 
@@ -453,12 +457,20 @@ export const checkB2B = (teamName: string, dateStr: string, dbPredictions: Array
     const [d, m, y] = dateStr.split('/');
     if (!d || !m || !y) return { yesterday: false, tomorrow: false };
     const current = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    const formatDateLocal = (date: Date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
     const yesterday = new Date(current);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = yesterday.toISOString().split('T')[0];
+    const yStr = formatDateLocal(yesterday);
+
     const tomorrow = new Date(current);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tStr = tomorrow.toISOString().split('T')[0];
+    const tStr = formatDateLocal(tomorrow);
     const playedYesterday = dbPredictions.some(p => (p.home_team.toLowerCase().includes(teamName.toLowerCase()) || p.away_team.toLowerCase().includes(teamName.toLowerCase())) && p.date === yStr);
     const playsTomorrow = dbPredictions.some(p => (p.home_team.toLowerCase().includes(teamName.toLowerCase()) || p.away_team.toLowerCase().includes(teamName.toLowerCase())) && p.date === tStr);
     return { yesterday: playedYesterday, tomorrow: playsTomorrow };

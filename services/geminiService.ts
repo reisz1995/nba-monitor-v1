@@ -208,9 +208,12 @@ export const saveMatchupAnalysis = async (teamA: Team | number, teamB: Team | nu
       created_at: new Date().toISOString()
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error(`[Supabase] Erro ao salvar análise para ${teamAId} vs ${teamBId}:`, error);
+      throw error;
+    }
   } catch (err) {
-    console.error("Erro ao salvar histórico de análise no Supabase:", err);
+    console.error("[MATCHUP_HISTORY] Falha na persistência da análise:", err);
   }
 };
 
@@ -275,13 +278,20 @@ export const compareTeams = async (
   // [EXTENSÃO DE CONTEXTO]: Buscar o formato gerado pelo Editor Sênior (Gemini Insight) no calendário
   const homeTeamLabel = isHomeA ? teamA.name : teamB.name;
   const awayTeamLabel = isHomeA ? teamB.name : teamA.name;
+  const gameDate = momentumData?.date;
 
-  // Como nem todos os times tem os mesmos padrões de nome na schedule, usamos um like simples no nome
-  const { data: scheduleData } = await supabase
+  // Como nem todos os times tem os mesmos padrões de nome na schedule, usamos um like simples no nome e data
+  let scheduleQuery = supabase
     .from('nba_games_schedule')
     .select('gemini_insight')
     .ilike('home_team', `%${homeTeamLabel.split(' ').pop()}%`)
-    .ilike('away_team', `%${awayTeamLabel.split(' ').pop()}%`)
+    .ilike('away_team', `%${awayTeamLabel.split(' ').pop()}%`);
+
+  if (gameDate) {
+    scheduleQuery = scheduleQuery.eq('game_date', gameDate);
+  }
+
+  const { data: scheduleData } = await scheduleQuery
     .order('game_date', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -289,14 +299,18 @@ export const compareTeams = async (
   const editorInsight = scheduleData?.gemini_insight || null;
 
 
+  // Extrair defenseData (H2H) do momentumData
+  const baseH2H = momentumData?.defense_data || momentumData?.momentum_data?.home_vs_away;
+
   const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced } =
     calculateProjectedScores(teamA, teamB, {
-      isHomeA,   // <-- usa o parâmetro recebido
+      isHomeA,
       injuriesA,
       injuriesB,
       powerA: notaA,
       powerB: notaB,
-      editorInsight
+      editorInsight,
+      defenseData: baseH2H // <-- Passagem do H2H corrigida
     }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
@@ -385,8 +399,8 @@ export const compareTeams = async (
     }
 
     return { ...coherentAnalysis, sources: [], momentumData, pickTotal };
-  } catch (error) {
-    console.error("[IA_ENGINE] Colapso na matriz vetorial:", error);
+  } catch (error: any) {
+    console.error(`[IA_ENGINE] Colapso na matriz vetorial para ${teamA.name} vs ${teamB.name}:`, error?.message || error);
     return {
       winner: "N/A",
       confidence: 0,
@@ -401,7 +415,14 @@ export const compareTeams = async (
 };
 
 export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
-  const prompt = "Gere insights baseados no Momento Termodinâmico, Handicaps Positivos e Cansaço (B2B).";
+  const compactStandings = formatStandingsForAI(teams);
+  const prompt = `Gere insights estratégicos para a rodada NBA baseados nos seguintes dados reais de classificação e performance. 
+  Foque no Momento Termodinâmico, Handicaps Positivos e Cansaço (B2B). 
+  
+  DADOS DE CLASSIFICAÇÃO:
+  ${compactStandings}
+
+  Instrução: Retorne um array JSON de objetos Insight [{title, content, type}].`;
 
   try {
     const text = await withRetry(() => callGeminiProxy('analyzeStandings', prompt), { retries: 2, initialDelay: 500 });
