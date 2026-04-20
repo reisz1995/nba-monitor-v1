@@ -315,7 +315,6 @@ export const compareTeams = async (
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
   const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);
-  const baseH2H = momentumData?.defense_data || momentumData?.momentum_data?.home_vs_away;
   const h2hContext = baseH2H && baseH2H.length > 0
     ? JSON.stringify(baseH2H)
     : "DADOS_H2H_INDISPONIVEIS";
