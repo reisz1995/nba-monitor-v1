@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { TrendingUp, Target, Activity, Zap, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Team, PalpiteData } from '../../types';
 import { calculateProjectedScores, findTeamByName, calculateUnderdogValue, getStandardTeamName } from '../../lib/nbaUtils';
@@ -167,9 +168,31 @@ const MarketProjectionSection: React.FC<MarketProjectionSectionProps> = ({ predi
                             <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter leading-none font-oswald">
                                 Market <span className="text-nba-blue">Projection</span>
                             </h3>
-                            <p className="text-nba-text-secondary text-[10px] font-black uppercase tracking-[0.4em] mt-3 flex items-center gap-2 font-oswald">
-                                <Activity className="w-3 h-3" /> algorithmic_fair_lines_v2.0
-                            </p>
+                            <div className="flex items-center gap-4 mt-3">
+                                <p className="text-nba-text-secondary text-[10px] font-black uppercase tracking-[0.4em] flex items-center gap-2 font-oswald">
+                                    <Activity className="w-3 h-3" /> algorithmic_fair_lines_v2.0
+                                </p>
+                                <button
+                                    onClick={async () => {
+                                        const tId = toast.loading('Atualizando Odds via The Odds API...');
+                                        try {
+                                            const res = await fetch('/api/fetch-market-odds?ui_trigger=true');
+                                            const d = await res.json();
+                                            if (d.success) {
+                                                toast.success(d.message, { id: tId });
+                                                window.location.reload();
+                                            } else {
+                                                toast.error(d.error || 'Erro ao atualizar', { id: tId });
+                                            }
+                                        } catch (e) {
+                                            toast.error('Erro de conexão', { id: tId });
+                                        }
+                                    }}
+                                    className="bg-nba-blue/20 hover:bg-nba-blue text-nba-blue hover:text-white px-3 py-1 border border-nba-blue/30 text-[9px] font-black uppercase tracking-widest transition-all font-oswald"
+                                >
+                                    🔄 Atualizar Mercado
+                                </button>
+                            </div>
                         </div>
                     </div>
 

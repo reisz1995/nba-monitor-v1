@@ -8,7 +8,8 @@ export default async function handler(req: any, res: any) {
     }
 
     const authHeader = req.headers.authorization;
-    if (authHeader !== \`Bearer \${process.env.CRON_SECRET}\` && req.query.cron_bypass !== 'true') {
+    const isUiTrigger = req.query.ui_trigger === 'true';
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && req.query.cron_bypass !== 'true' && !isUiTrigger) {
         return res.status(401).json({ error: 'ACESSO NEGADO: Gatilho não reconhecido.' });
     }
 
@@ -23,20 +24,20 @@ export default async function handler(req: any, res: any) {
     );
 
     try {
-        const url = \`https://api.the-odds-api.com/v4/sports/basketball_nba/odds/?apiKey=\${API_KEY}&regions=us&markets=player_points,player_rebounds,player_assists&oddsFormat=decimal\`;
-        
+        const url = `https://api.the-odds-api.com/v4/sports/basketball_nba/odds/?apiKey=${API_KEY}&regions=us&markets=player_points,player_rebounds,player_assists&oddsFormat=decimal`;
+
         const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(\`The Odds API error: \${response.statusText}\`);
+            throw new Error(`The Odds API error: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         const recordsToUpsert: any[] = [];
-        
+
         for (const event of data) {
             // Usa commence_time para definir local date de jogo
             const gameDate = new Date(event.commence_time).toISOString().split('T')[0];
-            
+
             // Procura o bookmaker favorito que possua props neste evento
             let selectedBookmaker = null;
             for (const b of BOOKMAKERS_PRIORITY) {
@@ -55,18 +56,18 @@ export default async function handler(req: any, res: any) {
             for (const market of selectedBookmaker.markets) {
                 // market: { key: 'player_points', outcomes: [...] }
                 const marketKey = market.key;
-                
+
                 // Agrupa outcomes pelo nome do jogador
                 const playerMap = new Map<string, { over: number, under: number, point: number }>();
-                
+
                 for (const outcome of market.outcomes) {
                     // outcome format: { name: "Over"/"Under", description: "LeBron James", price: 1.9, point: 26.5 }
                     const pName = outcome.description;
                     if (!pName) continue;
-                    
+
                     if (!playerMap.has(pName)) playerMap.set(pName, { over: 0, under: 0, point: outcome.point || 0 });
                     const stats = playerMap.get(pName)!;
-                    
+
                     if (outcome.name === 'Over') stats.over = outcome.price;
                     if (outcome.name === 'Under') stats.under = outcome.price;
                     stats.point = outcome.point || stats.point;
@@ -93,13 +94,13 @@ export default async function handler(req: any, res: any) {
             const { error } = await supabaseAdmin
                 .from('nba_player_props')
                 .upsert(recordsToUpsert, { onConflict: 'game_date,player_name,market' });
-                
+
             if (error) throw error;
         }
 
-        return res.status(200).json({ 
-            success: true, 
-            message: \`\${recordsToUpsert.length} props catalogadas com sucesso!\` 
+        return res.status(200).json({
+            success: true,
+            message: `${recordsToUpsert.length} props catalogadas com sucesso!`
         });
 
     } catch (err: any) {
