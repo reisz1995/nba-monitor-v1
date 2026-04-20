@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { TrendingUp, Target, Activity, Zap, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Team, PalpiteData } from '../../types';
 import { calculateProjectedScores, findTeamByName, calculateUnderdogValue, getStandardTeamName } from '../../lib/nbaUtils';

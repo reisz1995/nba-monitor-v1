@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Target, Zap, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { PlayerStat, Team, UnavailablePlayer } from '../../types';
 import { getPlayerWeight } from '../../lib/nbaUtils';
