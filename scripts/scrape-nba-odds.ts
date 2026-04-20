@@ -34,8 +34,17 @@ const teamMapping: { [key: string]: string } = {
     'Golden State': 'Golden State Warriors',
     'Houston': 'Houston Rockets',
     'Indiana': 'Indiana Pacers',
-    'LA Clippers': 'LA Clippers',
-    'L.A. Clippers': 'LA Clippers',
+    'LA Clippers': 'Los Angeles Clippers',
+    'L.A. Clippers': 'Los Angeles Clippers',
+    'LA Lakers': 'Los Angeles Lakers',
+    'L.A. Lakers': 'Los Angeles Lakers',
+    'LAC': 'Los Angeles Clippers',
+    'LAL': 'Los Angeles Lakers',
+    'Golden State': 'Golden State Warriors',
+    'Houston': 'Houston Rockets',
+    'Indiana': 'Indiana Pacers',
+    'LA Clippers': 'Los Angeles Clippers',
+    'L.A. Clippers': 'Los Angeles Clippers',
     'L.A. Lakers': 'Los Angeles Lakers',
     'LA Lakers': 'Los Angeles Lakers',
     'Memphis': 'Memphis Grizzlies',
@@ -66,7 +75,7 @@ const teamMapping: { [key: string]: string } = {
     'GSW': 'Golden State Warriors',
     'HOU': 'Houston Rockets',
     'IND': 'Indiana Pacers',
-    'LAC': 'LA Clippers',
+    'LAC': 'Los Angeles Clippers',
     'LAL': 'Los Angeles Lakers',
     'MEM': 'Memphis Grizzlies',
     'MIA': 'Miami Heat',
@@ -88,7 +97,9 @@ const teamMapping: { [key: string]: string } = {
 
 function normalizeTeamName(name: string): string {
     const cleanName = name.trim();
-    return teamMapping[cleanName] || cleanName;
+    // Case-insensitive lookup
+    const found = Object.keys(teamMapping).find(k => k.toLowerCase() === cleanName.toLowerCase());
+    return found ? teamMapping[found] : cleanName;
 }
 
 async function scrapeOdds() {
@@ -104,57 +115,58 @@ async function scrapeOdds() {
 
         const $ = cheerio.load(data.html);
         const games: any[] = [];
+        const seenMatchups = new Set<string>();
 
-        // Based on inspected HTML, games are in rows with specific classes
-        // The structure shows games are often double-row or structured within a tbody
-        $('tr').each((_, element) => {
-            const row = $(element);
-
-            // Look for team names in spans or strong tags
-            const teamNames = row.find('.team-name strong.ms-none, .team-name').map((_, el) => $(el).text().trim()).get();
-            // Sometimes they are in different rows, but the API response seems to have 
-            // a specific structure where we can identify matchups.
-
-            // Attempt 1: Pairwise rows (Away then Home)
-            // PickDawgz often groups them. Let's look for the .up-ml-cell or similar to find game rows.
+        // REFINED SCRAPING LOGIC: Iterar sobre as LINHAS da tabela para garantir pares (Away/Home)
+        // O PickDawgz usa segregações por league, mas como o endpoint já filtra por NBA,
+        // podemos focar nos containers de linha.
+        $('.table-upcoming tbody tr').each((i, el) => {
+            const row = $(el);
+            // Cada jogo geralmente ocupa DUAS linhas consecutivas no HTML renderizado,
+            // ou uma linha complexa. No PickDawgz, o padrão comum é:
+            // 1ª equipe = Away
+            // 2ª equipe = Home
         });
 
-        // REFINED SCRAPING LOGIC based on debug_scraper.html
-        // We look for segments that contain two teams.
+        // Alternativa mais robusta: buscar elementos individuais e validar integridade
         const allTeams = $('.team-name strong.ms-none').map((_, el) => $(el).text().trim()).get();
         const allML = $('.up-ml-cell .up-odds-point').map((_, el) => $(el).text().trim()).get();
         const allSpread = $('.up-spread-cell .up-odds-c').map((_, el) => $(el).text().trim()).get();
         const allTotal = $('.up-total-cell .up-odds-c').map((_, el) => $(el).text().trim()).get();
 
-        console.log(`Found ${allTeams.length} potential team entries.`);
-
         for (let i = 0; i < allTeams.length; i += 2) {
             if (i + 1 >= allTeams.length) break;
 
-            const awayTeamRaw = allTeams[i];
-            const homeTeamRaw = allTeams[i + 1];
-
-            const awayTeam = normalizeTeamName(awayTeamRaw);
-            const homeTeam = normalizeTeamName(homeTeamRaw);
+            const awayTeam = normalizeTeamName(allTeams[i]);
+            const homeTeam = normalizeTeamName(allTeams[i + 1]);
             const matchup = `${awayTeam} @ ${homeTeam}`;
+
+            // Evitar duplicatas (captura mobile/desktop repetida)
+            if (seenMatchups.has(matchup)) continue;
 
             const extractNumeric = (text: string) => {
                 if (!text) return null;
-                // Handle "o221.5" or "u221.5"
                 const cleaned = text.replace(/[^\d.-]/g, '');
                 const num = parseFloat(cleaned);
                 return isNaN(num) ? null : num;
             };
 
-            const gameData = {
-                matchup,
-                moneyline_away: extractNumeric(allML[i]),
-                moneyline_home: extractNumeric(allML[i + 1]),
-                spread: extractNumeric(allSpread[i]) || extractNumeric(allSpread[i + 1]), // Usually same value
-                total: extractNumeric(allTotal[i]) || extractNumeric(allTotal[i + 1]), // Usually same value
-            };
+            const mlAway = extractNumeric(allML[i]);
+            const mlHome = extractNumeric(allML[i + 1]);
+            const spread = extractNumeric(allSpread[i]) || extractNumeric(allSpread[i + 1]);
+            const total = extractNumeric(allTotal[i]) || extractNumeric(allTotal[i + 1]);
 
-            games.push(gameData);
+            // Só adiciona se tiver pelo menos um dado fundamental (Moneyline, Spread ou Total)
+            if (mlAway !== null || mlHome !== null || spread !== null || total !== null) {
+                games.push({
+                    matchup,
+                    moneyline_away: mlAway,
+                    moneyline_home: mlHome,
+                    spread,
+                    total,
+                });
+                seenMatchups.add(matchup);
+            }
         }
 
         console.log(`Extracted ${games.length} games.`);
