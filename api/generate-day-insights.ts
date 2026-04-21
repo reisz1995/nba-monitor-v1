@@ -1,4 +1,4 @@
-import { generateGeminiContent } from '../lib/gemini';
+import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 
 const SYSTEM_INSTRUCTION = `Você é um editor sênior de um site profissional de análises esportivas e apostas da NBA. Sua missão é transformar dados brutos em uma redação envolvente, profissional e persuasiva.
@@ -78,80 +78,79 @@ async function parseBody(req: any): Promise<any> {
     });
 }
 
-export default async function handler(req: any, res: any) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Método não permitido.' });
+async function executeGeminiWithFallback(prompt: string, temperature: number, systemInstruction: string) {
+    const primaryKey = process.env.GEMINI_API_KEY;
+    const secondaryKey = process.env.GEMINI_API_KEY_SECONDARY;
+
+    const runCall = async (apiKey: string, label: string) => {
+        if (!apiKey || apiKey.includes('your_gemini')) {
+            throw new Error(`API Key ${label} não configurada.`);
+        }
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: { systemInstruction, temperature },
+        });
+        const textOutput = typeof response.text === 'function' ? await response.text() : response.text;
+        if (!textOutput) throw new Error(`Resposta vazia da chave ${label}`);
+        return textOutput;
+    };
+
+    try {
+        if (!primaryKey) throw new Error('Chave primária ausente.');
+        return await runCall(primaryKey, 'Primária');
+    } catch (err: any) {
+        console.error(`[generate-day-insights] Falha na chave primária: ${err.message}`);
+        if (secondaryKey && !secondaryKey.includes('your_gemini')) {
+            console.warn('[generate-day-insights] Tentando fallback para chave secundária...');
+            return await runCall(secondaryKey, 'Secundária');
+        }
+        throw err;
     }
+}
+
+export default async function handler(req: any, res: any) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseRoleKey) {
-        return res.status(500).json({ error: 'Chaves de ambiente Supabase ausentes.' });
-    }
+    if (!supabaseUrl || !supabaseRoleKey) return res.status(500).json({ error: 'Configuração Supabase ausente.' });
 
     const body = await parseBody(req);
     const { date } = body ?? {};
-
-    if (!date) {
-        return res.status(400).json({ error: 'Data não informada (date ausente).' });
-    }
+    if (!date) return res.status(400).json({ error: 'Data não informada.' });
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseRoleKey);
 
     try {
-        // Busca os jogos daquela data e que NÃO possuem insight ainda
         const { data: pendingGames, error: fetchError } = await supabaseAdmin
             .from('nba_games_schedule')
             .select('*')
             .eq('game_date', date)
-            .is('gemini_insight', null)
-            .order('game_time_et', { ascending: true });
+            .is('gemini_insight', null);
 
         if (fetchError) throw fetchError;
-
-        if (!pendingGames || pendingGames.length === 0) {
-            return res.status(200).json({ message: 'Nenhum insight pendente para esta data.', processed: 0 });
-        }
+        if (!pendingGames || pendingGames.length === 0) return res.status(200).json({ processed: 0 });
 
         let processedCount = 0;
-
-        // Processa as requisições em série para evitar Rate Limits complexos e timeout no supabase
         for (const game of pendingGames) {
             try {
                 const prompt = formatPrompt(game);
-                const response = await generateGeminiContent(prompt, {
-                    model: 'gemini-3-flash-preview',
-                    systemInstruction: SYSTEM_INSTRUCTION,
-                    temperature: 0.4,
-                });
-
-                if (response.text) {
-                    await supabaseAdmin
-                        .from('nba_games_schedule')
-                        .update({ gemini_insight: response.text })
-                        .eq('id', game.id);
-
-                    processedCount++;
-                }
-
-                // Pequeno delay entre interações
+                const resultText = await executeGeminiWithFallback(prompt, 0.4, SYSTEM_INSTRUCTION);
+                await supabaseAdmin
+                    .from('nba_games_schedule')
+                    .update({ gemini_insight: resultText })
+                    .eq('id', game.id);
+                processedCount++;
                 await new Promise(r => setTimeout(r, 600));
-
             } catch (err: any) {
-                console.error(`Falha ao processar AI p/ Game ID ${game.id}:`, err.message);
-                // Continua para o próximo jogo
+                console.error(`Falha no jogo ${game.id}:`, err.message);
             }
         }
-
-        return res.status(200).json({
-            message: 'Pipeline de batch finalizado.',
-            processed: processedCount,
-            total: pendingGames.length
-        });
-
+        return res.status(200).json({ processed: processedCount, total: pendingGames.length });
     } catch (error: any) {
         console.error('[generate-day-insights] Error:', error.message);
-        return res.status(500).json({ error: 'Falha durante processamento batch', details: error.message });
+        return res.status(500).json({ error: 'Falha no processamento batch.', details: error.message });
     }
 }

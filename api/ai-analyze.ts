@@ -1,27 +1,19 @@
-import { Type } from '@google/genai';
-import { generateGeminiContent } from '../lib/gemini';
+import { Type, GoogleGenAI } from '@google/genai';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
 // Initialize Upstash Redis for Rate Limiting
 let ratelimit: Ratelimit | null = null;
-
 try {
     const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
     const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-
     if (redisUrl && redisToken) {
         ratelimit = new Ratelimit({
-            redis: new Redis({
-                url: redisUrl,
-                token: redisToken,
-            }),
-            limiter: Ratelimit.slidingWindow(10, '1 m'), // 10 requests per minute per IP
+            redis: new Redis({ url: redisUrl, token: redisToken }),
+            limiter: Ratelimit.slidingWindow(10, '1 m'),
             analytics: true,
             prefix: 'nba_monitor_ratelimit',
         });
-    } else {
-        console.warn('[Upstash-Redis] Variáveis de ambiente ausentes. Rate limiting desativado.');
     }
 } catch (e) {
     console.error('[Upstash-Redis] Falha ao inicializar Ratelimit:', e);
@@ -77,11 +69,8 @@ const INSIGHTS_SCHEMA = {
     },
 };
 
-/** Reads full body from a Node.js IncomingMessage stream if req.body is unavailable. */
 async function parseBody(req: any): Promise<any> {
-    // Vercel with Next.js runtime parses automatically; raw Node runtime does not.
     if (req.body !== undefined) return req.body;
-
     return new Promise((resolve, reject) => {
         let raw = '';
         req.on('data', (chunk: Buffer) => { raw += chunk.toString(); });
@@ -92,64 +81,70 @@ async function parseBody(req: any): Promise<any> {
     });
 }
 
-export default async function handler(req: any, res: any) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Método não permitido.' });
-    }
+async function executeGeminiWithFallback(prompt: string, options: any) {
+    const primaryKey = process.env.GEMINI_API_KEY;
+    const secondaryKey = process.env.GEMINI_API_KEY_SECONDARY;
 
-    // Rate limiting (only if Upstash is configured)
+    const runCall = async (apiKey: string, label: string) => {
+        if (!apiKey || apiKey.includes('your_gemini')) {
+            throw new Error(`API Key ${label} não configurada.`);
+        }
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: {
+                systemInstruction: options.systemInstruction,
+                responseMimeType: options.responseMimeType,
+                responseSchema: options.responseSchema,
+                temperature: options.temperature,
+            },
+        });
+        const textOutput = typeof response.text === 'function' ? await response.text() : response.text;
+        if (!textOutput) throw new Error(`Resposta vazia da chave ${label}`);
+        return textOutput;
+    };
+
+    try {
+        if (!primaryKey) throw new Error('Chave primária ausente.');
+        return await runCall(primaryKey, 'Primária');
+    } catch (err: any) {
+        console.error(`[ai-analyze] Falha na chave primária: ${err.message}`);
+        if (secondaryKey && !secondaryKey.includes('your_gemini')) {
+            console.warn('[ai-analyze] Tentando fallback para chave secundária...');
+            return await runCall(secondaryKey, 'Secundária');
+        }
+        throw err;
+    }
+}
+
+export default async function handler(req: any, res: any) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+
     if (ratelimit) {
         try {
             const identifier = req.headers['x-forwarded-for'] || 'anonymous';
-            const { success, limit, remaining } = await ratelimit.limit(identifier as string);
-
-            res.setHeader('X-RateLimit-Limit', limit.toString());
-            res.setHeader('X-RateLimit-Remaining', remaining.toString());
-
-            if (!success) {
-                return res.status(429).json({
-                    error: 'Limite de requisições excedido. Tente novamente em 1 minuto.'
-                });
-            }
-        } catch (error) {
-            console.error('[Upstash-Redis] Erro durante rate limit check:', error);
-            // Non-blocking: continue even if rate limit check fails due to Redis issues
-        }
+            const { success } = await ratelimit.limit(identifier as string);
+            if (!success) return res.status(429).json({ error: 'Limite de requisições excedido.' });
+        } catch (error) { }
     }
 
     const body = await parseBody(req);
     const { mode, prompt } = body ?? {};
-
-    if (!mode || !prompt) {
-        return res.status(400).json({ error: 'Campos obrigatórios ausentes: mode, prompt.' });
-    }
+    if (!mode || !prompt) return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
 
     const schema = mode === 'compareTeams' ? COMPARE_SCHEMA : INSIGHTS_SCHEMA;
 
     try {
-        const response = await generateGeminiContent(prompt, {
-            model: 'gemini-3-flash-preview',
+        const text = await executeGeminiWithFallback(prompt, {
             systemInstruction: SYSTEM_INSTRUCTION,
             responseMimeType: 'application/json',
             responseSchema: schema,
             temperature: 0.1,
         });
-
-        if (!response.text) {
-            throw new Error('Payload nulo retornado pelo modelo.');
-        }
-
-        return res.status(200).json({ text: response.text });
+        return res.status(200).json({ text });
     } catch (error: any) {
-        // Log full error server-side for Vercel function logs
-        console.error('[ai-analyze] Falha na inferência:', {
-            message: error.message,
-            status: error.status,
-            stack: error.stack?.slice(0, 500),
-        });
-        return res.status(500).json({
-            error: 'Colapso na inferência do motor IA.',
-            details: error.message,
-        });
+        console.error('[ai-analyze] Falha:', error.message);
+        return res.status(500).json({ error: 'Falha na inferência IA.', details: error.message });
     }
 }
