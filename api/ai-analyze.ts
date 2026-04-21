@@ -1,4 +1,5 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
+import { generateGeminiContent } from '../lib/gemini';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
@@ -116,16 +117,6 @@ export default async function handler(req: any, res: any) {
         }
     }
 
-    // Guard: API key must be present (server-side only)
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        console.error('[ai-analyze] FATAL: GEMINI_API_KEY ausente. Configure em Vercel → Settings → Environment Variables.');
-        return res.status(500).json({
-            error: 'Configuração do servidor incompleta.',
-            hint: 'GEMINI_API_KEY não encontrada nas variáveis de ambiente do servidor.',
-        });
-    }
-
     const body = await parseBody(req);
     const { mode, prompt } = body ?? {};
 
@@ -133,19 +124,15 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: 'Campos obrigatórios ausentes: mode, prompt.' });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
     const schema = mode === 'compareTeams' ? COMPARE_SCHEMA : INSIGHTS_SCHEMA;
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await generateGeminiContent(prompt, {
             model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: {
-                systemInstruction: SYSTEM_INSTRUCTION,
-                responseMimeType: 'application/json',
-                responseSchema: schema,
-                temperature: 0.1,
-            },
+            systemInstruction: SYSTEM_INSTRUCTION,
+            responseMimeType: 'application/json',
+            responseSchema: schema,
+            temperature: 0.1,
         });
 
         if (!response.text) {

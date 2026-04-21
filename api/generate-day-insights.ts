@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { generateGeminiContent } from '../lib/gemini';
 import { createClient } from '@supabase/supabase-js';
 
 const SYSTEM_INSTRUCTION = `Você é um editor sênior de um site profissional de análises esportivas e apostas da NBA. Sua missão é transformar dados brutos em uma redação envolvente, profissional e persuasiva.
@@ -83,12 +83,11 @@ export default async function handler(req: any, res: any) {
         return res.status(405).json({ error: 'Método não permitido.' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!apiKey || !supabaseUrl || !supabaseRoleKey) {
-        return res.status(500).json({ error: 'Chaves de ambiente ausentes.' });
+    if (!supabaseUrl || !supabaseRoleKey) {
+        return res.status(500).json({ error: 'Chaves de ambiente Supabase ausentes.' });
     }
 
     const body = await parseBody(req);
@@ -99,7 +98,6 @@ export default async function handler(req: any, res: any) {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseRoleKey);
-    const ai = new GoogleGenAI({ apiKey });
 
     try {
         // Busca os jogos daquela data e que NÃO possuem insight ainda
@@ -118,17 +116,14 @@ export default async function handler(req: any, res: any) {
 
         let processedCount = 0;
 
-        // Processa as requisições em série para evitar Rate Limits complexos e timeout no supabase. Duração pode esticar até o limite do Serverless
+        // Processa as requisições em série para evitar Rate Limits complexos e timeout no supabase
         for (const game of pendingGames) {
             try {
                 const prompt = formatPrompt(game);
-                const response = await ai.models.generateContent({
+                const response = await generateGeminiContent(prompt, {
                     model: 'gemini-3-flash-preview',
-                    contents: prompt,
-                    config: {
-                        systemInstruction: SYSTEM_INSTRUCTION,
-                        temperature: 0.4,
-                    },
+                    systemInstruction: SYSTEM_INSTRUCTION,
+                    temperature: 0.4,
                 });
 
                 if (response.text) {
@@ -140,19 +135,19 @@ export default async function handler(req: any, res: any) {
                     processedCount++;
                 }
 
-                // Pequeno delay entre interações p evitar overload massivo global de API limit num for loop mto rápido
+                // Pequeno delay entre interações
                 await new Promise(r => setTimeout(r, 600));
 
             } catch (err: any) {
-                console.error(\`Falha ao processar AI p/ Game ID \${game.id}:\`, err.message);
+                console.error(`Falha ao processar AI p/ Game ID ${game.id}:`, err.message);
                 // Continua para o próximo jogo
             }
         }
 
-        return res.status(200).json({ 
-            message: 'Pipeline de batch finalizado.', 
-            processed: processedCount, 
-            total: pendingGames.length 
+        return res.status(200).json({
+            message: 'Pipeline de batch finalizado.',
+            processed: processedCount,
+            total: pendingGames.length
         });
 
     } catch (error: any) {

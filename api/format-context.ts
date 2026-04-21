@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { generateGeminiContent } from '../lib/gemini';
 import { createClient } from '@supabase/supabase-js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
@@ -59,11 +59,6 @@ export default async function handler(req: any, res: any) {
         } catch (error) { }
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        return res.status(500).json({ error: 'GEMINI_API_KEY ausente.' });
-    }
-
     const body = await parseBody(req);
     const { prompt, scheduleId } = body ?? {};
 
@@ -71,16 +66,11 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: 'prompt ausente.' });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-
     try {
-        const response = await ai.models.generateContent({
+        const response = await generateGeminiContent(prompt, {
             model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: {
-                systemInstruction: SYSTEM_INSTRUCTION,
-                temperature: 0.4,
-            },
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.4,
         });
 
         if (!response.text) {
