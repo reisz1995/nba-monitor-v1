@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlignLeft, Database, Loader2, Calendar, Sparkles, Wand2 } from 'lucide-react';
+import { AlignLeft, Database, Loader2, Calendar, Sparkles, Wand2, Copy, Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface ContextoSectionProps {
@@ -85,6 +85,7 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
     const [formattingId, setFormattingId] = useState<number | null>(null);
     const [formattedData, setFormattedData] = useState<Record<number, string>>({});
     const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+    const [copiedId, setCopiedId] = useState<number | null>(null);
 
     const pendingCount = schedules.filter(s => !formattedData[s.id]).length;
 
@@ -158,6 +159,34 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
             alert(`Falha no Gemini: ${err.message}`);
         } finally {
             setFormattingId(null);
+        }
+    };
+
+    const handleCopy = async (id: number, text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedId(id);
+            setTimeout(() => setCopiedId(null), 2000);
+        } catch (err) {
+            console.error('Falha ao copiar:', err);
+
+            // Fallback for non-secure contexts or older browsers
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "absolute";
+            textArea.style.left = "-999999px";
+            document.body.prepend(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                setCopiedId(id);
+                setTimeout(() => setCopiedId(null), 2000);
+            } catch (error) {
+                console.error('Fallback copy failed:', error);
+                alert('Erro ao copiar conteúdo.');
+            } finally {
+                textArea.remove();
+            }
         }
     };
 
@@ -278,26 +307,41 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                                     </td>
                                     <td className="px-6 py-4 align-top">
                                         {formattedData[schedule.id] ? (
-                                            <div className="max-h-80 overflow-y-auto pr-4 custom-scrollbar text-sm text-white/90 whitespace-pre-wrap leading-relaxed prose prose-invert prose-p:my-1 prose-headings:mb-2 prose-headings:mt-4">
-                                                {formattedData[schedule.id].split('\n').map((line, i) => {
-                                                    if (line.startsWith('# ')) {
-                                                        return <h1 key={i} className="text-xl font-black text-white font-oswald my-2">{line.replace('# ', '')}</h1>
-                                                    } else if (line.startsWith('## ')) {
-                                                        return <h2 key={i} className="text-lg font-black text-nba-gold font-oswald my-2">{line.replace('## ', '')}</h2>
-                                                    } else if (line.startsWith('### ')) {
-                                                        return <h3 key={i} className="text-md font-bold text-nba-blue font-oswald my-2">{line.replace('### ', '')}</h3>
-                                                    } else if (line.startsWith('- ') || line.startsWith('• ')) {
-                                                        try { return <li key={i} className="ml-4 list-disc text-white/80" dangerouslySetInnerHTML={{ __html: line.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />; } catch (e) { return <li key={i} className="ml-4 list-disc text-white/80">{line.substring(2)}</li>; }
-                                                    } else if (line.trim() === '---') {
-                                                        return <hr key={i} className="border-white/10 my-4" />
-                                                    } else if (line.startsWith('🎯') || line.startsWith('📊') || line.startsWith('💰') || line.startsWith('📈') || line.startsWith('🔥')) {
-                                                        try { return <div key={i} className="font-bebas text-lg tracking-wider text-nba-text-secondary" dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />; } catch (e) { return <div key={i} className="font-bebas text-lg tracking-wider text-nba-text-secondary">{line}</div>; }
-                                                    } else if (line.trim() === '') {
-                                                        return <div key={i} className="h-2"></div>
-                                                    }
-                                                    try { return <p key={i} className="text-white/80" dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />; } catch (e) { return <p key={i} className="text-white/80">{line}</p>; }
-                                                })}
-                                            </div>
+                                            <>
+                                                <div className="flex items-center justify-between mb-4 bg-white/5 p-2 rounded-sm border border-white/5">
+                                                    <div className="flex items-center gap-2">
+                                                        <Sparkles className="w-3 h-3 text-nba-gold animate-pulse" />
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-nba-gold font-oswald">Análise Formatada</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleCopy(schedule.id, formattedData[schedule.id])}
+                                                        className={`flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-sm transition-all font-oswald uppercase tracking-widest border ${copiedId === schedule.id ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'bg-white/5 hover:bg-nba-gold hover:text-nba-black border-white/10 text-white/70'}`}
+                                                    >
+                                                        {copiedId === schedule.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                                        {copiedId === schedule.id ? 'COPIADO!' : 'COPIAR ANÁLISE'}
+                                                    </button>
+                                                </div>
+                                                <div className="max-h-80 overflow-y-auto pr-4 custom-scrollbar text-sm text-white/90 whitespace-pre-wrap leading-relaxed prose prose-invert prose-p:my-1 prose-headings:mb-2 prose-headings:mt-4">
+                                                    {formattedData[schedule.id].split('\n').map((line, i) => {
+                                                        if (line.startsWith('# ')) {
+                                                            return <h1 key={i} className="text-xl font-black text-white font-oswald my-2">{line.replace('# ', '')}</h1>
+                                                        } else if (line.startsWith('## ')) {
+                                                            return <h2 key={i} className="text-lg font-black text-nba-gold font-oswald my-2">{line.replace('## ', '')}</h2>
+                                                        } else if (line.startsWith('### ')) {
+                                                            return <h3 key={i} className="text-md font-bold text-nba-blue font-oswald my-2">{line.replace('### ', '')}</h3>
+                                                        } else if (line.startsWith('- ') || line.startsWith('• ')) {
+                                                            try { return <li key={i} className="ml-4 list-disc text-white/80" dangerouslySetInnerHTML={{ __html: line.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />; } catch (e) { return <li key={i} className="ml-4 list-disc text-white/80">{line.substring(2)}</li>; }
+                                                        } else if (line.trim() === '---') {
+                                                            return <hr key={i} className="border-white/10 my-4" />
+                                                        } else if (line.startsWith('🎯') || line.startsWith('📊') || line.startsWith('💰') || line.startsWith('📈') || line.startsWith('🔥')) {
+                                                            try { return <div key={i} className="font-bebas text-lg tracking-wider text-nba-text-secondary" dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />; } catch (e) { return <div key={i} className="font-bebas text-lg tracking-wider text-nba-text-secondary">{line}</div>; }
+                                                        } else if (line.trim() === '') {
+                                                            return <div key={i} className="h-2"></div>
+                                                        }
+                                                        try { return <p key={i} className="text-white/80" dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />; } catch (e) { return <p key={i} className="text-white/80">{line}</p>; }
+                                                    })}
+                                                </div>
+                                            </>
                                         ) : (
                                             <div className="h-full min-h-[160px] flex items-center justify-center border border-white/5 border-dashed rounded-sm bg-nba-surface/50">
                                                 <span className="text-[10px] text-white/20 uppercase tracking-[0.3em] font-oswald text-center">
