@@ -339,7 +339,9 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                       teamB={teamB}
                       homeRecord={analysis.momentumData?.home_record || []}
                       awayRecord={analysis.momentumData?.away_record || []}
-                      h2hRecord={analysis.momentumData?.defense_data || analysis.momentumData?.momentum_data?.home_vs_away || []}
+                      h2hRecord={(analysis.momentumData?.defense_data?.length ?? 0) > 0 
+                        ? analysis.momentumData.defense_data 
+                        : (analysis.momentumData?.momentum_data?.home_vs_away || [])}
                     />
                   )}
                 </div>

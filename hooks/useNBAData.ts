@@ -30,7 +30,7 @@ export const useNBAData = () => {
     }, { revalidateOnFocus: false });
 
     const { data: dbPredictions = [], mutate: mutatePredictions } = useSWR('nba/predictions', async () => {
-        const { data } = await supabase.from('game_predictions').select('*');
+        const { data } = await supabase.from('game_predictions').select('*').order('date', { ascending: false });
         return data || [];
     }, { revalidateOnFocus: true });
 

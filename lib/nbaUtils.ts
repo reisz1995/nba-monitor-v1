@@ -97,7 +97,8 @@ export const calculateDeterministicPace = (
     powerA: number = 0,
     powerB: number = 0,
     h2hFromDefense?: any[],
-    isPlayoff: boolean = false
+    isPlayoff: boolean = false,
+    editorInsight?: string
 ): number => {
     const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
     const currentMaxPace = isPlayoff ? SEASON_25_26_METRICS.PLAYOFF_MAX_PACE : SEASON_25_26_METRICS.MAX_PACE;
@@ -141,7 +142,7 @@ export const calculateDeterministicPace = (
     let projectedPace = Math.min(basePace, currentMaxPace);
 
     // [GATILHO DE OVERCLOCK] - Ativado por diferencial de força ou menção editorial
-    const hasOverclockKeyword = options?.editorInsight?.match(/OVERCLOCK/i);
+    const hasOverclockKeyword = editorInsight?.match(/OVERCLOCK/i);
     if (!isPlayoff && (powerDiff >= PROJECTION_CONFIG.OVERCLOCK_THRESHOLD || hasOverclockKeyword)) {
         projectedPace *= PROJECTION_CONFIG.OVERCLOCK_BOOST;
         if (hasOverclockKeyword && process.env.NODE_ENV === 'development') {
@@ -371,7 +372,8 @@ export const calculateProjectedScores = (
         rtgA, rtgB,
         options?.powerA ?? 0, options?.powerB ?? 0,
         options?.defenseData,
-        isPlayoff
+        isPlayoff,
+        options?.editorInsight
     );
 
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);

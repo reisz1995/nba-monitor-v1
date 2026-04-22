@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, MarketData } from '../types';
 import { compareTeams, saveMatchupAnalysis, fetchGameWithMomentum } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
-import { calculateProjectedScores, DataballrInput, getStandardTeamName } from '../lib/nbaUtils';
+import { calculateProjectedScores, DataballrInput, getStandardTeamName, normalizeTeamName } from '../lib/nbaUtils';
 import { findDataballrStatsByName } from '../services/databallrService';
 import { toast } from 'sonner';
 
@@ -44,10 +44,12 @@ export const useTeamComparisonData = ({
     }, [currentPrediction, teamB.name]);
 
     const defenseData = useMemo(() => {
-        if (!currentPrediction?.defense_data) return [];
-        const rawData = typeof currentPrediction.defense_data === 'string'
-            ? JSON.parse(currentPrediction.defense_data)
-            : currentPrediction.defense_data;
+        const rawH2H = currentPrediction?.defense_data || currentPrediction?.momentum_data?.home_vs_away;
+        if (!rawH2H) return [];
+        
+        const rawData = typeof rawH2H === 'string'
+            ? JSON.parse(rawH2H)
+            : rawH2H;
 
         if (isReversed && Array.isArray(rawData)) {
             return rawData.map((g: any) => ({
@@ -311,13 +313,24 @@ export const useTeamComparisonData = ({
 
                 // Normalização de perspectiva se o time A for visitante na predição original
                 if (momentumData?.away_team) {
-                    const isRev = getStandardTeamName(momentumData.away_team) === getStandardTeamName(teamA.name);
-                    if (isRev && Array.isArray(momentumData.defense_data)) {
-                        momentumData.defense_data = momentumData.defense_data.map((g: any) => ({
-                            ...g,
-                            result: g.result === 'V' ? 'D' : (g.result === 'D' ? 'V' : g.result),
-                            score: g.score?.includes('-') ? g.score.split('-').reverse().join('-') : g.score
-                        }));
+                    const isRev = normalizeTeamName(momentumData.away_team) === normalizeTeamName(teamA.name);
+                    if (isRev) {
+                        // Normaliza defense_data
+                        if (Array.isArray(momentumData.defense_data)) {
+                            momentumData.defense_data = momentumData.defense_data.map((g: any) => ({
+                                ...g,
+                                result: g.result === 'V' ? 'D' : (g.result === 'D' ? 'V' : g.result),
+                                score: g.score?.includes('-') ? g.score.split('-').reverse().join('-') : g.score
+                            }));
+                        }
+                        // Normaliza momentum_data.home_vs_away
+                        if (momentumData.momentum_data?.home_vs_away && Array.isArray(momentumData.momentum_data.home_vs_away)) {
+                            momentumData.momentum_data.home_vs_away = momentumData.momentum_data.home_vs_away.map((g: any) => ({
+                                ...g,
+                                result: g.result === 'V' ? 'D' : (g.result === 'D' ? 'V' : g.result),
+                                score: g.score?.includes('-') ? g.score.split('-').reverse().join('-') : g.score
+                            }));
+                        }
                     }
                 }
 
