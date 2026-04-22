@@ -119,7 +119,8 @@ interface ParsedAnalysis extends MatchupAnalysis {
 const enforceThermodynamicCoherence = (
   analysis: ParsedAnalysis,
   teamA: Team,
-  teamB: Team
+  teamB: Team,
+  confidenceModifier: number = 0
 ): ParsedAnalysis => {
   const { expectedScoreA, expectedScoreB } = analysis;
 
@@ -137,7 +138,16 @@ const enforceThermodynamicCoherence = (
   }
 
   // 3. Recalibração de confiança baseada na margem de vitória
-  const adjustedConfidence = Math.min(100, Math.max(50, 50 + (Math.abs(scoreDelta) * 2.5)));
+  let adjustedConfidence = Math.min(100, Math.max(50, 50 + (Math.abs(scoreDelta) * 2.5)));
+
+  // [PLAYOFFS] Aplica modificadores de confiança (ex: Dreno de Intensidade)
+  if (confidenceModifier !== 0) {
+    const penaltyValue = Math.abs(confidenceModifier) < 1 ? confidenceModifier * 100 : confidenceModifier;
+    adjustedConfidence += penaltyValue;
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[SYS-OP] CONFIANÇA AJUSTADA: ${adjustedConfidence.toFixed(1)}% (Modificador: ${penaltyValue})`);
+    }
+  }
 
   return {
     ...analysis,
@@ -302,7 +312,7 @@ export const compareTeams = async (
   // Extrair defenseData (H2H) do momentumData
   const baseH2H = momentumData?.defense_data || momentumData?.momentum_data?.home_vs_away;
 
-  const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced } =
+  const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced, isPlayoff, confidenceModifier } =
     calculateProjectedScores(teamA, teamB, {
       isHomeA,
       injuriesA,
@@ -382,7 +392,7 @@ export const compareTeams = async (
     const rawAnalysisResult = JSON.parse(cleanJsonText);
 
     // Injeção da trava de segurança termodinâmica
-    const coherentAnalysis = enforceThermodynamicCoherence(rawAnalysisResult, teamA, teamB);
+    const coherentAnalysis = enforceThermodynamicCoherence(rawAnalysisResult, teamA, teamB, confidenceModifier);
 
     // Calcula pick_total (PREV_OVER/UNDER) direto na fonte
     let pickTotal: string | undefined;

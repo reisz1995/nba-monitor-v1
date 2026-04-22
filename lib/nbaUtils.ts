@@ -34,6 +34,7 @@ const SEASON_25_26_METRICS = {
     AVG_TS: 58.8,
     MIN_PACE: 95.0,
     MAX_PACE: 107.0,
+    PLAYOFF_MAX_PACE: 102.5, // [PLAYOFFS] Teto reduzido
     AVG_ORB: 23.5
 } as const;
 
@@ -95,45 +96,53 @@ export const calculateDeterministicPace = (
     rtgB?: { defRtg: number },
     powerA: number = 0,
     powerB: number = 0,
-    h2hFromDefense?: any[]
+    h2hFromDefense?: any[],
+    isPlayoff: boolean = false
 ): number => {
-    const paceA = getBlendedPace(teamA, databallrA);
-    const paceB = getBlendedPace(teamB, databallrB);
+    const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
+    const currentMaxPace = isPlayoff ? SEASON_25_26_METRICS.PLAYOFF_MAX_PACE : SEASON_25_26_METRICS.MAX_PACE;
 
-    const powerDiff = Math.abs(powerA - powerB);
-    const strongestTeamPace = powerA >= powerB ? paceA : paceB;
-    const bestDefenderPace = (rtgA && rtgB && rtgA.defRtg < rtgB.defRtg) ? paceA : paceB;
+    const getGamePaceClamped = (score: string) => {
+        const rawPace = parseScoreToTotal(score) / (2 * PACE_FACTOR);
+        // [TRAVA DE SEGURANÇA] Limite outliers a 107.0 (ou 102.5 em playoffs)
+        return Math.min(rawPace, 107.0);
+    };
 
-    // [MATRIZ HÍBRIDA V5.1]
-    // Força (80%) dita a velocidade | Defesa (20%) atua como atrito
-    let basePace = (strongestTeamPace * 0.80) + (bestDefenderPace * 0.20);
+    // [DIRETRIZ 1: CÁLCULO VETORIAL DE RITMO]
+    const last5A = (teamA.record || []).slice(-5);
+    const avgPace5A = last5A.length > 0 ? last5A.reduce((sum, g) => sum + getGamePaceClamped(g.score), 0) / last5A.length : getFallbackPace();
+    const last5B = (teamB.record || []).slice(-5);
+    const avgPace5B = last5B.length > 0 ? last5B.reduce((sum, g) => sum + getGamePaceClamped(g.score), 0) / last5B.length : getFallbackPace();
 
-    // [INFLUÊNCIA H2H] - Se dados de colisão direta existirem, pesam 25% no pace base
-    if (h2hFromDefense && h2hFromDefense.length > 0) {
-        const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
-        const h2hPace = h2hFromDefense.reduce((sum, g) => {
-            const total = parseScoreToTotal(g.score);
-            return sum + (total / (2 * PACE_FACTOR));
-        }, 0) / h2hFromDefense.length;
+    const mediaL5 = (avgPace5A + avgPace5B) / 2;
 
-        if (h2hPace > 0) {
-            const oldPace = basePace;
-            basePace = (basePace * 0.80) + (h2hPace * 0.20);
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[SYS-OP] H2H ATIVADO: Pace Ajustado de ${oldPace.toFixed(1)} -> ${basePace.toFixed(1)} baseado em ${h2hFromDefense.length} jogos.`);
-            }
-        }
+    // [H2H] - Se dados de colisão direta existirem, pesam 30% no pace base
+    let avgPaceH2H = 0;
+    const h2hGames = h2hFromDefense && h2hFromDefense.length > 0 ? h2hFromDefense : [];
+
+    if (h2hGames.length > 0) {
+        avgPaceH2H = h2hGames.reduce((sum, g) => sum + (parseScoreToTotal(g.score) / (2 * PACE_FACTOR)), 0) / h2hGames.length;
     }
 
-    let projectedPace = basePace;
+    // REGRA 70/30: (L5 * 0.70) + (H2H * 0.30)
+    let basePace = avgPaceH2H > 0 
+        ? (mediaL5 * 0.70) + (avgPaceH2H * 0.30)
+        : mediaL5; // Fallback 100% L5
 
-    // [GATILHO DE OVERCLOCK]
-    // Se a disparidade de força for severa, injeta aceleração para evitar o "Defensive Lock"
-    if (powerDiff >= PROJECTION_CONFIG.OVERCLOCK_THRESHOLD) {
+    const powerDiff = Math.abs(powerA - powerB);
+    const strongestTeamPace = powerA >= powerB ? (databallrA?.pace || avgPace5A) : (databallrB?.pace || avgPace5B);
+    const bestDefenderPace = (rtgA && rtgB && rtgA.defRtg < rtgB.defRtg) ? (databallrA?.pace || avgPace5A) : (databallrB?.pace || avgPace5B);
+
+    // Mescla a matriz vetorial com a matriz híbrida de força/defesa (ajustado para Playoff)
+    const forceWeight = isPlayoff ? 0.60 : 0.80;
+    const attrWeight = 1 - forceWeight;
+    basePace = (basePace * 0.5) + ((strongestTeamPace * forceWeight + bestDefenderPace * attrWeight) * 0.5);
+
+    let projectedPace = Math.min(basePace, currentMaxPace);
+
+    // [GATILHO DE OVERCLOCK] - Desativado em Playoffs ou severamente mitigado
+    if (!isPlayoff && powerDiff >= PROJECTION_CONFIG.OVERCLOCK_THRESHOLD) {
         projectedPace *= PROJECTION_CONFIG.OVERCLOCK_BOOST;
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`[SYS-OP] OVERCLOCK ATIVADO: PowerDiff ${powerDiff.toFixed(1)} -> Payload Acelerado`);
-        }
     }
 
     // Ajustes de lesões (Alocação Zero)
@@ -143,7 +152,7 @@ export const calculateDeterministicPace = (
     projectedPace -= (injuryPaceReduction(injuriesA) + injuryPaceReduction(injuriesB));
 
     if (process.env.NODE_ENV === 'development') {
-        console.log(`[KERNEL V5.1] Pace: ${projectedPace.toFixed(2)} | Driver: ${powerA >= powerB ? 'TeamA' : 'TeamB'}`);
+        console.log(`[KERNEL PLAYOFFS: ${isPlayoff}] Pace: ${projectedPace.toFixed(2)} | L5: ${mediaL5.toFixed(1)} | H2H: ${avgPaceH2H.toFixed(1)}`);
     }
     return projectedPace;
 };
@@ -339,6 +348,10 @@ export const calculateProjectedScores = (
     databallrA?: DataballrInput | null,
     databallrB?: DataballrInput | null
 ) => {
+    // [DIRETRIZ 2: GATILHO DE TENSÃO]
+    const isPlayoff = !!options?.editorInsight?.match(/playoff|pós-temporada|round \d|game \d|série/i);
+    const powerDiffWeight = isPlayoff ? 0.95 : PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
+
     const rtgA = getTeamRatings(teamA, databallrA);
     const rtgB = getTeamRatings(teamB, databallrB);
 
@@ -347,7 +360,8 @@ export const calculateProjectedScores = (
         options?.injuriesA, options?.injuriesB,
         rtgA, rtgB,
         options?.powerA ?? 0, options?.powerB ?? 0,
-        options?.defenseData
+        options?.defenseData,
+        isPlayoff
     );
 
     let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
@@ -356,7 +370,16 @@ export const calculateProjectedScores = (
     const context = applyContextualAdjustments(projA, projB, matchPace, options);
     projA = context.adjA; projB = context.adjB;
 
+    // [DIRETRIZ 2.2: Multiplicador de Vantagem]
     const superiority = applySuperiorityFilters(projA, projB, teamA, teamB, rtgA, rtgB, options?.powerA ?? 0, options?.powerB ?? 0);
+    // Ajuste fino do Power Diff para Playoffs (aplicado após superiority filters)
+    const powerDiff = Math.abs((options?.powerA ?? 0) - (options?.powerB ?? 0));
+    const powerAdj = powerDiff * (powerDiffWeight - PROJECTION_CONFIG.POWER_DIFF_WEIGHT);
+    if (options?.powerA && options.powerB) {
+        if (options.powerA > options.powerB) projA += powerAdj;
+        else projB += powerAdj;
+    }
+
     projA = superiority.adjA; projB = superiority.adjB;
 
     const volatility = applyVolatilityFilter(projA, projB, databallrA, databallrB, options?.powerA, options?.powerB);
@@ -366,18 +389,48 @@ export const calculateProjectedScores = (
     if (options?.isHomeA) { projA += homeAdv; projB -= homeAdv; }
     else { projB += homeAdv; projA -= homeAdv; }
 
-    projA -= calculatePenalty(options?.injuriesA);
-    projB -= calculatePenalty(options?.injuriesB);
+    // [DIRETRIZ 3: DETEÇÃO DE FALHAS - LESÕES]
+    const calculateStarInjuryImpact = (injuries?: { isOut: boolean; weight: number }[]) => {
+        return (injuries || []).some(i => i.isOut && i.weight >= 9) ? 4.5 : 0;
+    };
+    projA -= (calculatePenalty(options?.injuriesA) + calculateStarInjuryImpact(options?.injuriesA));
+    projB -= (calculatePenalty(options?.injuriesB) + calculateStarInjuryImpact(options?.injuriesB));
+
+    // [DIRETRIZ 3: DRENO DE INTENSIDADE - JOGO 2]
+    let confidenceModifier = 0;
+    if (isPlayoff && options?.editorInsight?.match(/game 2|jogo 2/i)) {
+        const lastGame = options.defenseData?.[0]; // Assume que o último jogo no H2H é o Jogo 1
+        if (lastGame) {
+            const lastTotal = parseScoreToTotal(lastGame.score);
+            const scores = lastGame.score.split(/[-\s:]+/).map((s: string) => parseInt(s));
+            const margin = Math.abs(scores[0] - scores[1]);
+            if (margin >= 15) {
+                confidenceModifier = -0.15; // -15% de confiança
+                if (process.env.NODE_ENV === 'development') console.log('[SYS-OP] DRENO DE INTENSIDADE: Jogo 2 após blowout detectado.');
+            }
+        }
+    }
 
     const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 17, rtgB.seasonPPG - 17);
 
+    let totalPayload = finalA + finalB;
+    const kineticState = matchPace > 105.5 ? 'HYPER_KINETIC' : (matchPace < 100.5 ? 'SLOW_GRIND' : 'STATIC_TRENCH');
+
+    // [DIRETRIZ 2.3: Redutor de Trincheira]
+    if (isPlayoff && (kineticState === 'STATIC_TRENCH' || kineticState === 'SLOW_GRIND')) {
+        totalPayload *= 0.91; // Redução de 9% (média de 8-10%)
+        if (process.env.NODE_ENV === 'development') console.log('[SYS-OP] TRINCHEIRA PLAYOFF: Redução de 9% no Payload Total.');
+    }
+
     return {
         matchPace,
-        totalPayload: finalA + finalB,
+        totalPayload,
         deltaA: finalA,
         deltaB: finalB,
-        kineticState: matchPace > 105.5 ? 'HYPER_KINETIC' : (matchPace < 100.5 ? 'SLOW_GRIND' : 'STATIC_TRENCH'),
+        kineticState,
         databallrEnhanced: !!(databallrA?.ortg && databallrB?.ortg),
+        isPlayoff,
+        confidenceModifier
     };
 };
 
