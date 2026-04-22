@@ -31,17 +31,33 @@ export const useTeamComparisonData = ({
     // Encontra a predição específica para extrair H2H (defense_data)
     const currentPrediction = useMemo(() => {
         return dbPredictions.find(p =>
-        (getStandardTeamName(p.home_team) === getStandardTeamName(teamA.name) &&
-            getStandardTeamName(p.away_team) === getStandardTeamName(teamB.name))
+            (getStandardTeamName(p.home_team) === getStandardTeamName(teamA.name) &&
+                getStandardTeamName(p.away_team) === getStandardTeamName(teamB.name)) ||
+            (getStandardTeamName(p.home_team) === getStandardTeamName(teamB.name) &&
+                getStandardTeamName(p.away_team) === getStandardTeamName(teamA.name))
         );
     }, [dbPredictions, teamA.name, teamB.name]);
 
+    const isReversed = useMemo(() => {
+        if (!currentPrediction) return false;
+        return getStandardTeamName(currentPrediction.home_team) === getStandardTeamName(teamB.name);
+    }, [currentPrediction, teamB.name]);
+
     const defenseData = useMemo(() => {
         if (!currentPrediction?.defense_data) return [];
-        return typeof currentPrediction.defense_data === 'string'
+        const rawData = typeof currentPrediction.defense_data === 'string'
             ? JSON.parse(currentPrediction.defense_data)
             : currentPrediction.defense_data;
-    }, [currentPrediction]);
+
+        if (isReversed && Array.isArray(rawData)) {
+            return rawData.map((g: any) => ({
+                ...g,
+                result: g.result === 'V' ? 'D' : 'V',
+                score: g.score.includes('-') ? g.score.split('-').reverse().join('-') : g.score
+            }));
+        }
+        return rawData;
+    }, [currentPrediction, isReversed]);
     const [notas, setNotas] = useState<{ a: number, b: number }>({
         a: teamA.ai_score || 0,
         b: teamB.ai_score || 0
@@ -259,12 +275,11 @@ export const useTeamComparisonData = ({
             fetchLock.current = matchupKey;
             setLoading(true);
             try {
-                // Find prediction ID to fetch momentum
+                // Find prediction ID to fetch momentum - check both directions
                 const { data: predData } = await supabase
                     .from('game_predictions')
-                    .select('id')
-                    .eq('home_team', teamA.name)
-                    .eq('away_team', teamB.name)
+                    .select('id, home_team, away_team')
+                    .or(`and(home_team.eq."${teamA.name}",away_team.eq."${teamB.name}"),and(home_team.eq."${teamB.name}",away_team.eq."${teamA.name}")`)
                     .maybeSingle();
 
                 let momentumData = {
@@ -275,7 +290,21 @@ export const useTeamComparisonData = ({
 
                 if (predData?.id) {
                     const fetchedMomentum = await fetchGameWithMomentum(predData.id);
-                    if (fetchedMomentum) momentumData = fetchedMomentum;
+                    if (fetchedMomentum) {
+                        const isRev = getStandardTeamName(predData.home_team) === getStandardTeamName(teamB.name);
+                        if (isRev && fetchedMomentum.defense_data) {
+                            const rawH2H = Array.isArray(fetchedMomentum.defense_data)
+                                ? fetchedMomentum.defense_data
+                                : JSON.parse(fetchedMomentum.defense_data);
+
+                            fetchedMomentum.defense_data = rawH2H.map((g: any) => ({
+                                ...g,
+                                result: g.result === 'V' ? 'D' : 'V',
+                                score: g.score.includes('-') ? g.score.split('-').reverse().join('-') : g.score
+                            }));
+                        }
+                        momentumData = fetchedMomentum;
+                    }
                 }
 
                 // Ensure array copies or original objects are resolved
