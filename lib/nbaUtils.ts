@@ -125,7 +125,7 @@ export const calculateDeterministicPace = (
     }
 
     // REGRA 70/30: (L5 * 0.70) + (H2H * 0.30)
-    let basePace = avgPaceH2H > 0 
+    let basePace = avgPaceH2H > 0
         ? (mediaL5 * 0.70) + (avgPaceH2H * 0.30)
         : mediaL5; // Fallback 100% L5
 
@@ -140,10 +140,15 @@ export const calculateDeterministicPace = (
 
     let projectedPace = Math.min(basePace, currentMaxPace);
 
-    // [GATILHO DE OVERCLOCK] - Desativado em Playoffs ou severamente mitigado
-    if (!isPlayoff && powerDiff >= PROJECTION_CONFIG.OVERCLOCK_THRESHOLD) {
+    // [GATILHO DE OVERCLOCK] - Ativado por diferencial de força ou menção editorial
+    const hasOverclockKeyword = options?.editorInsight?.match(/OVERCLOCK/i);
+    if (!isPlayoff && (powerDiff >= PROJECTION_CONFIG.OVERCLOCK_THRESHOLD || hasOverclockKeyword)) {
         projectedPace *= PROJECTION_CONFIG.OVERCLOCK_BOOST;
+        if (hasOverclockKeyword && process.env.NODE_ENV === 'development') {
+            console.log('[SYS-OP] OVERCLOCK disparado por gatilho editorial (+4%).');
+        }
     }
+
 
     // Ajustes de lesões (Alocação Zero)
     const injuryPaceReduction = (injuries?: { isOut: boolean; weight: number }[]) =>
@@ -195,12 +200,17 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
             adjB += 2.5;
             if (process.env.NODE_ENV === 'development') console.log('[SYS-OP] INSIGHT EDITOR: OVER detectado. Injetando +5.0 no Total Payload.');
         } else if (options.editorInsight.match(/🎯 NOSSA APOSTA:\s*UNDER/i)) {
-            // Penalidade por validação primária de UNDER da IA de Contexto (-2.5 pts cada para forçar deflação)
-            adjA -= 2.5;
-            adjB -= 2.5;
             if (process.env.NODE_ENV === 'development') console.log('[SYS-OP] INSIGHT EDITOR: UNDER detectado. Subtraindo -5.0 no Total Payload.');
         }
+
+        // [V5.1] Gatilhos Adicionais de Override Editorial
+        if (options.editorInsight.match(/RUPTURA OFFENSIVA/i)) {
+            adjA *= 1.02;
+            adjB *= 1.02;
+            if (process.env.NODE_ENV === 'development') console.log('[SYS-OP] RUPTURA OFFENSIVA: Boost de +2% aplicado.');
+        }
     }
+
 
     return { adjA, adjB };
 };
@@ -391,10 +401,26 @@ export const calculateProjectedScores = (
 
     // [DIRETRIZ 3: DETEÇÃO DE FALHAS - LESÕES]
     const calculateStarInjuryImpact = (injuries?: { isOut: boolean; weight: number }[]) => {
-        return (injuries || []).some(i => i.isOut && i.weight >= 9) ? 4.5 : 0;
+        const starOut = (injuries || []).some(i => i.isOut && i.weight >= 9);
+        return starOut ? 4.5 : 0;
     };
+
+    // Regra 2: Detecção de Colapso Sistêmico (HW >= 9 e STATUS = OUT -> -15% penalty)
+    const applySystemicCollapse = (score: number, injuries?: { isOut: boolean; weight: number }[]) => {
+        const hasCriticalOut = (injuries || []).some(i => i.isOut && i.weight >= 9);
+        if (hasCriticalOut) {
+            return score * 0.85; // Aplica penalidade de -15%
+        }
+        return score;
+    };
+
     projA -= (calculatePenalty(options?.injuriesA) + calculateStarInjuryImpact(options?.injuriesA));
     projB -= (calculatePenalty(options?.injuriesB) + calculateStarInjuryImpact(options?.injuriesB));
+
+    // Aplicar Regra 2
+    projA = applySystemicCollapse(projA, options?.injuriesA);
+    projB = applySystemicCollapse(projB, options?.injuriesB);
+
 
     // [DIRETRIZ 3: DRENO DE INTENSIDADE - JOGO 2]
     let confidenceModifier = 0;
@@ -414,7 +440,9 @@ export const calculateProjectedScores = (
     const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 17, rtgB.seasonPPG - 17);
 
     let totalPayload = finalA + finalB;
-    const kineticState = matchPace > 105.5 ? 'HYPER_KINETIC' : (matchPace < 100.5 ? 'SLOW_GRIND' : 'STATIC_TRENCH');
+    // Regra 1: Pace Classification (threshold < 97.5 para SLOW_GRIND)
+    const kineticState = matchPace > 105.5 ? 'HYPER_KINETIC' : (matchPace < 97.5 ? 'SLOW_GRIND' : 'STATIC_TRENCH');
+
 
     // [DIRETRIZ 2.3: Redutor de Trincheira]
     if (isPlayoff && (kineticState === 'STATIC_TRENCH' || kineticState === 'SLOW_GRIND')) {

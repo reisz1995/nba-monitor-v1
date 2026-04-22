@@ -331,12 +331,27 @@ export const compareTeams = async (
 
   const projectedSpread = deltaB - deltaA;
   const marketSpread = resolvedMarket?.spread ?? null;
+  const marketTotal = resolvedMarket?.total ?? null;
+
   let edgeBlock = "Market_Odds: Indisponível";
   if (marketSpread !== null) {
-    const edge = Math.abs(projectedSpread - marketSpread);
-    const classification = edge >= 3.0 ? "🔴 VALUE_BET DETECTADO" : "⚪ DENTRO DA MARGEM";
-    edgeBlock = `Spread de Mercado: ${marketSpread} | Spread Projetado: ${projectedSpread.toFixed(1)} | Edge: ${edge.toFixed(1)} pts | ${classification}`;
+    const edgeSpread = Math.abs(projectedSpread - marketSpread);
+    const classificationSpread = edgeSpread >= 3.0 ? "🔴 VALUE_BET DETECTADO" : "⚪ DENTRO DA MARGEM";
+    edgeBlock = `Spread de Mercado: ${marketSpread} | Spread Projetado: ${projectedSpread.toFixed(1)} | Edge Spread: ${edgeSpread.toFixed(1)} pts | ${classificationSpread}`;
   }
+
+  // Regra 3: Cálculo de Edge de Mercado (Total)
+  let marketEdgeLabel = "sem edge claro";
+  if (marketTotal !== null) {
+    const floor = totalPayload - 5;
+    const ceiling = totalPayload + 5;
+
+    if (marketTotal < floor) marketEdgeLabel = "OVER valorizado";
+    else if (marketTotal > ceiling) marketEdgeLabel = "UNDER valorizado";
+
+    edgeBlock += `\nTotal Mercado: ${marketTotal} | Total Projetado: ${totalPayload.toFixed(1)} | Classificação Total: ${marketEdgeLabel}`;
+  }
+
 
   const homeLabel = isHomeA ? teamA.name : teamB.name;
   const awayLabel = isHomeA ? teamB.name : teamA.name;
@@ -398,14 +413,15 @@ export const compareTeams = async (
     let pickTotal: string | undefined;
     if (resolvedMarket?.total) {
       const diff = totalPayload - resolvedMarket.total;
-      if (diff >= 3.5) {
+      if (diff >= 5.0) {
         pickTotal = `PREV_OVER ${resolvedMarket.total}`;
-      } else if (diff <= -3.5) {
+      } else if (diff <= -5.0) {
         pickTotal = `PREV_UNDER ${resolvedMarket.total}`;
       } else {
         pickTotal = `PASS_TOTAL ${resolvedMarket.total}`;
       }
     }
+
 
     return { ...coherentAnalysis, sources: [], momentumData, pickTotal };
   } catch (error: any) {
