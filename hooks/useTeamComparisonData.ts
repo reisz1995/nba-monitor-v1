@@ -275,35 +275,49 @@ export const useTeamComparisonData = ({
             fetchLock.current = matchupKey;
             setLoading(true);
             try {
-                // Find prediction ID to fetch momentum - check both directions
-                const { data: predData } = await supabase
-                    .from('game_predictions')
-                    .select('id, home_team, away_team')
-                    .or(`and(home_team.eq."${teamA.name}",away_team.eq."${teamB.name}"),and(home_team.eq."${teamB.name}",away_team.eq."${teamA.name}")`)
-                    .maybeSingle();
+                // 1. Tenta extrair momentum base do cache (currentPrediction) ou re-busca
+                let momentumData: any = null;
 
-                let momentumData = {
-                    home_record: teamA.record,
-                    away_record: teamB.record,
-                    momentum_data: { home_vs_away: [] }
-                };
+                if (currentPrediction) {
+                    momentumData = {
+                        ...currentPrediction,
+                        home_record: teamA.record,
+                        away_record: teamB.record,
+                        momentum_data: typeof currentPrediction.momentum_data === 'string'
+                            ? JSON.parse(currentPrediction.momentum_data)
+                            : currentPrediction.momentum_data || { home_vs_away: [] },
+                        defense_data: typeof currentPrediction.defense_data === 'string'
+                            ? JSON.parse(currentPrediction.defense_data)
+                            : currentPrediction.defense_data || []
+                    };
+                } else {
+                    const { data: predData } = await supabase
+                        .from('game_predictions')
+                        .select('id, home_team, away_team')
+                        .or(`and(home_team.eq."${teamA.name}",away_team.eq."${teamB.name}"),and(home_team.eq."${teamB.name}",away_team.eq."${teamA.name}")`)
+                        .maybeSingle();
 
-                if (predData?.id) {
-                    const fetchedMomentum = await fetchGameWithMomentum(predData.id);
-                    if (fetchedMomentum) {
-                        const isRev = getStandardTeamName(predData.home_team) === getStandardTeamName(teamB.name);
-                        if (isRev && fetchedMomentum.defense_data) {
-                            const rawH2H = Array.isArray(fetchedMomentum.defense_data)
-                                ? fetchedMomentum.defense_data
-                                : JSON.parse(fetchedMomentum.defense_data);
+                    if (predData?.id) {
+                        momentumData = await fetchGameWithMomentum(predData.id);
+                    } else {
+                        momentumData = {
+                            home_record: teamA.record,
+                            away_record: teamB.record,
+                            momentum_data: { home_vs_away: [] },
+                            defense_data: []
+                        };
+                    }
+                }
 
-                            fetchedMomentum.defense_data = rawH2H.map((g: any) => ({
-                                ...g,
-                                result: g.result === 'V' ? 'D' : 'V',
-                                score: g.score.includes('-') ? g.score.split('-').reverse().join('-') : g.score
-                            }));
-                        }
-                        momentumData = fetchedMomentum;
+                // Normalização de perspectiva se o time A for visitante na predição original
+                if (momentumData?.away_team) {
+                    const isRev = getStandardTeamName(momentumData.away_team) === getStandardTeamName(teamA.name);
+                    if (isRev && Array.isArray(momentumData.defense_data)) {
+                        momentumData.defense_data = momentumData.defense_data.map((g: any) => ({
+                            ...g,
+                            result: g.result === 'V' ? 'D' : (g.result === 'D' ? 'V' : g.result),
+                            score: g.score?.includes('-') ? g.score.split('-').reverse().join('-') : g.score
+                        }));
                     }
                 }
 
