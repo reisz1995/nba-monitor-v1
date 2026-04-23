@@ -194,12 +194,15 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
     if (options?.lastMarginA && options.lastMarginA > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjA -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
     if (options?.lastMarginB && options.lastMarginB > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
 
-    // [V5.1] Reduz o total projetado para pace lento em vez de apenas redistribuir o spread
-    if (matchPace < PROJECTION_CONFIG.PACE_THRESHOLD_SLOW) {
-        const reduction = 1 - PROJECTION_CONFIG.PACE_ADJUSTMENT_FACTOR;
-        adjA *= reduction;
-        adjB *= reduction;
-    }
+
+    // [FIX #2] REMOVIDO: Redutor duplicado de pace lento
+    // O pace baixo já está incorporado na fórmula base via multiplicador (matchPace/100)
+    // Aplicar redução adicional aqui é penalidade dupla no mesmo fator
+    // if (matchPace < PROJECTION_CONFIG.PACE_THRESHOLD_SLOW) {
+    //     const reduction = 1 - PROJECTION_CONFIG.PACE_ADJUSTMENT_FACTOR;
+    //     adjA *= reduction;
+    //     adjB *= reduction;
+    // }
 
     // [FILTRO CONTEXTO] Injeção Direta da Análise Editorial da IA (gemini_insight)
     if (options?.editorInsight) {
@@ -234,7 +237,7 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     const powerDiff = Math.abs(powerA - powerB);
 
     // [ ESTADO DE TRINCHEIRA ]: Diferença de força inferior a 1.5
-    const isDogfight = powerDiff < 1.5;
+    const isDogfight = powerDiff < 1.5 && offDiff < 5.0 && defDiff < 5.0;
 
     // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais no ataque
     const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
@@ -384,8 +387,26 @@ export const calculateProjectedScores = (
         options?.editorInsight
     );
 
-    let projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
-    let projB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
+    let projA: number;
+    let projB: number;
+
+    // [FIX #1] Favorito usa offRtg próprio com peso maior
+    const offDiff = Math.abs(rtgA.offRtg - rtgB.offRtg);
+    const defDiff = Math.abs(rtgA.defRtg - rtgB.defRtg);
+
+    if ((options?.powerA ?? 0) > (options?.powerB ?? 0) + 1.0 && offDiff > 5.0) {
+        // Favorito claro com ataque superior: 70% offRtg próprio + 30% média
+        projA = (rtgA.offRtg * 0.7 + ((rtgA.offRtg + rtgB.defRtg) / 2) * 0.3) * (matchPace / 100);
+        projB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
+    } else if ((options?.powerB ?? 0) > (options?.powerA ?? 0) + 1.0 && offDiff > 5.0) {
+        // Time B favorito claro
+        projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
+        projB = (rtgB.offRtg * 0.7 + ((rtgB.offRtg + rtgA.defRtg) / 2) * 0.3) * (matchPace / 100);
+    } else {
+        // Jogo equilibrado: mantém fórmula original
+        projA = ((rtgA.offRtg + rtgB.defRtg) / 2) * (matchPace / 100);
+        projB = ((rtgB.offRtg + rtgA.defRtg) / 2) * (matchPace / 100);
+    }
 
     const context = applyContextualAdjustments(projA, projB, matchPace, options);
     projA = context.adjA; projB = context.adjB;
@@ -447,7 +468,7 @@ export const calculateProjectedScores = (
         }
     }
 
-    const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG - 17, rtgB.seasonPPG - 17);
+    const { finalA, finalB } = clampScores(projA, projB, (rtgA.offRtg * matchPace / 100) - 10, (rtgB.offRtg * matchPace / 100) - 10);
 
     let totalPayload = finalA + finalB;
     // Regra 1: Pace Classification (threshold < 97.5 para SLOW_GRIND)
