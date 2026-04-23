@@ -40,13 +40,6 @@ const teamMapping: { [key: string]: string } = {
     'L.A. Lakers': 'Los Angeles Lakers',
     'LAC': 'Los Angeles Clippers',
     'LAL': 'Los Angeles Lakers',
-    'Golden State': 'Golden State Warriors',
-    'Houston': 'Houston Rockets',
-    'Indiana': 'Indiana Pacers',
-    'LA Clippers': 'Los Angeles Clippers',
-    'L.A. Clippers': 'Los Angeles Clippers',
-    'L.A. Lakers': 'Los Angeles Lakers',
-    'LA Lakers': 'Los Angeles Lakers',
     'Memphis': 'Memphis Grizzlies',
     'Miami': 'Miami Heat',
     'Milwaukee': 'Milwaukee Bucks',
@@ -75,8 +68,6 @@ const teamMapping: { [key: string]: string } = {
     'GSW': 'Golden State Warriors',
     'HOU': 'Houston Rockets',
     'IND': 'Indiana Pacers',
-    'LAC': 'Los Angeles Clippers',
-    'LAL': 'Los Angeles Lakers',
     'MEM': 'Memphis Grizzlies',
     'MIA': 'Miami Heat',
     'MIL': 'Milwaukee Bucks',
@@ -95,7 +86,8 @@ const teamMapping: { [key: string]: string } = {
     'WAS': 'Washington Wizards'
 };
 
-function normalizeTeamName(name: string): string {
+function normalizeTeamName(name: string | undefined): string {
+    if (!name) return 'Unknown';
     const cleanName = name.trim();
     // Case-insensitive lookup
     const found = Object.keys(teamMapping).find(k => k.toLowerCase() === cleanName.toLowerCase());
@@ -117,18 +109,7 @@ async function scrapeOdds() {
         const games: any[] = [];
         const seenMatchups = new Set<string>();
 
-        // REFINED SCRAPING LOGIC: Iterar sobre as LINHAS da tabela para garantir pares (Away/Home)
-        // O PickDawgz usa segregações por league, mas como o endpoint já filtra por NBA,
-        // podemos focar nos containers de linha.
-        $('.table-upcoming tbody tr').each((i, el) => {
-            const row = $(el);
-            // Cada jogo geralmente ocupa DUAS linhas consecutivas no HTML renderizado,
-            // ou uma linha complexa. No PickDawgz, o padrão comum é:
-            // 1ª equipe = Away
-            // 2ª equipe = Home
-        });
-
-        // Alternativa mais robusta: buscar elementos individuais e validar integridade
+        // REFINED SCRAPING LOGIC
         const allTeams = $('.team-name strong.ms-none').map((_, el) => $(el).text().trim()).get();
         const allML = $('.up-ml-cell .up-odds-point').map((_, el) => $(el).text().trim()).get();
         const allSpread = $('.up-spread-cell .up-odds-c').map((_, el) => $(el).text().trim()).get();
@@ -144,7 +125,7 @@ async function scrapeOdds() {
             // Evitar duplicatas (captura mobile/desktop repetida)
             if (seenMatchups.has(matchup)) continue;
 
-            const extractNumeric = (text: string) => {
+            const extractNumeric = (text: string | undefined | null) => {
                 if (!text) return null;
                 const cleaned = text.replace(/[^\d.-]/g, '');
                 const num = parseFloat(cleaned);

@@ -4,7 +4,7 @@ import { GameResult } from '../types';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface MomentumBarProps {
-  record: GameResult[];
+  record: any[];
   className?: string;
   showLabel?: boolean;
 }

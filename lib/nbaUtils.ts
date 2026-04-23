@@ -1,27 +1,28 @@
 import { GameResult, Team, GameRecordData } from '../types';
 
 export interface PaceOptions {
-    isHomeA?: boolean;
-    isB2BA?: boolean;
-    isB2BB?: boolean;
-    lastMarginA?: number;
-    lastMarginB?: number;
-    powerA?: number;
-    powerB?: number;
-    editorInsight?: string;
+    isHomeA?: boolean | undefined;
+    isB2BA?: boolean | undefined;
+    isB2BB?: boolean | undefined;
+    lastMarginA?: number | undefined;
+    lastMarginB?: number | undefined;
+    powerA?: number | undefined;
+    powerB?: number | undefined;
+    editorInsight?: string | undefined;
 }
 
 export interface DataballrInput {
-    ortg?: number;
-    drtg?: number;
-    pace?: number | null;
-    o_ts?: number;
-    o_tov?: number;
-    orb?: number;
-    drb?: number;
-    net_rating?: number;
-    offense_rating?: number;
-    defense_rating?: number;
+    ortg?: number | undefined;
+    drtg?: number | undefined;
+    pace?: number | null | undefined;
+    o_ts?: number | undefined;
+    o_tov?: number | undefined;
+    orb?: number | undefined;
+    drb?: number | undefined;
+    net_rating?: number | undefined;
+    offense_rating?: number | undefined;
+    defense_rating?: number | undefined;
+    net_poss?: number | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,9 +112,16 @@ export const calculateDeterministicPace = (
 
     // [DIRETRIZ 1: CÁLCULO VETORIAL DE RITMO]
     const last5A = (teamA.record || []).slice(-5);
-    const avgPace5A = last5A.length > 0 ? last5A.reduce((sum, g) => sum + getGamePaceClamped(g.score), 0) / last5A.length : getFallbackPace();
+    const avgPace5A = last5A.length > 0 ? last5A.reduce((sum, g) => {
+        const score = typeof g === 'object' && g !== null && 'score' in g ? (g as any).score : null;
+        return sum + (score ? getGamePaceClamped(score) : getFallbackPace());
+    }, 0) / last5A.length : getFallbackPace();
+
     const last5B = (teamB.record || []).slice(-5);
-    const avgPace5B = last5B.length > 0 ? last5B.reduce((sum, g) => sum + getGamePaceClamped(g.score), 0) / last5B.length : getFallbackPace();
+    const avgPace5B = last5B.length > 0 ? last5B.reduce((sum, g) => {
+        const score = typeof g === 'object' && g !== null && 'score' in g ? (g as any).score : null;
+        return sum + (score ? getGamePaceClamped(score) : getFallbackPace());
+    }, 0) / last5B.length : getFallbackPace();
 
     const mediaL5 = (avgPace5A + avgPace5B) / 2;
 
@@ -467,9 +475,9 @@ export const calculateProjectedScores = (
 // ─────────────────────────────────────────────────────────────────────────────
 // UTILITÁRIOS E PARSERS (COMPATIBILIDADE SISTÊMICA)
 // ─────────────────────────────────────────────────────────────────────────────
-export const getMomentumScore = (record: GameResult[]): number => {
+export const getMomentumScore = (record: any[]): number => {
     return record.reduce((score, res, idx) => {
-        const rStr = typeof res === 'object' && res !== null ? (res as { result: string }).result : res;
+        const rStr = typeof res === 'object' && res !== null && 'result' in res ? (res as any).result : res;
         return score + (rStr === 'V' ? Math.pow(2, idx) : 0);
     }, 0);
 };
@@ -573,9 +581,15 @@ export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team, h2hFromDefense?
     const getGamePace = (score: string) => parseScoreToTotal(score) / (2 * PACE_FACTOR);
 
     const last5A = (teamA.record || []).slice(-5);
-    const avgPace5A = last5A.length > 0 ? last5A.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5A.length : 0;
+    const avgPace5A = last5A.length > 0 ? last5A.reduce((sum, g) => {
+        const score = typeof g === 'object' && g !== null && 'score' in g ? (g as any).score : null;
+        return sum + (score ? getGamePace(score) : 0);
+    }, 0) / last5A.length : 0;
     const last5B = (teamB.record || []).slice(-5);
-    const avgPace5B = last5B.length > 0 ? last5B.reduce((sum, g) => sum + getGamePace(g.score), 0) / last5B.length : 0;
+    const avgPace5B = last5B.length > 0 ? last5B.reduce((sum, g) => {
+        const score = typeof g === 'object' && g !== null && 'score' in g ? (g as any).score : null;
+        return sum + (score ? getGamePace(score) : 0);
+    }, 0) / last5B.length : 0;
 
     const normB = normalizeTeamName(teamB.name);
     // Prioriza h2hFromDefense (defense_data do Supabase) se disponível
@@ -583,12 +597,18 @@ export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team, h2hFromDefense?
 
     // Fallback para o histórico embutido no Team (menos confiável/granular)
     if (h2hGames.length === 0) {
-        h2hGames = (teamA.record || []).filter(g => g.opponent && normalizeTeamName(g.opponent).includes(normB)).slice(-2);
+        h2hGames = (teamA.record || []).filter(g => {
+            const opp = typeof g === 'object' && g !== null && 'opponent' in g ? (g as any).opponent : null;
+            return opp && normalizeTeamName(opp).includes(normB);
+        }).slice(-2);
     }
 
     let avgPaceH2H = 0;
     if (h2hGames.length > 0) {
-        avgPaceH2H = h2hGames.reduce((sum, g) => sum + getGamePace(g.score), 0) / h2hGames.length;
+        avgPaceH2H = h2hGames.reduce((sum, g) => {
+            const score = typeof g === 'object' && g !== null && 'score' in g ? (g as any).score : null;
+            return sum + (score ? getGamePace(score) : 0);
+        }, 0) / h2hGames.length;
     } else if (avgPace5A > 0 && avgPace5B > 0) {
         avgPaceH2H = (avgPace5A + avgPace5B) / 2;
     }
@@ -616,11 +636,22 @@ export const calculateUnderdogValue = (
     if (analysis.totalPayload < 210) rules.push('Total_Baixo');
     if (Math.abs(edge) >= 4.5) rules.push('Value_Bet');
 
-    // [V5.1] Cálculo de Kelly Simplificado (assumindo odd média ~1.91 / -110)
-    const kelly = Math.max(0, (edge * 1.5) / 100); // Alocação sugerida baseada na borda
+    // [V5.1] Cálculo de Kelly Simplificado
+    const kellyValue = Math.max(0, (edge * 1.5) / 100);
+    const kelly = {
+        full: kellyValue,
+        quarter: kellyValue / 4
+    };
+
     const levels = {
-        home: isUnderdogA ? Number(edge) : 0,
-        away: !isUnderdogA ? Number(edge) : 0
+        home: {
+            level: Math.abs(edge) >= 5 ? '01' : '02',
+            type: isUnderdogA ? 'UNDERDOG' : 'FAVORITE'
+        },
+        away: {
+            level: Math.abs(edge) >= 5 ? '01' : '02',
+            type: !isUnderdogA ? 'UNDERDOG' : 'FAVORITE'
+        }
     };
 
     return {
@@ -628,6 +659,6 @@ export const calculateUnderdogValue = (
         rules,
         edge: Number(edge).toFixed(1),
         levels,
-        kelly: Number(kelly.toFixed(3))
+        kelly
     };
 };

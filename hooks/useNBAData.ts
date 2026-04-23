@@ -117,7 +117,7 @@ export const useNBAData = () => {
         newRecord[recordIndex] = newRecord[recordIndex] === 'V' ? 'D' : 'V';
 
         // Optimistic update
-        mutateTeams((prev: Team[]) => prev?.map((t: Team) => t.id === teamId ? { ...t, record: newRecord } : t) || [], false);
+        mutateTeams((prev: Team[] | undefined) => prev?.map((t: Team) => t.id === teamId ? { ...t, record: newRecord } : t) || [], false);
 
         try {
             await supabase.from('teams').upsert({ id: teamId, record: newRecord });

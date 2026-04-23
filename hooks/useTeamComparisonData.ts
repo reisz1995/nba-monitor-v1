@@ -11,8 +11,8 @@ interface UseTeamComparisonDataProps {
     teamB: Team;
     playerStats: PlayerStat[];
     unavailablePlayers: UnavailablePlayer[];
-    initialAnalysis?: MatchupAnalysis;
-    dbPredictions?: any[];
+    initialAnalysis?: MatchupAnalysis | undefined;
+    dbPredictions?: any[] | undefined;
 }
 
 export const useTeamComparisonData = ({
@@ -227,7 +227,7 @@ export const useTeamComparisonData = ({
     }, [teamA, teamB, injuriesA, injuriesB, playerStats, databallrA, databallrB, analysis, loading]);
 
     const advantageMatrix = useMemo(() => {
-        const calcMomentum = (record: GameResult[]) => {
+        const calcMomentum = (record: any[]) => {
             const rec = [...(record || [])].slice(-5);
             return rec.reduce((acc, res, i) => {
                 const rStr = typeof res === 'object' && res !== null ? (res as any).result : res;

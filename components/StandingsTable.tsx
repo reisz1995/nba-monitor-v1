@@ -1,6 +1,6 @@
 
 import React, { memo, useState, useCallback, useMemo } from 'react';
-import { Team } from '../types';
+import { Team, GameResult } from '../types';
 import MomentumBar from './MomentumBar';
 
 interface StandingsTableProps {

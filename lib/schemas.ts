@@ -13,7 +13,7 @@ export const TeamSchema = z.object({
   id: z.number(),
   name: z.string(),
   logo: z.string().url(),
-  record: z.array(GameRecordDataSchema), // ✅ Elimina o "any"
+  record: z.array(z.union([GameRecordDataSchema, GameResultSchema])), // ✅ Suporta objetos ou strings 'V'/'D'
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),
   conference: z.enum(['East', 'West']),
@@ -25,7 +25,7 @@ export const TeamSchema = z.object({
     ultimos_5_espn: z.string().optional(),
     ai_score: z.number().optional(),
   }).optional(),
-  espnData: z.record(z.any()).optional(), // ESPN data é volátil, manter flexível
+  espnData: z.record(z.string(), z.any()).optional(), // ESPN data é volátil, manter flexível
   tanking: z.boolean().optional(),
   databallr: z.object({
     ortg: z.number().optional(),

@@ -89,17 +89,17 @@ export interface MatchupAnalysis {
   confidence: number;
   keyFactor: string;
   detailedAnalysis: string;
-  expectedScoreA?: number;
-  expectedScoreB?: number;
-  projectedPace?: number;
-  result?: 'green' | 'red' | 'pending';
-  pickTotal?: string;
-  sources?: Source[];
+  expectedScoreA?: number | undefined;
+  expectedScoreB?: number | undefined;
+  projectedPace?: number | undefined;
+  result?: 'green' | 'red' | 'pending' | undefined;
+  pickTotal?: string | undefined;
+  sources?: Source[] | undefined;
   momentumData?: {
     scoreA: number;
     scoreB: number;
     [key: string]: unknown;
-  };
+  } | undefined;
 }
 
 export interface ESPNData {

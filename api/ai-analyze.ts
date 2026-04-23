@@ -100,7 +100,7 @@ async function executeGeminiWithFallback(prompt: string, options: any) {
                 temperature: options.temperature,
             },
         });
-        const textOutput = typeof response.text === 'function' ? await response.text() : response.text;
+        const textOutput = typeof (response as any).text === 'function' ? await (response as any).text() : (response as any).text;
         if (!textOutput) throw new Error(`Resposta vazia da chave ${label}`);
         return textOutput;
     };
