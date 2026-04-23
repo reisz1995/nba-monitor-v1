@@ -235,6 +235,8 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     let adjA = scoreA;
     let adjB = scoreB;
     const powerDiff = Math.abs(powerA - powerB);
+    const offDiff = Math.abs(rtgA.offRtg - rtgB.offRtg);
+    const defDiff = Math.abs(rtgA.defRtg - rtgB.defRtg);
 
     // [ ESTADO DE TRINCHEIRA ]: Diferença de força inferior a 1.5
     const isDogfight = powerDiff < 1.5 && offDiff < 5.0 && defDiff < 5.0;
