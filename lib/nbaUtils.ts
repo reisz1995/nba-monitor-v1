@@ -34,7 +34,7 @@ const SEASON_25_26_METRICS = {
     AVG_TOV: 14.8,
     AVG_TS: 58.8,
     MIN_PACE: 95.0,
-    MAX_PACE: 107.0,
+    MAX_PACE: 103.0,
     PLAYOFF_MAX_PACE: 102.5, // [PLAYOFFS] Teto reduzido
     AVG_ORB: 23.5
 } as const;
@@ -49,7 +49,7 @@ const PROJECTION_CONFIG = {
     LAST_MARGIN_THRESHOLD: 22,
     LAST_MARGIN_PENALTY: 1.5,
     SCORE_FLOOR_MIN: 92,
-    SCORE_CEILING_MAX: 148,
+    SCORE_CEILING_MAX: 130,
     PACE_ADJUSTMENT_FACTOR: 0.03,
     PACE_THRESHOLD_SLOW: 97.5,
     // V5.1 Specifics
@@ -107,7 +107,7 @@ export const calculateDeterministicPace = (
     const getGamePaceClamped = (score: string) => {
         const rawPace = parseScoreToTotal(score) / (2 * PACE_FACTOR);
         // [TRAVA DE SEGURANÇA] Limite outliers a 107.0 (ou 102.5 em playoffs)
-        return Math.min(rawPace, 107.0);
+        return Math.min(rawPace, 103.0);
     };
 
     // [DIRETRIZ 1: CÁLCULO VETORIAL DE RITMO]
@@ -135,7 +135,7 @@ export const calculateDeterministicPace = (
 
     // REGRA 70/30: (L5 * 0.70) + (H2H * 0.30)
     let basePace = avgPaceH2H > 0
-        ? (mediaL5 * 0.70) + (avgPaceH2H * 0.30)
+        ? (mediaL5 * 0.50) + (avgPaceH2H * 0.50)
         : mediaL5; // Fallback 100% L5
 
     const powerDiff = Math.abs(powerA - powerB);
@@ -238,7 +238,7 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
 
     // [ GATILHO DE RUPTURA CIRÚRGICA ]: Exige que AMBAS as equipes sejam letais no ataque
     const combinedOffense = (rtgA.offRtg + rtgB.offRtg) / 2;
-    const isShootout = combinedOffense >= 122.0 && rtgA.offRtg >= 112.0 && rtgB.offRtg >= 112.0;
+    const isShootout = combinedOffense >= 119.0 && rtgA.offRtg >= 112.0 && rtgB.offRtg >= 112.0;
 
     // [ GATILHO DE VÁCUO DEFENSIVO ]: Exige que AMBAS as equipes tenham defesas colapsadas
     const combinedDefense = (rtgA.defRtg + rtgB.defRtg) / 2;
@@ -285,7 +285,7 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     // ─────────────────────────────────────────────────────────────────────────────
     if (isShootout) {
         // [ STATUS ]: Tiroteio de Elite - boost maior para atingir 240+
-        const shootoutBonus = Math.min((combinedOffense - 120.0) * 1.5, 6.0);
+        const shootoutBonus = Math.min((combinedOffense - 119.0) * 1.5, 6.0);
         if (shootoutBonus > 0) {
             adjA += shootoutBonus;
             adjB += shootoutBonus;
