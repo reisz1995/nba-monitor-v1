@@ -36,6 +36,7 @@ const SEASON_25_26_METRICS = {
     MIN_PACE: 95.0,
     MAX_PACE: 103.0,
     PLAYOFF_MAX_PACE: 102.5, // [PLAYOFFS] Teto reduzido
+    PLAYOFF_SCORE_CEILING_MAX: 124.0, // [PLAYOFFS] Teto de pontuação por time
     AVG_ORB: 23.5
 } as const;
 
@@ -222,7 +223,7 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
 // ─────────────────────────────────────────────────────────────────────────────
 // KERNEL V5.3.4 - PATCH: PROTOCOLO DE COLAPSO DEFENSIVO E VÁCUO
 // ─────────────────────────────────────────────────────────────────────────────
-const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, teamB: Team, rtgA: { offRtg: number; defRtg: number }, rtgB: { offRtg: number; defRtg: number }, powerA: number, powerB: number) => {
+const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, teamB: Team, rtgA: { offRtg: number; defRtg: number }, rtgB: { offRtg: number; defRtg: number }, powerA: number, powerB: number, isPlayoff: boolean = false) => {
     let adjA = scoreA;
     let adjB = scoreB;
     const powerDiff = Math.abs(powerA - powerB);
@@ -241,9 +242,12 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     const isDefensiveCollapse = combinedDefense >= 116.5 && rtgA.defRtg >= 114.0 && rtgB.defRtg >= 114.0;
 
     // OTIMIZAÇÃO: A eficiência de ataque é restaurada em Shootouts E em Colapsos Defensivos
+    // [V5.4 PLAYOFFS]: Redução global do multiplicador de ataque em 33% se playoff
+    let baseAtkMult = isPlayoff ? PROJECTION_CONFIG.ATK_FILTER_MULT * 0.65 : PROJECTION_CONFIG.ATK_FILTER_MULT;
+
     const currentAtkMult = (isDogfight && !isShootout && !isDefensiveCollapse)
-        ? (PROJECTION_CONFIG.ATK_FILTER_MULT * 0.7)
-        : PROJECTION_CONFIG.ATK_FILTER_MULT;
+        ? (baseAtkMult * 0.7)
+        : baseAtkMult;
 
     const applyTeamSuperiorityV5 = (targetScore: number, opponentScore: number, targetRtg: any, opponentRtg: any, isFavorite: boolean) => {
         let adjT = targetScore;
@@ -281,21 +285,25 @@ const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, te
     // ─────────────────────────────────────────────────────────────────────────────
     if (isShootout) {
         // [ STATUS ]: Tiroteio de Elite - boost maior para atingir 240+
-        const shootoutBonus = Math.min((combinedOffense - 119.0) * 1.5, 6.0);
+        // [PLAYOFFS]: Reduz o bônus de tiroteio pela metade
+        const rawBonus = Math.min((combinedOffense - 119.0) * 1.5, 6.0);
+        const shootoutBonus = isPlayoff ? rawBonus * 0.5 : rawBonus;
         if (shootoutBonus > 0) {
             adjA += shootoutBonus;
             adjB += shootoutBonus;
             if (process.env.NODE_ENV === 'development') {
-                console.log(`[SYS-OP] RUPTURA OFFENSIVA: +${shootoutBonus.toFixed(1)} pts alocados.`);
+                console.log(`[SYS-OP] RUPTURA OFFENSIVA: +${shootoutBonus.toFixed(1)} pts alocados${isPlayoff ? ' (Playoff Nerf)' : ''}.`);
             }
         }
     } else if (isDefensiveCollapse) {
         // [ STATUS ]: Vácuo Defensivo. Equipes não marcam. Inversão da penalidade de trincheira.
-        const collapseBonus = Math.min((combinedDefense - 116.0) * 1.5, 5.5);
+        // [PLAYOFFS]: Reduz o bônus de colapso defensivo pela metade
+        const rawBonus = Math.min((combinedDefense - 116.0) * 1.5, 5.5);
+        const collapseBonus = isPlayoff ? rawBonus * 0.5 : rawBonus;
         adjA += collapseBonus;
         adjB += collapseBonus;
         if (process.env.NODE_ENV === 'development') {
-            console.log(`[SYS-OP] COLAPSO DEFENSIVO: +${collapseBonus.toFixed(1)} pts alocados (Ausência de Atrito).`);
+            console.log(`[SYS-OP] COLAPSO DEFENSIVO: +${collapseBonus.toFixed(1)} pts alocados${isPlayoff ? ' (Playoff Nerf)' : ''}.`);
         }
     } else if (isDogfight) {
         // [ STATUS ]: Retém a perfeição do placar padrão (Atrito aplicado APENAS para times que defendem)
@@ -340,15 +348,17 @@ const applyVolatilityFilter = (scoreA: number, scoreB: number, databallrA?: Data
     return { adjA, adjB };
 };
 
-const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: number) => {
+const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: number, isPlayoff: boolean = false) => {
     // [V5.1] Proteção dinâmica: floor baseado na média da temporada - 17pts
     // Não usar SCORE_FLOOR_MIN (92) como mínimo, usar o floor calculado
     const finalFloorA = floorA;
     const finalFloorB = floorB;
 
+    const ceiling = isPlayoff ? SEASON_25_26_METRICS.PLAYOFF_SCORE_CEILING_MAX : PROJECTION_CONFIG.SCORE_CEILING_MAX;
+
     return {
-        finalA: Math.max(finalFloorA, Math.min(PROJECTION_CONFIG.SCORE_CEILING_MAX, scoreA)),
-        finalB: Math.max(finalFloorB, Math.min(PROJECTION_CONFIG.SCORE_CEILING_MAX, scoreB))
+        finalA: Math.max(finalFloorA, Math.min(ceiling, scoreA)),
+        finalB: Math.max(finalFloorB, Math.min(ceiling, scoreB))
     };
 };
 
@@ -405,7 +415,7 @@ export const calculateProjectedScores = (
     projA = context.adjA; projB = context.adjB;
 
     // [DIRETRIZ 2.2: Multiplicador de Vantagem]
-    const superiority = applySuperiorityFilters(projA, projB, teamA, teamB, rtgA, rtgB, options?.powerA ?? 0, options?.powerB ?? 0);
+    const superiority = applySuperiorityFilters(projA, projB, teamA, teamB, rtgA, rtgB, options?.powerA ?? 0, options?.powerB ?? 0, isPlayoff);
     // Ajuste fino do Power Diff para Playoffs (aplicado após superiority filters)
     const powerDiff = Math.abs((options?.powerA ?? 0) - (options?.powerB ?? 0));
     const powerAdj = powerDiff * (powerDiffWeight - PROJECTION_CONFIG.POWER_DIFF_WEIGHT);
@@ -461,7 +471,7 @@ export const calculateProjectedScores = (
         }
     }
 
-    const { finalA, finalB } = clampScores(projA, projB, (rtgA.offRtg * matchPace / 100) - 10, (rtgB.offRtg * matchPace / 100) - 10);
+    const { finalA, finalB } = clampScores(projA, projB, (rtgA.offRtg * matchPace / 100) - 10, (rtgB.offRtg * matchPace / 100) - 10, isPlayoff);
 
     let totalPayload = finalA + finalB;
     // Regra 1: Pace Classification (threshold < 97.5 para SLOW_GRIND)
