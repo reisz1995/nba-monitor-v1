@@ -18,6 +18,19 @@ export interface AnalysisRecord {
   created_at: string;
 }
 
+const TEAM_ABBR: Record<string, string> = {
+  'Thunder': 'OKC', 'Pistons': 'DET', 'Spurs': 'SAS', 'Nuggets': 'DEN',
+  'Timberwolves': 'MIN', 'Lakers': 'LAL', 'Celtics': 'BOS', 'Knicks': 'NYK',
+  'Rockets': 'HOU', 'Suns': 'PHX', 'Raptors': 'TOR', '76ers': 'PHI',
+  'Cavaliers': 'CLE', 'Warriors': 'GSW', 'Magic': 'ORL', 'Heat': 'MIA',
+  'Trail Blazers': 'POR', 'Hawks': 'ATL', 'Bulls': 'CHI', 'Bucks': 'MIL',
+  'Grizzlies': 'MEM', 'Clippers': 'LAC', 'Hornets': 'CHA', 'Mavericks': 'DAL',
+  'Jazz': 'UTA', 'Nets': 'BKN', 'Wizards': 'WAS', 'Pelicans': 'NOP',
+  'Kings': 'SAC', 'Pacers': 'IND'
+};
+
+const getAbbr = (name: string) => TEAM_ABBR[name] || name.substring(0, 3).toUpperCase();
+
 interface VirtualizedTableProps {
   records: AnalysisRecord[];
   teams: Team[];
@@ -72,7 +85,7 @@ const HistoryRow = memo(({
         </div>
         <div className="flex flex-col">
           <span className="text-base font-black uppercase tracking-tighter leading-none mb-1 text-slate-100 font-mono">
-            {teamA?.name} <span className="text-slate-700 text-xs">VS</span> {teamB?.name}
+            {getAbbr(teamA?.name || '')} <span className="text-slate-700 text-xs mx-1">VS</span> {getAbbr(teamB?.name || '')}
           </span>
           <span className="text-[9px] text-slate-600 font-extrabold uppercase tracking-widest flex items-center gap-2 mb-2 font-mono">
             <Clock className="w-2.5 h-2.5" /> {new Date(record.created_at).toLocaleDateString('pt-BR')} {new Date(record.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -108,7 +121,7 @@ const HistoryRow = memo(({
 
       <div className="w-full md:w-[20%] px-4 md:px-6 py-2 md:py-4 flex flex-col gap-1">
         <span className="text-xs md:sm font-black text-indigo-400 italic uppercase leading-none border-l-2 border-indigo-500/30 pl-3 font-mono">
-          {record.winner}
+          {getAbbr(record.winner)}
         </span>
         <p className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase leading-tight pl-3 line-clamp-1 md:line-clamp-2 font-mono">
           {record.key_factor}

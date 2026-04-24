@@ -8,4 +8,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     console.warn("Supabase URL or Anon Key is missing in environment variables.");
 }
 
-export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
+export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '', {
+    realtime: {
+        params: {
+            eventsPerSecond: 10
+        }
+    }
+});

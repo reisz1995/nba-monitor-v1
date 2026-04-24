@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BrainCircuit, Database, Calendar, Plus, Download, Copy, Save, Zap } from 'lucide-react';
+import { BrainCircuit, Database, Calendar, Plus, Download, Copy, Save, Zap, Trash2 } from 'lucide-react';
 import { Team, PalpiteData } from '../../types';
 import PredictionRow from './PredictionRow';
 
