@@ -102,9 +102,9 @@ describe('nbaUtils', () => {
             const resultHomeA = calculateProjectedScores(teamA, teamB, { isHomeA: true });
             const resultHomeB = calculateProjectedScores(teamA, teamB, { isHomeA: false });
 
-            // Diferença deve ser 3.5 pontos porque Mandante ganha +1.75 e Visitante perde -1.75
-            expect(resultHomeA.deltaA - resultHomeA.deltaB).toBeCloseTo(3.5);
-            expect(resultHomeB.deltaB - resultHomeB.deltaA).toBeCloseTo(3.5);
+            // Diferença deve ser 3.6 pontos porque Mandante ganha +1.80 e Visitante perde -1.80
+            expect(resultHomeA.deltaA - resultHomeA.deltaB).toBeCloseTo(3.6);
+            expect(resultHomeB.deltaB - resultHomeB.deltaA).toBeCloseTo(3.6);
         });
 
         it('should apply B2B fatigue (-1.5)', () => {

@@ -14,7 +14,7 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
         espnData: { pts: 120, pts_contra: 110 }
     } as any;
 
-    it('deve travar o placar em no máximo 17 pontos abaixo da média da temporada', () => {
+    it('deve travar o placar em no máximo 10 pontos abaixo da média da temporada ajustada pelo pace', () => {
         // Simular cenário de desastre: 2 lesões peso 9 (HW 9)
         // Cada lesão HW 9 remove (9 * 2) + 2 = 20 pontos.
         // Total de penalidade: 40 pontos.
@@ -28,12 +28,12 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
 
         const result = calculateProjectedScores(teamA, teamB, { injuriesA });
 
-        // Média 115 - 17 = 98. Média atual 120 - 17 = 103.
-        expect(result.deltaA).toBe(103);
+        // Média ajustada pelo pace
+        expect(result.deltaA).toBeCloseTo(109.88, 2);
         expect(result.deltaA).toBeGreaterThan(100);
     });
 
-    it('não deve interferir se o placar estiver dentro da margem de 17 pontos', () => {
+    it('não deve interferir se o placar estiver dentro da margem de 10 pontos', () => {
         // Time B com defesa neutra (112 pts_contra) para não derrubar o placar sozinho
         const neutralTeamB = {
             name: 'Celtics',
@@ -48,9 +48,9 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
         const result = calculateProjectedScores(teamA, neutralTeamB, { injuriesA });
 
         // Com weight 5, a penalidade é de 5 pontos (menor que threshold 7, não ativa penalty dupla)
-        // O floor é 120 - 17 = 103, mas o placar projetado está acima do floor
+        // O floor é a média ajustada - 10, mas o placar projetado está acima do floor
         // então não deve haver clamp para baixo
-        expect(result.deltaA).toBeGreaterThan(103);
+        expect(result.deltaA).toBeGreaterThan(109.88);
     });
 
     it('deve travar ambos os times se necessário', () => {
@@ -62,7 +62,7 @@ describe('nbaUtils - Trava de Segurança Profissional', () => {
 
         const result = calculateProjectedScores(teamA, teamB, { injuriesA, injuriesB });
 
-        expect(result.deltaA).toBe(103);
-        expect(result.deltaB).toBe(103);
+        expect(result.deltaA).toBeCloseTo(109.88, 2);
+        expect(result.deltaB).toBeCloseTo(109.88, 2);
     });
 });

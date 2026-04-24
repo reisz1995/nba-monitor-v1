@@ -195,15 +195,6 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
     if (options?.lastMarginB && options.lastMarginB > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
 
 
-    // [FIX #2] REMOVIDO: Redutor duplicado de pace lento
-    // O pace baixo já está incorporado na fórmula base via multiplicador (matchPace/100)
-    // Aplicar redução adicional aqui é penalidade dupla no mesmo fator
-    // if (matchPace < PROJECTION_CONFIG.PACE_THRESHOLD_SLOW) {
-    //     const reduction = 1 - PROJECTION_CONFIG.PACE_ADJUSTMENT_FACTOR;
-    //     adjA *= reduction;
-    //     adjB *= reduction;
-    // }
-
     // [FILTRO CONTEXTO] Injeção Direta da Análise Editorial da IA (gemini_insight)
     if (options?.editorInsight) {
         if (options.editorInsight.match(/🎯 NOSSA APOSTA:\s*OVER/i)) {
