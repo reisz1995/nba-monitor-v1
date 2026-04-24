@@ -59,9 +59,9 @@ const HistoryRow = memo(({
     <div
       style={style}
       onClick={() => onItemClick(record)}
-      className="flex items-center border-b border-slate-900 hover:bg-white/[0.02] transition-all group cursor-pointer w-full min-w-[1050px]"
+      className="flex flex-col md:flex-row md:items-center border-b border-slate-900 hover:bg-white/[0.02] transition-all group cursor-pointer w-full"
     >
-      <div className="w-[30%] px-6 py-4 flex items-center gap-5">
+      <div className="w-full md:w-[30%] px-4 md:px-6 py-3 md:py-4 flex items-center gap-4 md:gap-5">
         <div className="flex items-center -space-x-4">
           <div className="w-12 h-12 bg-slate-900 border-2 border-slate-800 p-2 transform -rotate-3 group-hover:rotate-0 transition-transform shadow-lg overflow-hidden flex items-center justify-center">
             {teamA?.logo && <img src={teamA.logo} className="max-w-full max-h-full object-contain" alt="" />}
@@ -106,18 +106,18 @@ const HistoryRow = memo(({
         </div>
       </div>
 
-      <div className="w-[20%] px-6 py-4 flex flex-col gap-1">
-        <span className="text-sm font-black text-indigo-400 italic uppercase leading-none border-l-2 border-indigo-500/30 pl-3 font-mono">
+      <div className="w-full md:w-[20%] px-4 md:px-6 py-2 md:py-4 flex flex-col gap-1">
+        <span className="text-xs md:sm font-black text-indigo-400 italic uppercase leading-none border-l-2 border-indigo-500/30 pl-3 font-mono">
           {record.winner}
         </span>
-        <p className="text-[10px] text-slate-500 font-bold uppercase leading-tight pl-3 line-clamp-2 font-mono">
+        <p className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase leading-tight pl-3 line-clamp-1 md:line-clamp-2 font-mono">
           {record.key_factor}
         </p>
       </div>
 
-      <div className="w-[12%] px-4 py-4 flex items-center justify-center">
+      <div className="w-full md:w-[12%] px-4 md:px-4 py-2 md:py-4 flex items-center justify-start md:justify-center">
         {record.pick_total ? (
-          <span className={`text-[10px] font-black uppercase px-2 py-1 border-2 font-mono tracking-tight ${record.pick_total.startsWith('PREV_OVER')
+          <span className={`text-[9px] md:text-[10px] font-black uppercase px-2 py-1 border-2 font-mono tracking-tight ${record.pick_total.startsWith('PREV_OVER')
               ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
               : record.pick_total.startsWith('PREV_UNDER')
                 ? 'bg-rose-600/20 border-rose-500 text-rose-400'
@@ -126,41 +126,56 @@ const HistoryRow = memo(({
             {record.pick_total}
           </span>
         ) : (
-          <span className="text-[9px] text-slate-700 font-mono">—</span>
+          <span className="text-[8px] text-slate-700 font-mono">NO_PICK</span>
         )}
       </div>
 
-      <div className="w-[18%] px-6 py-4 flex items-center justify-center gap-1.5">
-        <button
-          onClick={(e) => onUpdateStatus(e, record.id, 'green')}
-          className={`w-10 h-10 border-2 transition-all flex items-center justify-center ${record.result === 'green'
-            ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]'
-            : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-emerald-500/50'
-            }`}
-        >
-          <CheckCircle2 className="w-5 h-5" />
-        </button>
-        <button
-          onClick={(e) => onUpdateStatus(e, record.id, 'red')}
-          className={`w-10 h-10 border-2 transition-all flex items-center justify-center ${record.result === 'red'
-            ? 'bg-rose-600/20 border-rose-500 text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.3)]'
-            : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-rose-500/50'
-            }`}
-        >
-          <XCircle className="w-5 h-5" />
-        </button>
-        <button
-          onClick={(e) => onUpdateStatus(e, record.id, 'pending')}
-          className={`w-10 h-10 border-2 transition-all flex items-center justify-center ${record.result === 'pending'
-            ? 'bg-amber-600/20 border-amber-500 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)]'
-            : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-amber-500/50'
-            }`}
-        >
-          <Clock className="w-5 h-5" />
-        </button>
+      <div className="w-full md:w-[18%] px-4 md:px-6 py-2 md:py-4 flex items-center justify-between md:justify-center gap-1.5 border-t md:border-t-0 border-white/5 mt-2 md:mt-0 pt-2 md:pt-0">
+        <div className="flex md:hidden items-center gap-4">
+            <div className="inline-block px-3 py-1 bg-slate-900 border border-slate-800 rounded-sm">
+                <span className="text-sm font-black text-white italic font-mono">
+                    {record.confidence}<span className="text-[8px] text-slate-600 not-italic ml-0.5 font-sans">%</span>
+                </span>
+            </div>
+            <button
+                onClick={(e) => onDeleteRecord(e, record.id)}
+                className="p-2 text-slate-800 hover:text-rose-500 transition-colors"
+            >
+                <Trash2 className="w-4 h-4" />
+            </button>
+        </div>
+        <div className="flex items-center gap-1.5">
+            <button
+            onClick={(e) => onUpdateStatus(e, record.id, 'green')}
+            className={`w-8 h-8 md:w-10 md:h-10 border-2 transition-all flex items-center justify-center ${record.result === 'green'
+                ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 shadow-glow-success'
+                : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-emerald-500/50'
+                }`}
+            >
+            <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+            <button
+            onClick={(e) => onUpdateStatus(e, record.id, 'red')}
+            className={`w-8 h-8 md:w-10 md:h-10 border-2 transition-all flex items-center justify-center ${record.result === 'red'
+                ? 'bg-rose-600/20 border-rose-500 text-rose-400 shadow-glow-error'
+                : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-rose-500/50'
+                }`}
+            >
+            <XCircle className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+            <button
+            onClick={(e) => onUpdateStatus(e, record.id, 'pending')}
+            className={`w-8 h-8 md:w-10 md:h-10 border-2 transition-all flex items-center justify-center ${record.result === 'pending'
+                ? 'bg-amber-600/20 border-amber-500 text-amber-400 shadow-glow-gold'
+                : 'bg-slate-950 border-slate-800 text-slate-800 hover:border-amber-500/50'
+                }`}
+            >
+            <Clock className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+        </div>
       </div>
 
-      <div className="w-[10%] px-6 py-4 text-center">
+      <div className="hidden md:flex w-[10%] px-6 py-4 text-center items-center justify-center">
         <div className="inline-block px-3 py-1 bg-slate-900 border border-slate-800 rounded-sm">
           <span className="text-base font-black text-white italic font-mono">
             {record.confidence}<span className="text-[10px] text-slate-600 not-italic ml-0.5 font-sans">%</span>
@@ -168,7 +183,7 @@ const HistoryRow = memo(({
         </div>
       </div>
 
-      <div className="w-[10%] px-6 py-4 text-center">
+      <div className="hidden md:flex w-[10%] px-6 py-4 text-center items-center justify-center">
         <button
           onClick={(e) => onDeleteRecord(e, record.id)}
           className="p-2 text-slate-800 hover:text-rose-500 transition-colors transform hover:scale-110"
@@ -223,6 +238,25 @@ const VirtualizedTable = memo(({
   height = 600
 }: VirtualizedTableProps) => {
 
+  const [containerWidth, setContainerWidth] = React.useState(1050);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+    }
+    const handleResize = () => {
+        if (containerRef.current) {
+            setContainerWidth(containerRef.current.offsetWidth);
+        }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = containerWidth < 768;
+  const effectiveRowHeight = isMobile ? 220 : rowHeight;
+
   // ✅ Garantir arrays válidos
   const safeRecords = Array.isArray(records) ? records : [];
   const safeTeams = Array.isArray(teams) ? teams : [];
@@ -241,8 +275,8 @@ const VirtualizedTable = memo(({
   }
 
   return (
-    <div className="w-full min-w-[1050px]">
-      <div className="flex bg-slate-900/80 backdrop-blur-md text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b-2 border-slate-800 font-mono">
+    <div ref={containerRef} className="w-full">
+      <div className="hidden md:flex bg-slate-900/80 backdrop-blur-md text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b-2 border-slate-800 font-mono">
         <div className="w-[30%] px-6 py-4">CONFRONTATION</div>
         <div className="w-[20%] px-6 py-4">AI SELECTION</div>
         <div className="w-[12%] px-4 py-4 text-center">PICK TOTAL</div>
@@ -253,8 +287,8 @@ const VirtualizedTable = memo(({
       <List
         height={height}
         rowCount={safeRecords.length}
-        rowHeight={rowHeight}
-        width={1050}
+        rowHeight={effectiveRowHeight}
+        width={containerWidth}
         rowProps={rowProps}
         rowComponent={Row}
         className="custom-scrollbar"

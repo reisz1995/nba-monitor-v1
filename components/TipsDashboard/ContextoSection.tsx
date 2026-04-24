@@ -225,7 +225,7 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                             <AlignLeft className="w-8 h-8 text-nba-black" />
                         </div>
                         <div>
-                            <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter leading-none font-oswald">
+                            <h3 className="text-2xl md:text-4xl font-black text-white italic uppercase tracking-tighter leading-none font-oswald">
                                 Contexto <span className="text-nba-text-secondary">Node</span>
                             </h3>
                             <div className="flex items-center gap-4 mt-3">
@@ -248,8 +248,8 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                 </div>
             </div>
 
-            <div className="bg-nba-surface border border-white/5 overflow-x-auto shadow-[0_10px_30px_rgba(0,0,0,0.8)] rounded-sm">
-                <table className="w-full text-left border-collapse min-w-[1000px]">
+            <div className="bg-nba-surface border border-white/5 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.8)] rounded-sm">
+                <table className="w-full text-left border-collapse min-w-[1000px] hidden md:table">
                     <thead>
                         <tr className="bg-nba-surface-elevated text-[10px] font-black text-nba-text-secondary uppercase tracking-widest border-b border-white/5 font-oswald">
                             <th className="px-3 py-3 border-r border-white/5 w-[10%]"><div className="flex items-center gap-2"><Calendar className="w-3 h-3" /> DATA</div></th>
@@ -366,6 +366,69 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                         )}
                     </tbody>
                 </table>
+
+                {/* Mobile View */}
+                <div className="md:hidden flex flex-col divide-y divide-white/5">
+                    {isLoading ? (
+                        <div className="py-20 text-center flex flex-col items-center gap-4">
+                            <Loader2 className="w-8 h-8 animate-spin text-nba-gold" />
+                            <span className="text-xs font-black uppercase tracking-widest text-nba-text-secondary">Carregando...</span>
+                        </div>
+                    ) : schedules.length > 0 ? (
+                        schedules.map((schedule) => (
+                            <div key={schedule.id} className="p-4 space-y-4 bg-nba-surface/50">
+                                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase font-mono tracking-widest">{schedule.game_date}</span>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <img src={getTeamLogo ? getTeamLogo(schedule.home_team) : ''} className="w-8 h-8 object-contain" />
+                                            <span className="text-sm font-black font-oswald uppercase">{schedule.home_team}</span>
+                                            <span className="text-white/30 text-xs italic">vs</span>
+                                            <img src={getTeamLogo ? getTeamLogo(schedule.away_team) : ''} className="w-8 h-8 object-contain" />
+                                            <span className="text-sm font-black font-oswald uppercase">{schedule.away_team}</span>
+                                        </div>
+                                    </div>
+                                    {!formattedData[schedule.id] && (
+                                        <button
+                                            onClick={() => handleFormat(schedule)}
+                                            disabled={formattingId === schedule.id}
+                                            className="p-3 bg-nba-gold text-nba-black rounded-sm shadow-glow-gold disabled:opacity-50"
+                                        >
+                                            {formattingId === schedule.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {formattedData[schedule.id] ? (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-nba-gold uppercase tracking-[0.2em] font-oswald flex items-center gap-2">
+                                                <Sparkles className="w-3 h-3 animate-pulse" /> Insight Gerado
+                                            </span>
+                                            <button
+                                                onClick={() => handleCopy(schedule.id, formattedData[schedule.id])}
+                                                className={`text-[10px] font-black px-4 py-2 border rounded-sm font-oswald uppercase tracking-widest transition-all ${copiedId === schedule.id ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/70'}`}
+                                            >
+                                                {copiedId === schedule.id ? 'COPIADO' : 'COPIAR'}
+                                            </button>
+                                        </div>
+                                        <div className="max-h-[400px] overflow-y-auto text-sm text-white/80 whitespace-pre-wrap leading-relaxed bg-black/20 p-4 rounded-sm border border-white/5 font-mono text-[11px]">
+                                            {formattedData[schedule.id]}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="py-8 text-center border border-dashed border-white/10 rounded-sm bg-black/20">
+                                        <span className="text-[10px] text-white/20 uppercase tracking-widest font-oswald">Aguardando IA</span>
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="py-20 text-center">
+                            <span className="text-[10px] font-black text-nba-text-secondary uppercase tracking-widest">Nenhum contexto</span>
+                        </div>
+                    )}
+                </div>
             </div>
         </section>
     );

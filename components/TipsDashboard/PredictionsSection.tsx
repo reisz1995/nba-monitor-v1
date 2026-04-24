@@ -48,14 +48,14 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
                             <BrainCircuit className="w-8 h-8 text-nba-black" />
                         </div>
                         <div>
-                            <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter leading-none font-oswald">
+                            <h3 className="text-2xl md:text-4xl font-black text-white italic uppercase tracking-tighter leading-none font-oswald">
                                 Predictor <span className="text-nba-text-secondary">Node</span>
                             </h3>
-                            <div className="flex items-center gap-4 mt-3">
+                            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-3">
                                 <p className="text-nba-text-secondary text-[10px] font-black uppercase tracking-[0.4em] flex items-center gap-2 font-oswald">
                                     <Database className="w-3 h-3" /> painel_palpites
                                 </p>
-                                <div className="bg-white/10 h-3 w-[1px]" />
+                                <div className="hidden md:block bg-white/10 h-3 w-[1px]" />
                                 <div className="flex items-center gap-2">
                                     <Calendar className="w-3 h-3 text-nba-red" />
                                     <input
@@ -110,23 +110,23 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
             </div>
 
             <div ref={tableRef} className="bg-nba-surface border border-white/5 overflow-x-auto shadow-[0_10px_30px_rgba(0,0,0,0.8)] rounded-sm">
-                <table className="w-full text-left border-collapse min-w-[800px]">
+                <table className="w-full text-left border-collapse min-w-[1000px] hidden md:table">
                     <thead>
                         <tr className="bg-nba-surface-elevated text-[10px] font-black text-nba-text-secondary uppercase tracking-widest border-b border-white/5 font-oswald">
-                            <th className="px-3 py-3 border-r border-white/5 w-[30%]">MATCHUP: HOME</th>
-                            <th className="px-3 py-3 border-r border-white/5 w-[30%]">MATCHUP: AWAY</th>
-                            <th className="px-3 py-3 border-r border-white/5 bg-nba-background/40 text-nba-success w-[50%]">CORE_PICK</th>
-                            <th className="px-2 py-3 border-r border-white/5 text-center text-nba-gold w-[8%]">OVER_L</th>
-                            <th className="px-2 py-3 border-r border-white/5 text-center text-nba-red w-[8%]">UNDER_L</th>
-                            <th className="px-3 py-3 w-50 border-r border-white/5 text-center text-nba-gold font-black tracking-widest uppercase bg-nba-gold/5 shadow-[inset_0_0_15px_rgba(255,215,0,0.05)]">
+                            <th className="px-3 py-3 border-r border-white/5 w-[20%]">MATCHUP: HOME</th>
+                            <th className="px-3 py-3 border-r border-white/5 w-[20%]">MATCHUP: AWAY</th>
+                            <th className="px-3 py-3 border-r border-white/5 bg-nba-background/40 text-nba-success w-[25%]">CORE_PICK</th>
+                            <th className="px-2 py-3 border-r border-white/5 text-center text-nba-gold w-[6%]">O_L</th>
+                            <th className="px-2 py-3 border-r border-white/5 text-center text-nba-red w-[6%]">U_L</th>
+                            <th className="px-3 py-3 w-50 border-r border-white/5 text-center text-nba-gold font-black tracking-widest uppercase bg-nba-gold/5 shadow-[inset_0_0_15px_rgba(255,215,0,0.05)] w-[12%]">
                                 <span className="flex items-center justify-center gap-2">
                                     <Zap className="w-3 h-3 animate-pulse" />
-                                    HANDICAP_EDGE
+                                    EDGE
                                 </span>
                             </th>
-                            <th className="px-3 py-3 border-r border-white/5 text-center text-nba-red w-[10%]">CONF_ID</th>
-                            <th className="px-2 py-3 border-r border-white/5 text-center w-[5%]">N_C</th>
-                            <th className="px-2 py-3 border-r border-white/5 text-center w-[5%]">N_F</th>
+                            <th className="px-3 py-3 border-r border-white/5 text-center text-nba-red w-[8%]">CONF</th>
+                            <th className="px-2 py-3 border-r border-white/5 text-center w-[4%]">N_C</th>
+                            <th className="px-2 py-3 border-r border-white/5 text-center w-[4%]">N_F</th>
                             <th className="px-2 py-3 text-center w-[3%]">ACT</th>
                         </tr>
                     </thead>
@@ -157,6 +157,105 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
                         )}
                     </tbody>
                 </table>
+
+                {/* Mobile Card Layout */}
+                <div className="md:hidden flex flex-col divide-y divide-white/5">
+                    {predictions.length > 0 ? (
+                        predictions.map((pred) => (
+                            <div key={pred.id} className="p-4 space-y-4 bg-nba-surface/50">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest font-mono">HOME</label>
+                                        <input
+                                            list="nba-teams"
+                                            value={pred.time_casa}
+                                            onChange={(e) => onLocalPredictionChange(pred.id!, 'time_casa', e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-800 text-white font-bold py-2 px-3 text-xs uppercase"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest font-mono">AWAY</label>
+                                        <input
+                                            list="nba-teams"
+                                            value={pred.time_fora}
+                                            onChange={(e) => onLocalPredictionChange(pred.id!, 'time_fora', e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-800 text-white font-bold py-2 px-3 text-xs uppercase"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-nba-success uppercase tracking-widest font-mono">CORE_PICK</label>
+                                    <input
+                                        value={pred.palpite_principal}
+                                        onChange={(e) => onLocalPredictionChange(pred.id!, 'palpite_principal', e.target.value)}
+                                        className="w-full bg-slate-900 border border-slate-800 text-nba-success font-black py-2 px-3 text-xs uppercase tracking-widest"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-nba-gold uppercase tracking-widest font-mono">OVER</label>
+                                        <input
+                                            value={pred.over_line}
+                                            onChange={(e) => onLocalPredictionChange(pred.id!, 'over_line', e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-800 text-white text-center font-mono py-2 text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-nba-red uppercase tracking-widest font-mono">UNDER</label>
+                                        <input
+                                            value={pred.under_line}
+                                            onChange={(e) => onLocalPredictionChange(pred.id!, 'under_line', e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-800 text-white text-center font-mono py-2 text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] font-black text-nba-gold uppercase tracking-widest font-mono">EDGE</label>
+                                        <input
+                                            value={pred.handicap_line || ''}
+                                            onChange={(e) => onLocalPredictionChange(pred.id!, 'handicap_line', e.target.value)}
+                                            className="w-full bg-slate-950 border border-nba-gold/30 text-nba-gold text-center font-mono py-2 text-xs"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[8px] text-slate-500 uppercase font-mono">CONF</span>
+                                            <input
+                                                value={pred.confianca}
+                                                onChange={(e) => onLocalPredictionChange(pred.id!, 'confianca', e.target.value)}
+                                                className="w-16 bg-transparent text-nba-red font-black text-sm"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[8px] text-slate-500 font-mono">N_C</span>
+                                                <span className="text-[10px] font-bold text-slate-400">{pred.n_casa}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[8px] text-slate-500 font-mono">N_F</span>
+                                                <span className="text-[10px] font-bold text-slate-400">{pred.n_fora}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => onRemoveRow(pred.id!)}
+                                        className="p-2 text-nba-red/50 hover:text-nba-red"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="py-20 text-center">
+                            <span className="text-[10px] font-black text-nba-text-secondary uppercase tracking-widest">No active nodes</span>
+                        </div>
+                    )}
+                </div>
                 <datalist id="nba-teams">
                     {teams.map(t => <option key={t.id} value={t.name} />)}
                 </datalist>
