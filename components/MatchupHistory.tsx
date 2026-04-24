@@ -107,7 +107,7 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
             <History className="w-12 h-12 text-black" />
           </div>
           <div>
-            <h3 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-none font-oswald">
+            <h3 className="text-3xl md:text-7xl font-black italic uppercase tracking-tighter leading-none font-oswald">
               VAULT <span className="text-slate-500 font-black">ARCHIVE</span>
             </h3>
             <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.4em] mt-4 flex items-center gap-2 font-mono">

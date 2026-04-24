@@ -74,12 +74,12 @@ const HistoryRow = memo(({
       onClick={() => onItemClick(record)}
       className="flex flex-col md:flex-row md:items-center border-b border-slate-900 hover:bg-white/[0.02] transition-all group cursor-pointer w-full"
     >
-      <div className="w-full md:w-[30%] px-4 md:px-3 py-3 md:py-4 flex items-center gap-3 md:gap-4 min-w-0">
+      <div className="w-full md:w-[30%] px-4 md:px-3 py-3 md:py-4 flex items-center gap-4 md:gap-5 min-w-0">
         <div className="flex items-center -space-x-3 md:-space-x-4 flex-shrink-0">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 border-2 border-slate-800 p-1.5 md:p-2 transform -rotate-3 group-hover:rotate-0 transition-transform shadow-lg overflow-hidden flex items-center justify-center">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 border-2 border-slate-800 p-1 md:p-2 shadow-lg overflow-hidden flex items-center justify-center rounded-sm">
             {teamA?.logo && <img src={teamA.logo} className="max-w-full max-h-full object-contain" alt="" />}
           </div>
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 border-2 border-slate-800 p-1.5 md:p-2 transform rotate-6 group-hover:rotate-0 transition-transform shadow-lg z-10 overflow-hidden flex items-center justify-center">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 border-2 border-slate-800 p-1 md:p-2 shadow-lg z-10 overflow-hidden flex items-center justify-center rounded-sm">
             {teamB?.logo && <img src={teamB.logo} className="max-w-full max-h-full object-contain" alt="" />}
           </div>
         </div>
@@ -120,6 +120,7 @@ const HistoryRow = memo(({
       </div>
 
       <div className="w-full md:w-[20%] px-4 md:px-3 py-2 md:py-4 flex flex-col gap-1">
+        <span className="md:hidden text-[8px] font-black text-slate-600 uppercase tracking-widest font-mono">AI Selection</span>
         <span className="text-xs md:sm font-black text-indigo-400 italic uppercase leading-none border-l-2 border-indigo-500/30 pl-3 font-mono">
           {getAbbr(record.winner)}
         </span>
@@ -128,9 +129,10 @@ const HistoryRow = memo(({
         </p>
       </div>
 
-      <div className="w-full md:w-[12%] px-4 md:px-4 py-2 md:py-4 flex items-center justify-start md:justify-center">
+      <div className="w-full md:w-[12%] px-4 md:px-4 py-2 md:py-4 flex flex-col md:items-center justify-start md:justify-center">
+        <span className="md:hidden text-[8px] font-black text-slate-600 uppercase tracking-widest font-mono mb-1">Pick Total</span>
         {record.pick_total ? (
-          <span className={`text-[9px] md:text-[10px] font-black uppercase px-2 py-1 border-2 font-mono tracking-tight ${record.pick_total.startsWith('PREV_OVER')
+          <span className={`text-[9px] md:text-[10px] font-black uppercase px-2 py-1 border-2 font-mono tracking-tight w-fit ${record.pick_total.startsWith('PREV_OVER')
               ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
               : record.pick_total.startsWith('PREV_UNDER')
                 ? 'bg-rose-600/20 border-rose-500 text-rose-400'
@@ -143,19 +145,22 @@ const HistoryRow = memo(({
         )}
       </div>
 
-      <div className="w-full md:w-[18%] px-4 md:px-3 py-2 md:py-4 flex items-center justify-between md:justify-center gap-1.5 border-t md:border-t-0 border-white/5 mt-2 md:mt-0 pt-2 md:pt-0">
-        <div className="flex md:hidden items-center gap-4">
-            <div className="inline-block px-3 py-1 bg-slate-900 border border-slate-800 rounded-sm">
-                <span className="text-sm font-black text-white italic font-mono">
-                    {record.confidence}<span className="text-[8px] text-slate-600 not-italic ml-0.5 font-sans">%</span>
-                </span>
+      <div className="w-full md:w-[18%] px-4 md:px-3 py-3 md:py-4 flex items-center justify-between md:justify-center gap-1.5 border-t md:border-t-0 border-white/5 mt-2 md:mt-0 pt-3 md:pt-0">
+        <div className="flex md:hidden flex-col gap-1">
+            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest font-mono">Confidence & Status</span>
+            <div className="flex items-center gap-4">
+                <div className="inline-block px-3 py-1 bg-slate-900 border border-slate-800 rounded-sm">
+                    <span className="text-sm font-black text-white italic font-mono">
+                        {record.confidence}<span className="text-[8px] text-slate-600 not-italic ml-0.5 font-sans">%</span>
+                    </span>
+                </div>
+                <button
+                    onClick={(e) => onDeleteRecord(e, record.id)}
+                    className="p-2 text-slate-800 hover:text-rose-500 transition-colors"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
             </div>
-            <button
-                onClick={(e) => onDeleteRecord(e, record.id)}
-                className="p-2 text-slate-800 hover:text-rose-500 transition-colors"
-            >
-                <Trash2 className="w-4 h-4" />
-            </button>
         </div>
         <div className="flex items-center gap-1.5">
             <button
@@ -267,8 +272,8 @@ const VirtualizedTable = memo(({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isMobile = containerWidth > 0 && containerWidth < 1024;
-  const effectiveRowHeight = isMobile ? 220 : rowHeight;
+  const isMobile = containerWidth === 0 || containerWidth < 1024;
+  const effectiveRowHeight = isMobile ? 320 : rowHeight;
 
   // ✅ Garantir arrays válidos
   const safeRecords = Array.isArray(records) ? records : [];
