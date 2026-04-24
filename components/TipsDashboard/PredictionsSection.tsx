@@ -113,21 +113,21 @@ const PredictionsSection: React.FC<PredictionsSectionProps> = ({
                 <table className="w-full text-left border-collapse min-w-[1000px] hidden md:table">
                     <thead>
                         <tr className="bg-nba-surface-elevated text-[10px] font-black text-nba-text-secondary uppercase tracking-widest border-b border-white/5 font-oswald">
-                            <th className="px-3 py-3 border-r border-white/5 w-[20%]">MATCHUP: HOME</th>
-                            <th className="px-3 py-3 border-r border-white/5 w-[20%]">MATCHUP: AWAY</th>
-                            <th className="px-3 py-3 border-r border-white/5 bg-nba-background/40 text-nba-success w-[25%]">CORE_PICK</th>
-                            <th className="px-2 py-3 border-r border-white/5 text-center text-nba-gold w-[6%]">O_L</th>
-                            <th className="px-2 py-3 border-r border-white/5 text-center text-nba-red w-[6%]">U_L</th>
-                            <th className="px-3 py-3 w-50 border-r border-white/5 text-center text-nba-gold font-black tracking-widest uppercase bg-nba-gold/5 shadow-[inset_0_0_15px_rgba(255,215,0,0.05)] w-[12%]">
+                            <th className="px-2 py-3 border-r border-white/5 w-[20%]">HOME</th>
+                            <th className="px-2 py-3 border-r border-white/5 w-[20%]">AWAY</th>
+                            <th className="px-2 py-3 border-r border-white/5 bg-nba-background/40 text-nba-success w-[25%]">CORE_PICK</th>
+                            <th className="px-1 py-3 border-r border-white/5 text-center text-nba-gold w-[6%]">O_L</th>
+                            <th className="px-1 py-3 border-r border-white/5 text-center text-nba-red w-[6%]">U_L</th>
+                            <th className="px-2 py-3 w-50 border-r border-white/5 text-center text-nba-gold font-black tracking-widest uppercase bg-nba-gold/5 shadow-[inset_0_0_15px_rgba(255,215,0,0.05)] w-[12%]">
                                 <span className="flex items-center justify-center gap-2">
                                     <Zap className="w-3 h-3 animate-pulse" />
                                     EDGE
                                 </span>
                             </th>
-                            <th className="px-3 py-3 border-r border-white/5 text-center text-nba-red w-[8%]">CONF</th>
-                            <th className="px-2 py-3 border-r border-white/5 text-center w-[4%]">N_C</th>
-                            <th className="px-2 py-3 border-r border-white/5 text-center w-[4%]">N_F</th>
-                            <th className="px-2 py-3 text-center w-[3%]">ACT</th>
+                            <th className="px-2 py-3 border-r border-white/5 text-center text-nba-red w-[8%]">CONF</th>
+                            <th className="px-1 py-3 border-r border-white/5 text-center w-[4%]">N_C</th>
+                            <th className="px-1 py-3 border-r border-white/5 text-center w-[4%]">N_F</th>
+                            <th className="px-1 py-3 text-center w-[3%]">ACT</th>
                         </tr>
                     </thead>
                     <tbody>

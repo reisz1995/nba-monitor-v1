@@ -74,17 +74,17 @@ const HistoryRow = memo(({
       onClick={() => onItemClick(record)}
       className="flex flex-col md:flex-row md:items-center border-b border-slate-900 hover:bg-white/[0.02] transition-all group cursor-pointer w-full"
     >
-      <div className="w-full md:w-[30%] px-4 md:px-6 py-3 md:py-4 flex items-center gap-4 md:gap-5">
-        <div className="flex items-center -space-x-4">
-          <div className="w-12 h-12 bg-slate-900 border-2 border-slate-800 p-2 transform -rotate-3 group-hover:rotate-0 transition-transform shadow-lg overflow-hidden flex items-center justify-center">
+      <div className="w-full md:w-[30%] px-4 md:px-3 py-3 md:py-4 flex items-center gap-3 md:gap-4 min-w-0">
+        <div className="flex items-center -space-x-3 md:-space-x-4 flex-shrink-0">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 border-2 border-slate-800 p-1.5 md:p-2 transform -rotate-3 group-hover:rotate-0 transition-transform shadow-lg overflow-hidden flex items-center justify-center">
             {teamA?.logo && <img src={teamA.logo} className="max-w-full max-h-full object-contain" alt="" />}
           </div>
-          <div className="w-12 h-12 bg-slate-900 border-2 border-slate-800 p-2 transform rotate-6 group-hover:rotate-0 transition-transform shadow-lg z-10 overflow-hidden flex items-center justify-center">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 border-2 border-slate-800 p-1.5 md:p-2 transform rotate-6 group-hover:rotate-0 transition-transform shadow-lg z-10 overflow-hidden flex items-center justify-center">
             {teamB?.logo && <img src={teamB.logo} className="max-w-full max-h-full object-contain" alt="" />}
           </div>
         </div>
-        <div className="flex flex-col">
-          <span className="text-base font-black uppercase tracking-tighter leading-none mb-1 text-slate-100 font-mono">
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-base font-black uppercase tracking-tighter leading-none mb-1 text-slate-100 font-mono whitespace-nowrap truncate">
             {getAbbr(teamA?.name || '')} <span className="text-slate-700 text-xs mx-1">VS</span> {getAbbr(teamB?.name || '')}
           </span>
           <span className="text-[9px] text-slate-600 font-extrabold uppercase tracking-widest flex items-center gap-2 mb-2 font-mono">
@@ -92,8 +92,8 @@ const HistoryRow = memo(({
           </span>
 
           {record.momentum_ma && typeof record.momentum_ma === 'object' && !Array.isArray(record.momentum_ma) && (
-            <div className="flex gap-2 items-center">
-              <div className="flex -space-x-1">
+            <div className="flex gap-2 items-center mt-1">
+              <div className="flex -space-x-1 flex-shrink-0">
                 {(record.momentum_ma.home_record || []).slice(-3).map((g: any, idx: number) => (
                   g && (
                     <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
@@ -103,8 +103,8 @@ const HistoryRow = memo(({
                   )
                 ))}
               </div>
-              <div className="w-[1px] h-4 bg-slate-800"></div>
-              <div className="flex -space-x-1">
+              <div className="w-[1px] h-4 bg-slate-800 flex-shrink-0"></div>
+              <div className="flex -space-x-1 flex-shrink-0">
                 {(record.momentum_ma.away_record || []).slice(-3).map((g: any, idx: number) => (
                   g && (
                     <div key={idx} className={`w-4 h-6 border border-black flex flex-col items-center justify-center ${g.result === 'V' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
@@ -119,7 +119,7 @@ const HistoryRow = memo(({
         </div>
       </div>
 
-      <div className="w-full md:w-[20%] px-4 md:px-6 py-2 md:py-4 flex flex-col gap-1">
+      <div className="w-full md:w-[20%] px-4 md:px-3 py-2 md:py-4 flex flex-col gap-1">
         <span className="text-xs md:sm font-black text-indigo-400 italic uppercase leading-none border-l-2 border-indigo-500/30 pl-3 font-mono">
           {getAbbr(record.winner)}
         </span>
@@ -143,7 +143,7 @@ const HistoryRow = memo(({
         )}
       </div>
 
-      <div className="w-full md:w-[18%] px-4 md:px-6 py-2 md:py-4 flex items-center justify-between md:justify-center gap-1.5 border-t md:border-t-0 border-white/5 mt-2 md:mt-0 pt-2 md:pt-0">
+      <div className="w-full md:w-[18%] px-4 md:px-3 py-2 md:py-4 flex items-center justify-between md:justify-center gap-1.5 border-t md:border-t-0 border-white/5 mt-2 md:mt-0 pt-2 md:pt-0">
         <div className="flex md:hidden items-center gap-4">
             <div className="inline-block px-3 py-1 bg-slate-900 border border-slate-800 rounded-sm">
                 <span className="text-sm font-black text-white italic font-mono">
@@ -251,10 +251,10 @@ const VirtualizedTable = memo(({
   height = 600
 }: VirtualizedTableProps) => {
 
-  const [containerWidth, setContainerWidth] = React.useState(1050);
+  const [containerWidth, setContainerWidth] = React.useState(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (containerRef.current) {
         setContainerWidth(containerRef.current.offsetWidth);
     }
@@ -267,7 +267,7 @@ const VirtualizedTable = memo(({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isMobile = containerWidth < 768;
+  const isMobile = containerWidth > 0 && containerWidth < 1024;
   const effectiveRowHeight = isMobile ? 220 : rowHeight;
 
   // ✅ Garantir arrays válidos
@@ -290,12 +290,12 @@ const VirtualizedTable = memo(({
   return (
     <div ref={containerRef} className="w-full">
       <div className="hidden md:flex bg-slate-900/80 backdrop-blur-md text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b-2 border-slate-800 font-mono">
-        <div className="w-[30%] px-6 py-4">CONFRONTATION</div>
-        <div className="w-[20%] px-6 py-4">AI SELECTION</div>
-        <div className="w-[12%] px-4 py-4 text-center">PICK TOTAL</div>
-        <div className="w-[18%] px-6 py-4 text-center">RESULT</div>
-        <div className="w-[10%] px-6 py-4 text-center">CONFIDENCE</div>
-        <div className="w-[10%] px-6 py-4 text-center">ACTIONS</div>
+        <div className="w-[30%] px-3 py-4">MATCHUP</div>
+        <div className="w-[20%] px-3 py-4">SELECTION</div>
+        <div className="w-[12%] px-2 py-4 text-center">PICK</div>
+        <div className="w-[18%] px-3 py-4 text-center">RESULT</div>
+        <div className="w-[10%] px-3 py-4 text-center">CONF</div>
+        <div className="w-[10%] px-3 py-4 text-center">ACT</div>
       </div>
       <List
         height={height}
