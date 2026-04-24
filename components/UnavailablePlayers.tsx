@@ -86,13 +86,13 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
 
   return (
     <div className="bg-[#0f172a]/80 backdrop-blur-xl border-2 border-slate-800 rounded-sm overflow-hidden shadow-2xl flex flex-col">
-      <div className="px-6 py-4 border-b-2 border-slate-800 flex items-center justify-between bg-slate-950">
+      <div className="px-6 py-4 border-b-2 border-white/5 flex items-center justify-between bg-black/40">
         <div className="flex flex-col">
-          <h3 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.2em] flex items-center gap-2 italic">
-            <span className="w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>
-            Health Report
+          <h3 className="text-[11px] font-black text-nba-red uppercase tracking-[0.2em] flex items-center gap-2 italic font-oswald">
+            <span className="w-2 h-2 bg-nba-red rounded-full shadow-nba-red"></span>
+            HEALTH_REPORT_v2
           </h3>
-          <span className="text-[9px] text-slate-600 font-black uppercase mt-1 tracking-widest">Impacto nos Confrontos 2026</span>
+          <span className="text-[9px] text-slate-500 font-black uppercase mt-1 tracking-widest font-mono opacity-50">Impacto_Integridade_Sistêmica</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -131,37 +131,37 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-slate-800/30">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-white/5">
             {filteredPlayers.map((p, idx) => {
               const d = getPlayerData(p);
               return (
-                <div key={p.id || idx} className="p-5 flex items-center gap-5 hover:bg-slate-800/20 transition-all group border-b border-slate-800/10 min-h-[100px]">
-                  <div className="relative shrink-0 flex items-center justify-center w-12 h-12 border border-slate-800/50 bg-slate-950/50 rounded-sm">
+                <div key={p.id || idx} className="p-6 flex items-center gap-6 hover:bg-white/5 transition-all group border-b border-white/5 min-h-[110px] spotlight-hover">
+                  <div className="relative shrink-0 flex items-center justify-center w-14 h-14 border border-white/10 bg-black/40 rounded-sm">
                     <img src={getTeamLogo(d.time)} className="w-10 h-10 object-contain drop-shadow-md group-hover:scale-110 transition-transform" alt="" />
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-900 border border-slate-800 flex items-center justify-center">
-                      <span className="text-[8px] font-black text-slate-500">{idx + 1}</span>
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-black border border-white/10 flex items-center justify-center">
+                      <span className="text-[9px] font-black text-slate-500 font-bebas">{idx + 1}</span>
                     </div>
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-xs font-black text-slate-100 truncate group-hover:text-rose-400 transition-colors uppercase italic tracking-tighter">{d.nome}</h3>
-                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-sm border uppercase tracking-wider shrink-0 ${d.statusType === 'out'
-                          ? 'bg-rose-500/10 text-rose-500 border-rose-500/40'
-                          : 'bg-amber-500/10 text-amber-500 border-amber-500/40'
+                        <h3 className="text-[13px] font-black text-slate-100 truncate group-hover:text-nba-red transition-colors uppercase italic tracking-tighter font-oswald">{d.nome}</h3>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-sm border uppercase tracking-widest shrink-0 font-oswald ${d.statusType === 'out'
+                          ? 'bg-nba-red/10 text-nba-red border-nba-red/40 shadow-nba-red/10'
+                          : 'bg-nba-gold/10 text-nba-gold border-nba-gold/40 shadow-nba-gold/10'
                           }`}>
                           {d.statusLabel}
                         </span>
                       </div>
-
+ 
                       <div className="flex flex-col">
-                        <span className="text-[9px] font-black text-slate-500 truncate uppercase tracking-tight">{d.motivo}</span>
-                        <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-800/40">
-                          <span className="text-[8px] font-black text-slate-600 uppercase">TIME: {d.time}</span>
-                          <span className="text-[8px] font-black text-emerald-500 uppercase flex items-center gap-1">
-                            <span className="w-1 h-1 bg-emerald-500 rounded-full"></span>
-                            Retorno: {d.retorno}
+                        <span className="text-[10px] font-black text-slate-500 truncate uppercase tracking-widest font-mono opacity-70">{d.motivo}</span>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
+                          <span className="text-[9px] font-black text-slate-600 uppercase font-mono tracking-tighter">{d.time}</span>
+                          <span className="text-[9px] font-black text-emerald-500 uppercase flex items-center gap-1.5 font-oswald">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_#10b981]"></span>
+                            RETORNO_{d.retorno}
                           </span>
                         </div>
                       </div>
@@ -174,18 +174,18 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
         )}
       </div>
 
-      <div className="px-6 py-3 bg-slate-950/60 border-t-2 border-slate-800 flex items-center justify-between">
-        <span className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em] italic">
-          Integridade Física: {filteredPlayers.length} Baixas Confirmadas
+      <div className="px-6 py-4 bg-black/60 border-t-2 border-white/5 flex items-center justify-between">
+        <span className="text-[10px] text-slate-600 font-black uppercase tracking-[0.2em] italic font-oswald">
+          INTEGRIDADE_FÍSICA: {filteredPlayers.length}_BAIXAS_SISTÊMICAS
         </span>
-        <div className="flex gap-4 items-center">
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
-            <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest italic">OUT</span>
+        <div className="flex gap-6 items-center">
+          <div className="flex items-center gap-2 font-oswald">
+            <div className="w-2 h-2 bg-nba-red rounded-full shadow-nba-red"></div>
+            <span className="text-[9px] font-black text-nba-red uppercase tracking-widest italic">OUT</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
-            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest italic">DTD</span>
+          <div className="flex items-center gap-2 font-oswald">
+            <div className="w-2 h-2 bg-nba-gold rounded-full shadow-nba-gold"></div>
+            <span className="text-[9px] font-black text-nba-gold uppercase tracking-widest italic">DTD</span>
           </div>
         </div>
       </div>

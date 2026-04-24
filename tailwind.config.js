@@ -23,6 +23,12 @@ export default {
                     surface: '#141414',
                     'surface-elevated': '#1E1E1E'
                 }
+            },
+            boxShadow: {
+                'nba-blue': '0 0 20px rgba(29, 66, 138, 0.5)',
+                'nba-red': '0 0 20px rgba(200, 16, 46, 0.5)',
+                'nba-gold': '0 0 30px rgba(255, 215, 0, 0.4)',
+                'nba-white': '0 0 15px rgba(255, 255, 255, 0.3)',
             }
         },
     },

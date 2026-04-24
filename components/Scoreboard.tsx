@@ -10,11 +10,11 @@ interface ScoreboardProps {
   onRefresh: () => void;
 }
 
-const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, onRefresh }) => {
+const Scoreboard: React.FC<ScoreboardProps> = React.memo(({ playerStats, loading, teams, onRefresh }) => {
   const [seeding, setSeeding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const getTeamLogo = (teamName: string) => {
+  const getTeamLogo = React.useCallback((teamName: string) => {
     if (!teamName) return 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png';
     const cleanName = teamName.toLowerCase();
     const team = teams.find(t =>
@@ -23,9 +23,9 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
       t.name.toLowerCase().includes(cleanName)
     );
     return team?.logo || 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png';
-  };
+  }, [teams]);
 
-  const seedPlayers = async () => {
+  const seedPlayers = React.useCallback(async () => {
     setSeeding(true);
     const mockPlayers = [
       { nome: 'Luka Doncic', time: 'Los Angeles Lakers', pontos: 32.8, rebotes: 7.8, assistencias: 8.7, posicao: 'Guard' },
@@ -44,7 +44,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
     } finally {
       setSeeding(false);
     }
-  };
+  }, [onRefresh]);
 
   const filteredStats = playerStats.filter(player =>
     player.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,12 +52,12 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
   );
 
   return (
-    <div className="bg-[#0f172a]/80 backdrop-blur-xl border-2 border-slate-800 rounded-sm overflow-hidden shadow-2xl flex flex-col w-full">
-      <div className="px-3 py-3 border-b-2 border-slate-800 bg-slate-950 flex items-center justify-between shrink-0 gap-2">
+    <div className="bg-nba-surface/80 backdrop-blur-xl border-2 border-white/10 rounded-sm overflow-hidden shadow-2xl flex flex-col w-full glass-morphism spotlight-hover">
+      <div className="px-4 py-3 border-b-2 border-white/5 bg-black/40 flex items-center justify-between shrink-0 gap-2">
         <div>
-          <h2 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.1em] flex items-center gap-1.5 italic">
-            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"></span>
-            Líderes
+          <h2 className="text-[11px] font-black text-nba-blue uppercase tracking-[0.2em] flex items-center gap-2 italic font-oswald">
+            <span className="w-2 h-2 bg-nba-blue rounded-full shadow-nba-blue"></span>
+            Líderes_Estatísticos
           </h2>
         </div>
 
@@ -80,11 +80,11 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
       <div className="overflow-x-hidden overflow-y-auto custom-scrollbar max-h-[500px]">
         <table className="w-full text-left border-separate border-spacing-0 table-fixed">
           <thead>
-            <tr className="sticky top-0 z-10 bg-slate-950 text-[9px] font-black text-slate-500 uppercase tracking-tighter border-b border-slate-800">
-              <th className="w-[45%] pl-3 py-2 font-black italic">Player</th>
-              <th className="w-[18%] py-2 text-center border-l border-slate-800/40">PTS</th>
-              <th className="w-[18%] py-2 text-center border-l border-slate-800/40">REB</th>
-              <th className="w-[19%] py-2 text-center border-l border-slate-800/40 pr-1">AST</th>
+            <tr className="sticky top-0 z-10 bg-black text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/10 font-oswald">
+              <th className="w-[45%] pl-4 py-3 font-black italic">Player_Node</th>
+              <th className="w-[18%] py-3 text-center border-l border-white/5">PTS</th>
+              <th className="w-[18%] py-3 text-center border-l border-white/5">REB</th>
+              <th className="w-[19%] py-3 text-center border-l border-white/5 pr-1">AST</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/30">
@@ -105,16 +105,16 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
               </tr>
             ) : (
               filteredStats.map((player, idx) => (
-                <tr key={player.id || idx} className="hover:bg-slate-800/20 transition-all group">
-                  <td className="pl-3 py-2.5">
+                <tr key={player.id || idx} className="hover:bg-white/5 transition-all group">
+                  <td className="pl-4 py-3">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] font-black text-slate-100 truncate group-hover:text-indigo-400 transition-colors uppercase italic tracking-tighter leading-none">{player.nome.split(' ').pop()}</span>
-                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter truncate leading-tight opacity-70">{player.time.replace('Los Angeles ', 'LA ').replace('Oklahoma City ', 'OKC ')}</span>
+                      <span className="text-[12px] font-black text-slate-100 truncate group-hover:text-nba-blue transition-colors uppercase italic tracking-tighter leading-none font-oswald">{player.nome.split(' ').pop()}</span>
+                      <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest truncate leading-tight opacity-50 font-mono mt-1">{player.time.replace('Los Angeles ', 'LA ').replace('Oklahoma City ', 'OKC ')}</span>
                     </div>
                   </td>
-                  <td className="py-2.5 text-center text-[11px] font-black text-indigo-400 font-mono tracking-tighter border-l border-slate-800/10 leading-none">{Number(player.pontos).toFixed(1)}</td>
-                  <td className="py-2.5 text-center text-[10px] font-bold text-slate-300 font-mono border-l border-slate-800/10 opacity-80 leading-none">{Number(player.rebotes).toFixed(1)}</td>
-                  <td className="py-2.5 text-center text-[10px] font-bold text-slate-300 font-mono border-l border-slate-800/10 opacity-80 leading-none pr-1">{Number(player.assistencias).toFixed(1)}</td>
+                  <td className="py-3 text-center text-[15px] font-black text-nba-blue font-bebas border-l border-white/5 leading-none">{Number(player.pontos).toFixed(1)}</td>
+                  <td className="py-3 text-center text-[13px] font-bold text-slate-300 font-bebas border-l border-white/5 opacity-80 leading-none">{Number(player.rebotes).toFixed(1)}</td>
+                  <td className="py-3 text-center text-[13px] font-bold text-slate-300 font-bebas border-l border-white/5 opacity-80 leading-none pr-1">{Number(player.assistencias).toFixed(1)}</td>
                 </tr>
               ))
             )}
@@ -122,14 +122,14 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ playerStats, loading, teams, on
         </table>
       </div>
 
-      <div className="px-3 py-2 bg-slate-950/60 border-t-2 border-slate-800 flex items-center justify-between">
-        <span className="text-[8px] text-slate-700 font-black uppercase italic">
-          {filteredStats.length} Atletas
+      <div className="px-4 py-3 bg-black/60 border-t-2 border-white/5 flex items-center justify-between">
+        <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest font-oswald">
+          {filteredStats.length}_NODES_ACTIVE
         </span>
-        <div className="w-1 h-1 bg-indigo-500 rounded-full animate-pulse"></div>
+        <div className="w-2 h-2 bg-nba-blue rounded-full animate-pulse shadow-nba-blue"></div>
       </div>
     </div>
   );
-};
+});
 
 export default Scoreboard;

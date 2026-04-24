@@ -188,26 +188,26 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
           <div className="w-8 h-8 flex items-center justify-center shrink-0">
             {team && <img src={team.logo} className="w-7 h-7 object-contain drop-shadow-md" alt="" />}
           </div>
-          <span className="font-black text-slate-100 text-[11px] md:text-xs tracking-tighter uppercase italic truncate">{value}</span>
+          <span className="font-black text-slate-100 text-[11px] md:text-xs tracking-tighter uppercase italic truncate font-oswald">{value}</span>
         </div>
       );
     }
     if (typeof value === 'number') {
       if (key.includes('aproveitamento') || (value > 0 && value < 1)) {
-        return <span className="text-indigo-400 font-black tracking-tighter">{value.toFixed(3).replace(/^0/, '')}</span>;
+        return <span className="text-nba-blue font-black tracking-tighter font-bebas text-sm">{value.toFixed(3).replace(/^0/, '')}</span>;
       }
-      return <span className="font-mono text-slate-300 font-bold">{Number.isInteger(value) ? value : value.toFixed(1)}</span>;
+      return <span className="font-bebas text-slate-300 font-bold text-sm">{Number.isInteger(value) ? value : value.toFixed(1)}</span>;
     }
-    return <span className="text-slate-400 font-medium">{String(value)}</span>;
+    return <span className="text-slate-400 font-medium font-oswald text-[10px] uppercase">{String(value)}</span>;
   };
 
   return (
     <div className="bg-black/40 backdrop-blur-xl border-2 border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col w-full glass-morphism">
       <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-black/40 backdrop-blur-md">
         <div className="flex flex-col">
-          <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.1em] flex items-center gap-1.5 italic font-mono">
-            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"></span>
-            PERFORMANCE_DATA_MATRIX
+          <h3 className="text-[11px] font-black text-nba-blue uppercase tracking-[0.2em] flex items-center gap-2 italic font-oswald">
+            <span className="w-2 h-2 bg-nba-blue rounded-full shadow-nba-blue"></span>
+            PERFORMANCE_MATRIX_v3
           </h3>
         </div>
         {usingOfflineData && (
@@ -225,14 +225,14 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
                   <th
                     key={key}
                     onClick={() => handleSort(key)}
-                    className={`px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-tighter whitespace-nowrap cursor-pointer hover:text-indigo-400 transition-all border-b border-white/10 sticky top-0 z-40 bg-black font-mono ${isSticky ? 'left-0 z-50 shadow-[2px_0_8px_rgba(0,0,0,0.8)]' : 'border-l border-white/5'
+                    className={`px-3 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap cursor-pointer hover:text-nba-blue transition-all border-b border-white/10 sticky top-0 z-40 bg-black font-oswald ${isSticky ? 'left-0 z-50 shadow-[4px_0_12px_rgba(0,0,0,0.9)]' : 'border-l border-white/5'
                       }`}
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{getHeaderContent(key)}</span>
                       <div className="flex flex-col gap-0 opacity-20 scale-75">
-                        <span className={`leading-none text-[6px] ${sortConfig?.key === key && sortConfig.direction === 'asc' ? 'text-indigo-500' : 'text-slate-400'}`}>▲</span>
-                        <span className={`leading-none text-[6px] ${sortConfig?.key === key && sortConfig.direction === 'desc' ? 'text-indigo-500' : 'text-slate-400'}`}>▼</span>
+                        <span className={`leading-none text-[7px] ${sortConfig?.key === key && sortConfig.direction === 'asc' ? 'text-nba-blue' : 'text-slate-400'}`}>▲</span>
+                        <span className={`leading-none text-[7px] ${sortConfig?.key === key && sortConfig.direction === 'desc' ? 'text-nba-blue' : 'text-slate-400'}`}>▼</span>
                       </div>
                     </div>
                   </th>
@@ -260,8 +260,8 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
                       return (
                         <td
                           key={key}
-                          className={`px-3 py-2.5 border-b border-white/5 text-[10px] md:text-[11px] whitespace-nowrap font-mono ${isSticky
-                            ? `sticky left-0 z-20 bg-black group-hover:bg-zinc-900 shadow-[2px_0_8px_rgba(0,0,0,0.8)] border-r-2 border-indigo-500/20 ${isSelected ? 'bg-indigo-900/40' : ''}`
+                          className={`px-4 py-3 border-b border-white/5 text-[11px] md:text-[12px] whitespace-nowrap spotlight-hover ${isSticky
+                            ? `sticky left-0 z-20 bg-black group-hover:bg-zinc-900 shadow-[4px_0_12px_rgba(0,0,0,0.9)] border-r-2 border-nba-blue/30 ${isSelected ? 'bg-nba-blue/20' : ''}`
                             : 'border-l border-white/5'
                             }`}
                         >
@@ -277,11 +277,11 @@ const ESPNTable: React.FC<ESPNTableProps> = ({ teams, selectedTeams = [] }) => {
         </table>
       </div>
 
-      <div className="px-4 py-2 bg-black/40 border-t border-white/10 flex items-center justify-between">
-        <span className="text-[8px] text-slate-600 font-black uppercase italic font-mono tracking-widest">
-          {data.length}_FRANCHISES_LOADED
+      <div className="px-6 py-3 bg-black/60 border-t border-white/10 flex items-center justify-between">
+        <span className="text-[10px] text-slate-600 font-black uppercase tracking-[0.3em] font-oswald">
+          {data.length}_ENTITIES_SYNCED
         </span>
-        <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
+        <div className="w-2 h-2 bg-nba-blue rounded-full animate-pulse shadow-nba-blue"></div>
       </div>
     </div>
   );

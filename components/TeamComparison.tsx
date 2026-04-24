@@ -113,22 +113,22 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
   }
 
   return (
-    <div aria-label="Team Comparison" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 font-['Space_Mono']">
-      <div ref={contentRef} className="bg-[#111] border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh]">
+    <div aria-label="Team Comparison" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 font-oswald animate-fade-in-up">
+      <div ref={contentRef} className="bg-nba-background border-4 border-white w-full max-w-6xl overflow-hidden shadow-[16px_16px_0px_#000] flex flex-col max-h-[95vh] arena-bg">
 
         {/* Header */}
         <div className="px-8 py-4 border-b-4 border-white flex justify-between items-center bg-white text-black">
           <div className="flex items-center gap-3">
-            <div className="w-4 h-4 bg-black animate-ping"></div>
-            <h2 className="text-xs font-bold uppercase tracking-widest">
-              NBA_DETERMINISTIC_HUB v3.0 // PACE_CALIBRATED
+            <div className="w-4 h-4 bg-nba-blue animate-pulse shadow-nba-blue"></div>
+            <h2 className="text-xs font-black uppercase tracking-widest font-oswald">
+              NBA_DETERMINISTIC_HUB_v3.0 // PACE_CALIBRATED
             </h2>
           </div>
           <div className="flex items-center gap-3">
             {databallrEnhanced && (
-              <span className="flex items-center gap-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 border-2 border-black">
-                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block"></span>
-                DATABALLR 14d
+              <span className="flex items-center gap-1.5 bg-nba-blue text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border-2 border-black shadow-nba-blue">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse inline-block"></span>
+                DATABALLR_ENHANCED
               </span>
             )}
             <button onClick={onClose} className="border-2 border-black p-1 hover:bg-black hover:text-white transition-colors">
@@ -147,19 +147,19 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
               </div>
 
               <div className="grid grid-cols-1 gap-6">
-                <div className="bg-black border-2 border-slate-800 p-4 font-['Space_Mono'] relative overflow-hidden group">
+                <div className="bg-black border-2 border-white/5 p-6 relative overflow-hidden group spotlight-hover">
                   <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                    <Zap className="w-12 h-12 text-indigo-500" />
+                    <Zap className="w-12 h-12 text-nba-blue" />
                   </div>
-                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                    <Activity className="w-3 h-3 text-indigo-500" />
-                    Ritmo do Confronto v2.0
+                  <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6 flex items-center gap-2 font-oswald">
+                    <Activity className="w-4 h-4 text-nba-blue" />
+                    MATCH_PACE_v2.0
                   </h4>
-                  <div className="flex justify-between items-end mb-2">
-                    <span className="text-3xl font-black text-white italic tracking-tighter">
+                  <div className="flex justify-between items-end mb-3">
+                    <span className="text-5xl font-black text-white italic tracking-tighter font-bebas">
                       {bettingLines.matchPace.toFixed(1)}
                     </span>
-                    <span className={`text-[10px] font-bold px-2 py-1 border-2 ${bettingLines.kineticState === 'HYPER_KINETIC' ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' : 'bg-slate-500/20 border-slate-500 text-slate-400'}`}>
+                    <span className={`text-[10px] font-black px-2 py-1 border-2 font-oswald ${bettingLines.kineticState === 'HYPER_KINETIC' ? 'bg-nba-blue/20 border-nba-blue text-nba-blue shadow-nba-blue' : 'bg-slate-500/20 border-slate-500 text-slate-400'}`}>
                       {bettingLines.kineticState}
                     </span>
                   </div>
@@ -189,30 +189,30 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
               </div>
 
               <div className="flex flex-col items-center">
-                <div className="flex items-center gap-6 mb-8">
+                <div className="flex items-center gap-8 mb-8">
                   <div className="flex flex-col items-center">
-                    <span className="text-5xl font-black">{bettingLines.projectedA.toFixed(1)}</span>
-                    <span className="text-[8px] font-bold text-zinc-400 uppercase mt-1">PROJ_{teamA.name.slice(0, 3)}</span>
+                    <span className="text-7xl font-black font-bebas">{bettingLines.projectedA.toFixed(1)}</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase mt-1 font-oswald tracking-widest">PROJ_{teamA.name.slice(0, 3)}</span>
                   </div>
-                  <div className="h-16 w-1 bg-black skew-x-[-15deg]"></div>
+                  <div className="h-20 w-1.5 bg-black skew-x-[-15deg]"></div>
                   <div className="flex flex-col items-center">
-                    <span className="text-5xl font-black">{bettingLines.projectedB.toFixed(1)}</span>
-                    <span className="text-[8px] font-bold text-zinc-400 uppercase mt-1">PROJ_{teamB.name.slice(0, 3)}</span>
+                    <span className="text-7xl font-black font-bebas">{bettingLines.projectedB.toFixed(1)}</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase mt-1 font-oswald tracking-widest">PROJ_{teamB.name.slice(0, 3)}</span>
                   </div>
                 </div>
 
-                <div className="bg-black text-white p-6 w-full text-center relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
-                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-2 block">Total Projetado Hub</span>
-                  <div className="text-7xl font-black flex items-center justify-center gap-3 italic">
-                    <Zap className="w-8 h-8 text-indigo-500" />
+                <div className="bg-black text-white p-10 w-full text-center relative overflow-hidden group spotlight-hover">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-nba-blue"></div>
+                  <span className="text-[11px] font-black text-nba-blue uppercase tracking-[0.4em] mb-4 block font-oswald">HUB_TOTAL_PROJECTION</span>
+                  <div className="text-8xl font-black flex items-center justify-center gap-4 italic font-bebas">
+                    <Zap className="w-10 h-10 text-nba-blue" />
                     {bettingLines.totalProjected.toFixed(1)}
                   </div>
-                  <div className="mt-4 flex justify-center gap-4">
-                    <span className="text-[10px] font-black text-black bg-white px-3 py-1 uppercase">
+                  <div className="mt-6 flex justify-center gap-4">
+                    <span className="text-[11px] font-black text-black bg-white px-4 py-2 uppercase font-oswald tracking-widest">
                       {bettingLines.favorite} {bettingLines.spread}
                     </span>
-                    <span className={`text-[10px] font-black px-3 py-1 uppercase skew-x-[-10deg] ${totalStatusColor}`}>
+                    <span className={`text-[11px] font-black px-4 py-2 uppercase skew-x-[-10deg] font-oswald tracking-widest ${totalStatusColor}`}>
                       {totalStatusLabel}
                     </span>
                   </div>
@@ -285,7 +285,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
           </div>
 
           {/* AI Analysis */}
-          <div className="bg-indigo-600 border-4 border-white p-10 shadow-[12px_12px_0px_#000] relative overflow-hidden group">
+          <div className="bg-nba-blue border-4 border-white p-10 shadow-[12px_12px_0px_#000] relative overflow-hidden group spotlight-hover">
             <div className="absolute -right-20 -bottom-20 opacity-10 group-hover:rotate-12 transition-transform duration-1000">
               <TrendingUp className="w-80 h-80" />
             </div>
@@ -314,7 +314,7 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
                   <div className="space-y-8">
                     <div>
                       <span className="text-[10px] font-bold text-white/60 uppercase block mb-4">Recomendação Principal</span>
-                      <div className="text-5xl font-black text-white italic tracking-tighter leading-tight bg-black p-6 border-l-8 border-white shadow-[8px_8px_0px_rgba(0,0,0,0.3)]">
+                      <div className="text-6xl font-black text-white italic tracking-tighter leading-tight bg-black p-8 border-l-8 border-white shadow-[8px_8px_0px_rgba(0,0,0,0.3)] font-oswald">
                         {analysis.winner}
                       </div>
                     </div>

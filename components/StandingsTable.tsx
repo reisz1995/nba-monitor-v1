@@ -39,7 +39,7 @@ const TeamRow = memo(({
       aria-selected={isSelected}
       aria-label={`${team.name}, Rank ${rank}, ${team.conference} Conference`}
       onFocus={() => onFocus(team.id)}
-      className={`flex flex-col md:grid md:grid-cols-12 items-center px-4 md:px-6 py-3.5 hover:bg-white/5 transition-all group border-b border-white/5 ${isSelected ? 'bg-indigo-500/10' : ''} ${isFocused ? 'ring-2 ring-indigo-500 ring-inset outline-none bg-white/5' : ''} cursor-pointer`}
+      className={`flex flex-col md:grid md:grid-cols-12 items-center px-4 md:px-6 py-4 hover:bg-white/5 transition-all group border-b border-white/5 ${isSelected ? 'bg-nba-blue/10' : ''} ${isFocused ? 'ring-2 ring-nba-blue ring-inset outline-none bg-white/5' : ''} cursor-pointer spotlight-hover`}
       onClick={() => onToggleSelect(team.id)}
     >
       <div className="flex md:contents">
@@ -57,8 +57,8 @@ const TeamRow = memo(({
           >
             {isSelected && <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" /></svg>}
           </button>
-          <span className={`text-[11px] font-black w-6 text-center shrink-0 font-mono ${rank <= 6 ? 'text-indigo-400' :
-            rank <= 10 ? 'text-orange-400' : 'text-slate-600'
+          <span className={`text-[13px] font-black w-6 text-center shrink-0 font-bebas ${rank <= 6 ? 'text-nba-blue' :
+            rank <= 10 ? 'text-nba-gold' : 'text-slate-600'
             }`}>
             {String(rank).padStart(2, '0')}
           </span>
@@ -85,17 +85,17 @@ const TeamRow = memo(({
           </div>
 
           <div className="hidden xl:flex items-center gap-4 ml-auto pr-4 border-r border-white/10 h-full py-1">
-            <div className="flex flex-col items-center min-w-[36px]">
-              <span className="text-[7px] font-black text-slate-500 uppercase font-mono">ORTG</span>
-              <span className="text-[11px] font-black text-white font-mono">{team.databallr?.ortg?.toFixed(1) || '--'}</span>
+            <div className="flex flex-col items-center min-w-[40px]">
+              <span className="text-[7px] font-black text-slate-500 uppercase font-oswald tracking-tighter">ORTG</span>
+              <span className="text-[14px] font-black text-white font-bebas">{team.databallr?.ortg?.toFixed(1) || '--'}</span>
             </div>
-            <div className="flex flex-col items-center min-w-[36px]">
-              <span className="text-[7px] font-black text-slate-500 uppercase font-mono">DRTG</span>
-              <span className="text-[11px] font-black text-white font-mono">{team.databallr?.drtg?.toFixed(1) || '--'}</span>
+            <div className="flex flex-col items-center min-w-[40px]">
+              <span className="text-[7px] font-black text-slate-500 uppercase font-oswald tracking-tighter">DRTG</span>
+              <span className="text-[14px] font-black text-white font-bebas">{team.databallr?.drtg?.toFixed(1) || '--'}</span>
             </div>
-            <div className="flex flex-col items-center min-w-[36px]">
-              <span className="text-[7px] font-black text-indigo-400 uppercase font-mono">NET</span>
-              <span className={`text-[11px] font-black font-mono ${Number(team.databallr?.net_rating) > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <div className="flex flex-col items-center min-w-[40px]">
+              <span className="text-[7px] font-black text-nba-blue uppercase font-oswald tracking-tighter">NET</span>
+              <span className={`text-[14px] font-black font-bebas ${Number(team.databallr?.net_rating) > 0 ? 'text-emerald-400' : 'text-nba-red'}`}>
                 {team.databallr?.net_rating ? (team.databallr.net_rating > 0 ? `+${team.databallr.net_rating.toFixed(1)}` : team.databallr.net_rating.toFixed(1)) : '--'}
               </span>
             </div>
@@ -114,9 +114,9 @@ const TeamRow = memo(({
                 e.stopPropagation();
                 onToggleRecord(team.id, i);
               }}
-              className={`w-6 h-6 md:w-7 md:h-7 flex items-center justify-center rounded-sm text-[9px] md:text-[10px] font-black transition-all border-2 shadow-lg font-mono ${resString === 'V'
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
-                : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/30'
+              className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-sm text-[12px] md:text-[14px] font-black transition-all border-2 shadow-lg font-bebas ${resString === 'V'
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30 shadow-emerald-500/10'
+                : 'bg-nba-red/10 text-nba-red border-nba-red/30 hover:bg-nba-red/30 shadow-nba-red/10'
                 }`}
             >
               {resString}
@@ -202,7 +202,7 @@ const StandingsTable: React.FC<StandingsTableProps> = memo(({ teams, selectedTea
 
   return (
     <div
-      className="bg-black/40 backdrop-blur-xl border-2 border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col glass-morphism focus-within:border-indigo-500/50 transition-colors"
+      className="bg-black/40 backdrop-blur-xl border-2 border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col glass-morphism focus-within:border-nba-blue/50 transition-colors"
       role="grid"
       aria-label="NBA Standings by Conference"
       onKeyDown={handleKeyDown}
@@ -223,8 +223,8 @@ const StandingsTable: React.FC<StandingsTableProps> = memo(({ teams, selectedTea
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            {lesteTeams.length > 0 && renderConferenceSection('EASTERN_CONFERENCE', 'text-indigo-400', lesteTeams)}
-            {oesteTeams.length > 0 && renderConferenceSection('WESTERN_CONFERENCE', 'text-orange-400', oesteTeams)}
+            {lesteTeams.length > 0 && renderConferenceSection('EASTERN_CONFERENCE', 'text-nba-blue', lesteTeams)}
+            {oesteTeams.length > 0 && renderConferenceSection('WESTERN_CONFERENCE', 'text-nba-gold', oesteTeams)}
             {lesteTeams.length === 0 && oesteTeams.length === 0 && (
               <div className="col-span-full">
                 {teams.map((team, index) => (
@@ -245,23 +245,23 @@ const StandingsTable: React.FC<StandingsTableProps> = memo(({ teams, selectedTea
         </div>
       </div>
 
-      <div className="px-6 py-3 bg-black/40 border-t border-white/10 flex gap-6 items-center flex-wrap">
-        <div className="flex items-center gap-1.5 font-mono">
-          <div className="w-1.5 h-1.5 bg-indigo-500 rounded-sm"></div>
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">CONF_EAST</span>
+      <div className="px-6 py-4 bg-black/60 border-t border-white/10 flex gap-8 items-center flex-wrap">
+        <div className="flex items-center gap-2 font-oswald">
+          <div className="w-2 h-2 bg-nba-blue rounded-full shadow-nba-blue"></div>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">CONF_EAST</span>
         </div>
-        <div className="flex items-center gap-1.5 font-mono">
-          <div className="w-1.5 h-1.5 bg-orange-500 rounded-sm"></div>
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">CONF_WEST</span>
+        <div className="flex items-center gap-2 font-oswald">
+          <div className="w-2 h-2 bg-nba-gold rounded-full shadow-nba-gold"></div>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">CONF_WEST</span>
         </div>
         <div className="h-4 w-px bg-white/10 hidden md:block"></div>
-        <div className="flex items-center gap-1.5 font-mono">
-          <div className="w-3 h-1.5 bg-emerald-500 rounded-sm shadow-[0_0_8px_rgba(16,185,129,0.3)]"></div>
-          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest italic">WIN</span>
+        <div className="flex items-center gap-2 font-oswald">
+          <div className="w-4 h-2 bg-emerald-500 rounded-sm shadow-[0_0_8px_rgba(16,185,129,0.3)]"></div>
+          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest italic">WIN</span>
         </div>
-        <div className="flex items-center gap-1.5 font-mono">
-          <div className="w-3 h-1.5 bg-rose-500 rounded-sm"></div>
-          <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest italic">LOSS</span>
+        <div className="flex items-center gap-2 font-oswald">
+          <div className="w-4 h-2 bg-nba-red rounded-sm shadow-nba-red"></div>
+          <span className="text-[10px] font-black text-nba-red uppercase tracking-widest italic">LOSS</span>
         </div>
       </div>
     </div>

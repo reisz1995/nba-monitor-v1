@@ -7,6 +7,7 @@ import ESPNTable from './components/ESPNTable';
 import Scoreboard from './components/Scoreboard';
 import UnavailablePlayers from './components/UnavailablePlayers';
 import TipsDashboard from './components/TipsDashboard';
+import BottomNavbar from './components/BottomNavbar';
 
 const TeamComparison = lazy(() => import('./components/TeamComparison'));
 const MatchupHistory = lazy(() => import('./components/MatchupHistory'));
@@ -52,8 +53,8 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-nba-background text-white font-sans flex flex-col selection:bg-nba-blue/30">
-      <header className="sticky top-0 z-50 bg-nba-surface border-b border-nba-surface-elevated shadow-[0_4px_20px_rgba(0,0,0,0.5)] px-4 py-3 md:px-6 md:py-4">
+    <div className="min-h-screen bg-nba-background text-white font-sans flex flex-col selection:bg-nba-blue/30 arena-bg pb-20 md:pb-0">
+      <header className="sticky top-0 z-50 bg-nba-surface/80 backdrop-blur-md border-b border-white/5 shadow-[0_4px_20px_rgba(0,0,0,0.5)] px-4 py-3 md:px-6 md:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex flex-col -space-y-0.5 md:-space-y-1">
             <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-white font-oswald uppercase leading-none">NBA MONITOR</h1>
@@ -84,15 +85,10 @@ const App: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <div className="md:hidden flex items-center gap-2 bg-nba-surface-elevated rounded-sm p-1 border border-white/5">
-              <button onClick={() => setActiveTab('monitor')} className={`px-3 py-1.5 rounded-sm font-oswald text-xs font-bold uppercase transition-colors ${activeTab === 'monitor' ? 'bg-nba-blue text-white' : 'text-slate-400'}`}>Mon</button>
-              <button onClick={() => setActiveTab('tips')} className={`px-3 py-1.5 rounded-sm font-oswald text-xs font-bold uppercase transition-colors ${activeTab === 'tips' ? 'bg-nba-red text-white' : 'text-slate-400'}`}>Tips</button>
-              <button onClick={() => setActiveTab('history')} className={`px-3 py-1.5 rounded-sm font-oswald text-xs font-bold uppercase transition-colors ${activeTab === 'history' ? 'bg-nba-gold text-nba-black' : 'text-slate-400'}`}>Hist</button>
-            </div>
             {selectedTeamIds.length > 0 && (
-              <div className="hidden md:flex items-center gap-2 bg-nba-blue/10 px-3 py-1.5 rounded-sm border border-nba-blue/30 animate-in fade-in slide-in-from-right-4">
+              <div className="flex items-center gap-2 bg-nba-blue/10 px-3 py-1.5 rounded-sm border border-nba-blue/30 animate-in fade-in slide-in-from-right-4">
                 <span className="text-[10px] font-black text-nba-blue font-oswald uppercase tracking-widest">{selectedTeamIds.length} / 2 Times</span>
-                <button onClick={() => setSelectedTeamIds([])} className="text-nba-blue hover:text-white text-xs font-bold">✕</button>
+                <button onClick={() => setSelectedTeamIds([])} className="text-nba-blue hover:text-white text-xs font-bold px-1">✕</button>
               </div>
             )}
           </div>
@@ -100,11 +96,11 @@ const App: React.FC = () => {
       </header>
       <main className="max-w-7xl mx-auto p-4 md:p-8 flex-1 w-full">
         {activeTab === 'monitor' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-3 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 animate-fade-in-up">
+            <div className="lg:col-span-3 space-y-12">
               <div className="px-2">
-                <h2 className="text-3xl md:text-5xl font-black text-white font-oswald tracking-tighter italic uppercase border-l-4 border-nba-red pl-4">DASHBOARD_MONITOR</h2>
-                <p className="text-slate-500 text-[10px] mt-4 pl-6 font-mono font-black uppercase tracking-[0.4em]">REAL_TIME_ANALYSIS // MOMENTUM_STATS_v2.0</p>
+                <h2 className="text-4xl md:text-6xl font-black text-white font-oswald tracking-tighter italic uppercase border-l-8 border-nba-red pl-6">DASHBOARD_MONITOR</h2>
+                <p className="text-slate-500 text-[10px] mt-4 pl-8 font-mono font-black uppercase tracking-[0.4em] opacity-50">REAL_TIME_ANALYSIS // MOMENTUM_STATS_v2.0</p>
               </div>
 
               {loading.teams && teams.length === 0 ? (
@@ -209,6 +205,7 @@ const App: React.FC = () => {
         </Suspense>
       )}
       <Toaster position="top-right" theme="dark" richColors />
+      <BottomNavbar activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 };

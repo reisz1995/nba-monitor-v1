@@ -163,7 +163,7 @@ const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unava
   }, [playerStats, predictions]);
 
   return (
-    <div className="flex flex-col gap-20 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+    <div className="flex flex-col gap-24 animate-fade-in-up pb-32">
       <PowerRankingSection
         teams={teams}
         tierScores={tierScores}

@@ -98,36 +98,36 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
   };
 
   return (
-    <div className="flex flex-col gap-10 animate-in fade-in duration-700 font-mono text-slate-100">
+    <div className="flex flex-col gap-12 animate-fade-in-up font-oswald text-slate-100">
 
       {/* HEADER & STATS */}
-      <div className="flex flex-col lg:flex-row justify-between gap-8 border-b-4 border-slate-100 pb-10">
+      <div className="flex flex-col lg:flex-row justify-between gap-8 border-b-4 border-white/10 pb-12">
         <div className="flex items-center gap-6">
           <div className="bg-white p-4 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)]">
-            <History className="w-10 h-10 text-slate-950" />
+            <History className="w-12 h-12 text-black" />
           </div>
           <div>
-            <h3 className="text-5xl font-black italic uppercase tracking-tighter leading-none">
-              Vault <span className="text-slate-500">History</span>
+            <h3 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-none font-oswald">
+              VAULT <span className="text-slate-500 font-black">ARCHIVE</span>
             </h3>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-4 flex items-center gap-2">
-              <TrendingUp className="w-3 h-3 text-emerald-500" /> WIN_RATE: {winRate}% | TOTAL_NODES: {stats.total}
+            <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.4em] mt-4 flex items-center gap-2 font-mono">
+              <TrendingUp className="w-4 h-4 text-emerald-500" /> WIN_RATE: {winRate}% | TOTAL_NODES: {stats.total}
             </p>
           </div>
         </div>
 
         <div className="flex gap-4">
-          <div className="bg-slate-900/50 border-2 border-slate-800 p-4 min-w-[120px] flex flex-col items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)]">
-            <span className="text-[10px] font-black text-slate-500 uppercase mb-1">GREENS</span>
-            <span className="text-3xl font-black text-emerald-500 italic">{stats.green}</span>
+          <div className="bg-black/60 border-2 border-white/5 p-6 min-w-[140px] flex flex-col items-center justify-center shadow-[6px_6px_0px_#000] spotlight-hover">
+            <span className="text-[11px] font-black text-slate-500 uppercase mb-2 tracking-widest">GREENS</span>
+            <span className="text-4xl font-black text-emerald-500 italic font-bebas">{stats.green}</span>
           </div>
-          <div className="bg-slate-900/50 border-2 border-slate-800 p-4 min-w-[120px] flex flex-col items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)]">
-            <span className="text-[10px] font-black text-slate-500 uppercase mb-1">REDS</span>
-            <span className="text-3xl font-black text-rose-500 italic">{stats.red}</span>
+          <div className="bg-black/60 border-2 border-white/5 p-6 min-w-[140px] flex flex-col items-center justify-center shadow-[6px_6px_0px_#000] spotlight-hover">
+            <span className="text-[11px] font-black text-slate-500 uppercase mb-2 tracking-widest">REDS</span>
+            <span className="text-4xl font-black text-nba-red italic font-bebas">{stats.red}</span>
           </div>
-          <div className="bg-slate-900/50 border-2 border-slate-800 p-4 min-w-[120px] flex flex-col items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)]">
-            <span className="text-[10px] font-black text-slate-500 uppercase mb-1">PENDING</span>
-            <span className="text-3xl font-black text-amber-500 italic">{stats.pending}</span>
+          <div className="bg-black/60 border-2 border-white/5 p-6 min-w-[140px] flex flex-col items-center justify-center shadow-[6px_6px_0px_#000] spotlight-hover">
+            <span className="text-[11px] font-black text-slate-500 uppercase mb-2 tracking-widest">PENDING</span>
+            <span className="text-4xl font-black text-nba-gold italic font-bebas">{stats.pending}</span>
           </div>
         </div>
       </div>
@@ -135,12 +135,11 @@ const MatchupHistory: React.FC<MatchupHistoryProps> = ({ teams, onViewHistory })
       {/* ESPN LIVE SCORES */}
       <EspnScoreboard />
 
-      {/* HISTORY TABLE */}
-      <div className="bg-slate-950 border-2 border-slate-800 overflow-x-auto shadow-[12px_12px_0px_0px_rgba(0,0,0,0.4)]">
+      <div className="bg-black/40 backdrop-blur-xl border-2 border-white/10 overflow-hidden shadow-[16px_16px_0px_rgba(0,0,0,0.5)] glass-morphism">
         {loading ? (
-          <div className="py-20 text-center flex flex-col items-center gap-4">
-            <Zap className="w-8 h-8 text-indigo-500 animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Decrypting Archives...</span>
+          <div className="py-32 text-center flex flex-col items-center gap-6">
+            <Zap className="w-10 h-10 text-nba-blue animate-pulse shadow-nba-blue" />
+            <span className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-500 font-mono">DECRYPTING_ARCHIVES...</span>
           </div>
         ) : !Array.isArray(records) || records.length === 0 ? (
           <div className="py-20 text-center italic text-slate-700 uppercase font-black tracking-widest text-xs">

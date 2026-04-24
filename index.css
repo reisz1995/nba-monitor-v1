@@ -45,6 +45,7 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.7);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.8);
   --texture-metallic: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(255,255,255,0.02) 100%);
+  --arena-lighting: radial-gradient(circle at 50% -20%, rgba(29, 66, 138, 0.15) 0%, transparent 70%);
 }
 
 body {
@@ -368,4 +369,48 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Premium Animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.arena-bg {
+  background-image: var(--arena-lighting);
+  background-attachment: fixed;
+}
+
+/* Spotlight Effect */
+.spotlight-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.spotlight-hover::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,215,0,0.1) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.spotlight-hover:hover::before {
+  opacity: 1;
 }
