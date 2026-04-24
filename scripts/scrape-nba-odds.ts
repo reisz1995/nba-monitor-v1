@@ -91,7 +91,7 @@ function normalizeTeamName(name: string | undefined): string {
     const cleanName = name.trim();
     // Case-insensitive lookup
     const found = Object.keys(teamMapping).find(k => k.toLowerCase() === cleanName.toLowerCase());
-    return found ? teamMapping[found] : cleanName;
+    return found ? (teamMapping[found] ?? cleanName) : cleanName;
 }
 
 async function scrapeOdds() {
