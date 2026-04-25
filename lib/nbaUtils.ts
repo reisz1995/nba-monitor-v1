@@ -43,8 +43,8 @@ const SEASON_25_26_METRICS = {
 const PROJECTION_CONFIG = {
     // Peso do Power Score na pontuação final (Ajustado para não inflar)
     POWER_DIFF_WEIGHT: 1.1,
-    DEF_FILTER_FAVORITE_MULT: 2.5,
-    DEF_FILTER_UNDERDOG_MULT: 1.4,
+    DEF_FILTER_FAVORITE_MULT: 1.2,  // [FIX #3] Reduzido de 2.5 para evitar penalidades excessivas
+    DEF_FILTER_UNDERDOG_MULT: 1.0,  // [FIX #3] Reduzido de 1.4 para evitar penalidades excessivas
     ATK_FILTER_MULT: 0.75,
     HOME_ADVANTAGE: 1.80,
     LAST_MARGIN_THRESHOLD: 22,
@@ -471,7 +471,7 @@ export const calculateProjectedScores = (
         }
     }
 
-    const { finalA, finalB } = clampScores(projA, projB, (rtgA.offRtg * matchPace / 100) - 10, (rtgB.offRtg * matchPace / 100) - 10, isPlayoff);
+    const { finalA, finalB } = clampScores(projA, projB, rtgA.seasonPPG * 0.92, rtgB.seasonPPG * 0.92, isPlayoff);  // [FIX #5] Floor: 8% de queda máxima (vs 17 pts fixos antes)
 
     let totalPayload = finalA + finalB;
     // Regra 1: Pace Classification (threshold < 97.5 para SLOW_GRIND)
