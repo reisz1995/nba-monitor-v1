@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlignLeft, Database, Loader2, Calendar, Activity } from 'lucide-react';
+import { AlignLeft, Database, Loader2, Calendar, Activity, Copy, Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface ContextoSectionProps {
@@ -18,26 +18,42 @@ interface NbaGameSchedule {
 const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTeamLogo }) => {
     const [schedules, setSchedules] = useState<NbaGameSchedule[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [copiedId, setCopiedId] = useState<number | null>(null);
+
+    const handleCopy = async (id: number, text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedId(id);
+            setTimeout(() => setCopiedId(null), 2000); // Feedback visual de 2 segundos
+        } catch (err) {
+            console.error('[Contexto Node] Falha no módulo de transferência (Clipboard API):', err);
+        }
+    };
 
     useEffect(() => {
         const fetchSchedules = async () => {
             if (!tipsDate) return;
             setIsLoading(true);
             try {
-                const parts = tipsDate.split('/');
-                if (parts.length === 3) {
-                    const formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                    const { data, error } = await supabase
-                        .from('nba_games_schedule')
-                        .select('id, game_date, home_tri, away_tri, tactical_prediction')
-                        .eq('game_date', formattedDate)
-                        .order('id', { ascending: true }); // Ordenação ajustada devido à remoção de game_time_et
-
-                    if (error) {
-                        console.error('[Contexto Node] Erro fatal de leitura:', error);
-                    } else if (data) {
-                        setSchedules(data);
+                const cleanDate = tipsDate.replace(/[^\d/-]/g, '').trim();
+                let formattedDate = cleanDate;
+                if (cleanDate.includes('/')) {
+                    const parts = cleanDate.split('/');
+                    if (parts.length === 3) {
+                        formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
                     }
+                }
+
+                const { data, error } = await supabase
+                    .from('nba_games_schedule')
+                    .select('id, game_date, home_tri, away_tri, tactical_prediction')
+                    .eq('game_date', formattedDate)
+                    .order('id', { ascending: true });
+
+                if (error) {
+                    console.error('[Contexto Node] Erro fatal de leitura:', error);
+                } else if (data) {
+                    setSchedules(data);
                 }
             } catch (err) {
                 console.error('[Contexto Node] Anomalia no ciclo de vida:', err);
@@ -77,8 +93,8 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                         <tr className="bg-nba-surface-elevated text-[10px] font-black text-nba-text-secondary uppercase tracking-widest border-b border-white/5 font-oswald">
                             <th className="px-3 py-3 border-r border-white/5 w-[15%]"><div className="flex items-center gap-2"><Calendar className="w-3 h-3" /> DATA</div></th>
                             <th className="px-3 py-3 border-r border-white/5 w-[25%] text-center">MATCHUP (TRI)</th>
-                            <th className="px-4 py-3 w-[60%] flex items-center gap-2 text-nba-blue">
-                                <Activity className="w-3.5 h-3.5" /> TACTICAL PREDICTION
+                            <th className="px-4 py-3 w-[60%] flex items-center justify-between text-nba-blue">
+                                <span className="flex items-center gap-2"><Activity className="w-3.5 h-3.5" /> TACTICAL PREDICTION</span>
                             </th>
                         </tr>
                     </thead>
@@ -113,8 +129,23 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                                     </td>
                                     <td className="px-6 py-4 align-top">
                                         {schedule.tactical_prediction ? (
-                                            <div className="max-h-80 overflow-y-auto pr-4 custom-scrollbar text-sm text-white/90 whitespace-pre-wrap leading-relaxed font-mono">
-                                                {schedule.tactical_prediction}
+                                            <div className="flex flex-col h-full relative">
+                                                <div className="flex justify-end mb-3">
+                                                    <button
+                                                        onClick={() => handleCopy(schedule.id, schedule.tactical_prediction!)}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-sm transition-all duration-300 font-oswald border ${
+                                                            copiedId === schedule.id 
+                                                            ? 'bg-nba-gold/20 text-nba-gold border-nba-gold' 
+                                                            : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {copiedId === schedule.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                                        {copiedId === schedule.id ? 'Extraído' : 'Extrair'}
+                                                    </button>
+                                                </div>
+                                                <div className="max-h-80 overflow-y-auto pr-4 custom-scrollbar text-sm text-white/90 whitespace-pre-wrap leading-relaxed font-mono">
+                                                    {schedule.tactical_prediction}
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="h-full min-h-[100px] flex items-center justify-center border border-white/5 border-dashed rounded-sm bg-nba-surface/50">
@@ -165,9 +196,22 @@ const ContextoSection: React.FC<ContextoSectionProps> = ({ tipsDate = '', getTea
                                 </div>
                                 {schedule.tactical_prediction ? (
                                     <div className="space-y-4">
-                                        <span className="text-[10px] font-black text-nba-blue uppercase tracking-[0.2em] font-oswald flex items-center gap-2">
-                                            <Activity className="w-3 h-3" /> Tático
-                                        </span>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-nba-blue uppercase tracking-[0.2em] font-oswald flex items-center gap-2">
+                                                <Activity className="w-3 h-3" /> Tático
+                                            </span>
+                                            <button
+                                                onClick={() => handleCopy(schedule.id, schedule.tactical_prediction!)}
+                                                className={`flex items-center gap-1 px-2 py-1 text-[10px] font-black uppercase tracking-widest rounded-sm transition-all duration-300 font-oswald border ${
+                                                    copiedId === schedule.id 
+                                                    ? 'bg-nba-gold/20 text-nba-gold border-nba-gold' 
+                                                    : 'bg-white/5 border-white/10 text-white/50'
+                                                }`}
+                                            >
+                                                {copiedId === schedule.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                                {copiedId === schedule.id ? 'Extraído' : 'Extrair'}
+                                            </button>
+                                        </div>
                                         <div className="max-h-[400px] overflow-y-auto text-sm text-white/80 whitespace-pre-wrap leading-relaxed bg-black/20 p-4 rounded-sm border border-white/5 font-mono text-[11px]">
                                             {schedule.tactical_prediction}
                                         </div>
