@@ -1,7 +1,7 @@
 import { Type } from "@google/genai";
 import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer, MarketData } from "../types";
 import { supabase } from "../lib/supabase";
-import { calculateProjectedScores, DataballrInput, getStandardTeamName } from "../lib/nbaUtils";
+import { calculateProjectedScores, DataballrInput, getStandardTeamName } from "../lib/nbaUtils"; // ← V5.5
 import { toast } from "sonner";
 import { withRetry } from "../lib/resilience";
 
@@ -236,10 +236,10 @@ export const compareTeams = async (
   momentumData?: any,
   databallrA?: DataballrInput | null,
   databallrB?: DataballrInput | null,
-  isHomeA: boolean = true  // <-- novo parâmetro, default true por retrocompatibilidade
+  isHomeA: boolean = true
 ): Promise<MatchupAnalysis> => {
 
-  // Busca odds diretamente se marketData não foi fornecido (race condition no hook)
+  // Busca odds diretamente se marketData não foi fornecido
   let resolvedMarket = marketData;
   if (!resolvedMarket?.total) {
     try {
@@ -269,15 +269,29 @@ export const compareTeams = async (
   const compactInjuries = formatInjuriesForAI(dbInjuries.data || injuries);
   const compactStandings = formatStandingsForAI(dbStandings.data || []);
 
+  // [V5.5] Mapeamento de injuries com isDayToDay e playedLastGame
   const getPlayerWeight = (pts: number) => Math.floor((pts || 0) / 3);
   const mapInjToHW = (teamName: string, allInjuries: UnavailablePlayer[], allStats: PlayerStat[]) => {
     const teamStats = allStats.filter(s => (s.time || s.team_name || '').toLowerCase().includes(teamName.toLowerCase()));
     return teamStats.map(s => {
-      const inj = allInjuries.find(i => (i.player_name || i.nome || '').toLowerCase() === (s.player_name || s.nome || '').toLowerCase());
+      const inj = allInjuries.find(i => 
+        (i.player_name || i.nome || '').toLowerCase() === (s.player_name || s.nome || '').toLowerCase()
+      );
+
+      const status = (inj?.injury_status || inj?.gravidade || '').toUpperCase();
+      const isOut = status.includes('OUT');
+      const isDayToDay = status.includes('DAY-TO-DAY') || status.includes('DTD') || status.includes('QUESTIONABLE');
+
+      // [V5.5] Campo novo: verificar se jogou último jogo
+      // REQUER: coluna 'played_last_game' (boolean) na tabela nba_injured_players
+      const playedLastGame = (inj as any)?.played_last_game ?? false;
+
       return {
         nome: s.player_name || s.nome || '',
-        isOut: !!(inj?.injury_status || inj?.gravidade || '').toUpperCase().includes('OUT'),
-        weight: getPlayerWeight(s.pontos || s.pts || 0)
+        isOut,
+        isDayToDay,         // [V5.5] NOVO: necessário para floor dinâmico
+        weight: getPlayerWeight(s.pontos || s.pts || 0),
+        playedLastGame      // [V5.5] NOVO: necessário para floor DTD condicional
       };
     });
   };
@@ -285,15 +299,15 @@ export const compareTeams = async (
   const injuriesA = mapInjToHW(teamA.name, dbInjuries.data || injuries, dbStats.data || playerStats);
   const injuriesB = mapInjToHW(teamB.name, dbInjuries.data || injuries, dbStats.data || playerStats);
 
-  // [EXTENSÃO DE CONTEXTO]: Buscar o formato gerado pelo Editor Sênior (Gemini Insight) no calendário
+  // [V5.5 + TACTICAL_PREDICTION]: Buscar a previsão da redação no calendário
   const homeTeamLabel = isHomeA ? teamA.name : teamB.name;
   const awayTeamLabel = isHomeA ? teamB.name : teamA.name;
   const gameDate = momentumData?.date;
 
-  // Como nem todos os times tem os mesmos padrões de nome na schedule, usamos um like simples no nome e data
+  // Busca pela data do jogo e nomes dos times na nba_games_schedule
   let scheduleQuery = supabase
     .from('nba_games_schedule')
-    .select('gemini_insight')
+    .select('tactical_prediction, game_date, home_team, away_team')
     .ilike('home_team', `%${homeTeamLabel.split(' ').pop()}%`)
     .ilike('away_team', `%${awayTeamLabel.split(' ').pop()}%`);
 
@@ -302,26 +316,55 @@ export const compareTeams = async (
   }
 
   const { data: scheduleData } = await scheduleQuery
-    .order('game_date', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const editorInsight = scheduleData?.gemini_insight || null;
+  // [V5.5] tactical_prediction = previsão da redação (contexto editorial)
+  const editorInsight = scheduleData?.tactical_prediction || null;
 
+  // [V5.5] Usar nomes exatos da schedule para busca de série
+  const scheduleHome = scheduleData?.home_team || homeTeamLabel;
+  const scheduleAway = scheduleData?.away_team || awayTeamLabel;
+
+  // [V5.5] BUSCAR JOGOS DA SÉRIE PARA TREND DETECTION
+  const { data: seriesGamesData } = await supabase
+    .from('game_predictions')
+    .select('home_team, away_team, home_score, away_score, date')
+    .or(`and(home_team.eq.${scheduleHome},away_team.eq.${scheduleAway}),and(home_team.eq.${scheduleAway},away_team.eq.${scheduleHome})`)
+    .order('date', { ascending: true });
+
+  const seriesGames = (seriesGamesData || []).map(g => ({
+    score: `${g.home_score}-${g.away_score}`,
+    home_team: g.home_team,
+    away_team: g.away_team
+  }));
+
+  // [V5.5] Extrair placar da série
+  const seriesScore = momentumData?.series_score || calculateSeriesScore(seriesGames, scheduleHome, scheduleAway);
+
+  // [V5.5] Detectar playoff via tactical_prediction (menciona "playoffs", "série", "round")
+  const isPlayoffGame = detectPlayoffFromText(editorInsight) || momentumData?.is_playoff || false;
 
   // Extrair defenseData (H2H) do momentumData
   const baseH2H = momentumData?.defense_data || momentumData?.momentum_data?.home_vs_away;
 
-  const { matchPace, totalPayload, kineticState, deltaA, deltaB, databallrEnhanced, isPlayoff, confidenceModifier } =
-    calculateProjectedScores(teamA, teamB, {
-      isHomeA,
-      injuriesA,
-      injuriesB,
-      powerA: notaA,
-      powerB: notaB,
-      editorInsight,
-      defenseData: baseH2H // <-- Passagem do H2H corrigida
-    }, databallrA, databallrB);
+  // [V5.5] Chamada ao kernel com todos os novos parâmetros
+  const { 
+    matchPace, totalPayload, kineticState, deltaA, deltaB, 
+    databallrEnhanced, isPlayoff,
+    h2hWeightUsed, seriesTrendGrind, seriesAvgTotal, eliminationApplied
+  } = calculateProjectedScores(teamA, teamB, {
+    isHomeA,
+    injuriesA,
+    injuriesB,
+    powerA: notaA,
+    powerB: notaB,
+    editorInsight,
+    defenseData: baseH2H,
+    seriesGames,        // [V5.5] NOVO: jogos completos da série para trend detection
+    seriesScore,        // [V5.5] NOVO: placar da série (ex: "2-3")
+    isPlayoff: isPlayoffGame, // [V5.5] NOVO: flag explícita
+  }, databallrA, databallrB);
 
   const formA = typeof teamA.record === 'string' ? teamA.record : JSON.stringify(teamA.record || []);
   const formB = typeof teamB.record === 'string' ? teamB.record : JSON.stringify(teamB.record || []);
@@ -356,11 +399,22 @@ export const compareTeams = async (
   const homeLabel = isHomeA ? teamA.name : teamB.name;
   const awayLabel = isHomeA ? teamB.name : teamA.name;
   const databallrModeTag = databallrEnhanced ? 'DATABALLR_ENHANCED_v3' : 'ESPN_FALLBACK_v2';
-  const tensorA = formatDataballrTensor(`CASA ${homeLabel}`, databallrA);  // usa homeLabel para clareza
+  const tensorA = formatDataballrTensor(`CASA ${homeLabel}`, databallrA);
   const tensorB = formatDataballrTensor(`FORA ${awayLabel}`, databallrB);
 
+  // [V5.5] BLOCO DE DEBUG para o prompt da IA
+  const v55DebugInfo = `
+[DEBUG V5.5 KERNEL]
+H2H Weight Aplicado: ${h2hWeightUsed}
+Série em Grind: ${seriesTrendGrind ? 'SIM (avg < 205)' : 'NÃO'}
+Média Total da Série: ${seriesAvgTotal > 0 ? seriesAvgTotal.toFixed(1) : 'N/A'}
+Elimination Applied: ${eliminationApplied ? 'SIM (+4.5% underdog)' : 'NÃO'}
+Série Atual: ${seriesScore}
+Modo Playoff: ${isPlayoff ? 'ATIVO' : 'INATIVO'}
+`;
+
   const prompt = `ALVO DE COMPUTAÇÃO: ${homeLabel} (CASA) vs ${awayLabel} (FORA). MODO: ${databallrModeTag}
-  
+
 
   [VETOR 1: EFICIÊNCIA ESTRUTURAL]
   Rating AI ${teamA.name}: ${notaA.toFixed(1)}/5.0
@@ -393,9 +447,12 @@ export const compareTeams = async (
   ${tensorA}
   ${tensorB}
 
-  [VETOR 7: INSIGHT TÁTICO E EDITORIAL (IA DE CONTEXTO)]
-  ${editorInsight ? editorInsight : "Nenhum insight editorial pré-gerado associado a este confronto."}
-  Instrução Crítica: O vetor de Insight Editorial carrega análises qualitativas de matchups, palpites e lesões cruciais. Sincronize a sua narração e análise de Key Factors/Detailed Analysis incorporando os fatores apontados por ele, caso haja sinergia com os dados quantitativos ou com as cotações de mercado (Exemplo: se o editor prevê um OVER, alinhe possíveis descrições táticas para endossar esse raciocínio).
+  [VETOR 6.5: DIAGNÓSTICO DO KERNEL V5.5]
+  ${v55DebugInfo}
+
+  [VETOR 7: INSIGHT TÁTICO E EDITORIAL (PREVISÃO DA REDAÇÃO)]
+  ${editorInsight ? editorInsight : "Nenhuma previsão editorial pré-gerada associada a este confronto."}
+  Instrução Crítica: O vetor de Previsão da Redação carrega análises qualitativas de matchups, palpites e lesões cruciais. Sincronize a sua narração e análise de Key Factors/Detailed Analysis incorporando os fatores apontados por ele, caso haja sinergia com os dados quantitativos ou com as cotações de mercado (Exemplo: se o editor prevê um OVER, alinhe possíveis descrições táticas para endossar esse raciocínio).
 
   PROCESSE AS DIRETRIZES E RETORNE O JSON STRICT.`;
 
@@ -403,11 +460,11 @@ export const compareTeams = async (
     const text = await withRetry(() => callGeminiProxy('compareTeams', prompt), { retries: 2, initialDelay: 500 });
 
     // Assepsia e extração
-    const cleanJsonText = text.replace(/```json\n|```/g, '').trim();
+    const cleanJsonText = text.replace(/\`\`\`json\n|\`\`\`/g, '').trim();
     const rawAnalysisResult = JSON.parse(cleanJsonText);
 
-    // Injeção da trava de segurança termodinâmica
-    const coherentAnalysis = enforceThermodynamicCoherence(rawAnalysisResult, teamA, teamB, confidenceModifier);
+    // [V5.5] REMOVIDO confidenceModifier — não existe no retorno do V5.5
+    const coherentAnalysis = enforceThermodynamicCoherence(rawAnalysisResult, teamA, teamB, 0);
 
     // Calcula pick_total (PREV_OVER/UNDER) direto na fonte
     let pickTotal: string | undefined;
@@ -443,7 +500,7 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
   const compactStandings = formatStandingsForAI(teams);
   const prompt = `Gere insights estratégicos para a rodada NBA baseados nos seguintes dados reais de classificação e performance. 
   Foque no Momento Termodinâmico, Handicaps Positivos e Cansaço (B2B). 
-  
+
   DADOS DE CLASSIFICAÇÃO:
   ${compactStandings}
 
@@ -461,4 +518,62 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
       type: "warning"
     }];
   }
+};
+
+// ==========================================
+// [V5.5] FUNÇÕES AUXILIARES
+// ==========================================
+
+/**
+ * Detecta se é jogo de playoff pela previsão da redação (tactical_prediction).
+ * Busca palavras-chave como "playoffs", "série", "eliminação", "round", "conferência".
+ */
+const detectPlayoffFromText = (text: string | null): boolean => {
+  if (!text) return false;
+  const playoffKeywords = /playoff|pós-temporada|round|série|eliminação|conferência|primeiro round|segundo round|finais/i;
+  return playoffKeywords.test(text);
+};
+
+/**
+ * Calcula o placar da série (ex: "2-3") a partir dos jogos anteriores.
+ * Usa os nomes dos times da schedule para garantir match correto.
+ */
+const calculateSeriesScore = (
+  games: Array<{ score: string; home_team: string; away_team: string }>,
+  teamAName: string,
+  teamBName: string
+): string => {
+  if (!games || games.length === 0) return '0-0';
+
+  let winsA = 0, winsB = 0;
+
+  // Extrair última palavra do nome para matching mais flexível
+  const getLastWord = (name: string) => name.toLowerCase().split(' ').pop() || '';
+  const teamAKey = getLastWord(teamAName);
+  const teamBKey = getLastWord(teamBName);
+
+  games.forEach(g => {
+    const parts = g.score.split('-');
+    if (parts.length < 2) return;
+    const homeScore = parseInt(parts[0].trim());
+    const awayScore = parseInt(parts[1].trim());
+    if (isNaN(homeScore) || isNaN(awayScore)) return;
+
+    const homeKey = getLastWord(g.home_team);
+    const awayKey = getLastWord(g.away_team);
+
+    // Determinar qual time é qual
+    const isTeamAHome = homeKey === teamAKey || g.home_team.toLowerCase().includes(teamAKey);
+    const isTeamBHome = homeKey === teamBKey || g.home_team.toLowerCase().includes(teamBKey);
+
+    if (homeScore > awayScore) {
+      if (isTeamAHome) winsA++;
+      else if (isTeamBHome) winsB++;
+    } else {
+      if (isTeamAHome) winsB++;
+      else if (isTeamBHome) winsA++;
+    }
+  });
+
+  return `${winsA}-${winsB}`;
 };
