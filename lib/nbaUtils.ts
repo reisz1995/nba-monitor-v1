@@ -27,7 +27,7 @@ export interface DataballrInput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HUD DE CONFIGURAÇÃO - KERNEL V5.4 (Blowout Detection + Momentum 3x)
+// HUD DE CONFIGURAÇÃO - KERNEL V5.5 (H2H Pace Weight Dinâmico + Elimination Boost + Playoff Reducer Suavizado)
 // ─────────────────────────────────────────────────────────────────────────────
 const SEASON_25_26_METRICS = {
     AVG_ORTG: 115.5,
@@ -55,32 +55,39 @@ const PROJECTION_CONFIG = {
     PACE_THRESHOLD_SLOW: 97.5,
     OVERCLOCK_THRESHOLD: 2.0,
     OVERCLOCK_BOOST: 1.04,
-    // Elimination Game Psychology
-    ELIMINATION_UNDERDOG_BOOST: 1.025,
-    ELIMINATION_FAVORITE_NERF: 0.975,
+    // [V5.5] Elimination Game Psychology - BOOST AUMENTADO
+    ELIMINATION_UNDERDOG_BOOST: 1.045,
+    ELIMINATION_FAVORITE_NERF: 0.955,
     // Close Series Boost
     CLOSE_SERIES_HOME_BOOST: 1.03,
     CLOSE_SERIES_AWAY_NERF: 0.97,
     // Bench Depth Penalty
     BENCH_DEPTH_PENALTY_PER_PLAYER: 1.5,
     BENCH_DEPTH_THRESHOLD: 2,
-    // [V5.4] Momentum Playoff Multiplier aumentado para 3x
+    // Momentum Playoff Multiplier 3x
     MOMENTUM_PLAYOFF_MULTIPLIER: 3.0,
     MOMENTUM_BASE_IMPACT: 0.3,
     // Calibração Lesão
     STAR_INJURY_MAX_IMPACT: 15.0,
     STAR_INJURY_HW_MULTIPLIER: 1.3,
     SYSTEMIC_COLLAPSE_PENALTY: 0.90,
-    // [V5.4] Floor DTD de estrela
+    // Floor Dinâmico
     FLOOR_STAR_DTD_MULTIPLIER: 0.88,
     FLOOR_STAR_OUT_MULTIPLIER: 0.82,
     FLOOR_MULTIPLE_OUT_MULTIPLIER: 0.88,
     FLOOR_DEFAULT_MULTIPLIER: 0.92,
-    // [V5.4] Blowout Detection
+    // Blowout Detection
     BLOWOUT_MARGIN_THRESHOLD: 15,
-    BLOWOUT_BOOST_WINNER: 1.04,  // +4% para vencedor do blowout
-    BLOWOUT_NERF_LOSER: 0.96,    // -4% para perdedor do blowout
-    BLOWOUT_H2H_LOOKBACK: 3,     // Últimos 3 jogos H2H
+    BLOWOUT_BOOST_WINNER: 1.04,
+    BLOWOUT_NERF_LOSER: 0.96,
+    BLOWOUT_H2H_LOOKBACK: 3,
+    // [V5.5] H2H Pace Weight Dinâmico
+    H2H_LOW_SCORE_THRESHOLD: 190,      // Total médio < 190 = jogo atípico
+    H2H_LOW_SCORE_WEIGHT: 0.30,        // Peso reduzido para H2H atípico
+    H2H_NORMAL_SCORE_WEIGHT: 0.50,     // Peso normal para H2H padrão
+    // [V5.5] Playoff Reducer Suavizado
+    PLAYOFF_STATIC_TRENCH_REDUCER: 0.94,  // -6% em vez de -9%
+    PLAYOFF_SLOW_GRIND_REDUCER: 0.97,     // -3% apenas (era 0.91 = -9%)
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -100,7 +107,7 @@ const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
     };
 };
 
-// [V5.4] Momentum com multiplicador 3x em playoffs
+// [V5.5] Momentum com multiplicador 3x em playoffs
 const calculateMomentumImpact = (record: any[], isPlayoff: boolean = false): number => {
     const momentumScore = record.reduce((score, res, idx) => {
         const rStr = typeof res === 'object' && res !== null && 'result' in res ? (res as any).result : res;
@@ -111,7 +118,7 @@ const calculateMomentumImpact = (record: any[], isPlayoff: boolean = false): num
     return normalizedMomentum * PROJECTION_CONFIG.MOMENTUM_BASE_IMPACT * multiplier;
 };
 
-// [V5.4] Blowout Detection - verifica H2H recente
+// [V5.5] Blowout Detection - verifica H2H recente
 const detectBlowoutTrend = (h2hGames?: any[]): { hasBlowout: boolean; winner: 'A' | 'B' | null; margin: number } => {
     if (!h2hGames || h2hGames.length === 0) return { hasBlowout: false, winner: null, margin: 0 };
 
@@ -138,7 +145,6 @@ const detectBlowoutTrend = (h2hGames?: any[]): { hasBlowout: boolean; winner: 'A
         }
     });
 
-    // Se 2+ blowouts nos últimos 3 jogos, é tendência
     return {
         hasBlowout: blowoutCount >= 2,
         winner: blowoutCount >= 2 ? blowoutWinner : null,
@@ -146,8 +152,17 @@ const detectBlowoutTrend = (h2hGames?: any[]): { hasBlowout: boolean; winner: 'A
     };
 };
 
+// [V5.5] Playoff Series Trend - detecta se série está sendo "grindada"
+const detectPlayoffSeriesTrend = (seriesGames?: any[]): { isGrind: boolean; avgTotal: number; gameCount: number } => {
+    if (!seriesGames || seriesGames.length < 3) return { isGrind: false, avgTotal: 0, gameCount: 0 };
+    const totals = seriesGames.map(g => parseScoreToTotal(g.score)).filter(t => t > 0);
+    if (totals.length === 0) return { isGrind: false, avgTotal: 0, gameCount: 0 };
+    const avg = totals.reduce((a, b) => a + b, 0) / totals.length;
+    return { isGrind: avg < 205, avgTotal: avg, gameCount: totals.length };
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
-// SUBSISTEMA DE PACE
+// SUBSISTEMA DE PACE - [V5.5] H2H WEIGHT DINÂMICO
 // ─────────────────────────────────────────────────────────────────────────────
 export const calculateDeterministicPace = (
     teamA: Team, teamB: Team,
@@ -155,7 +170,8 @@ export const calculateDeterministicPace = (
     injuriesA?: { isOut: boolean; weight: number }[], injuriesB?: { isOut: boolean; weight: number }[],
     rtgA?: { defRtg: number }, rtgB?: { defRtg: number },
     powerA: number = 0, powerB: number = 0,
-    h2hFromDefense?: any[], isPlayoff: boolean = false, editorInsight?: string
+    h2hFromDefense?: any[], isPlayoff: boolean = false, editorInsight?: string,
+    seriesGames?: any[]  // [V5.5] Novo parâmetro para trend de série
 ): number => {
     const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
     const currentMaxPace = isPlayoff ? SEASON_25_26_METRICS.PLAYOFF_MAX_PACE : SEASON_25_26_METRICS.MAX_PACE;
@@ -179,13 +195,41 @@ export const calculateDeterministicPace = (
 
     const mediaL5 = (avgPace5A + avgPace5B) / 2;
 
+    // [V5.5] H2H Pace com weight dinâmico baseado em scores atípicos
     let avgPaceH2H = 0;
+    let h2hWeight = PROJECTION_CONFIG.H2H_NORMAL_SCORE_WEIGHT;
     const h2hGames = h2hFromDefense && h2hFromDefense.length > 0 ? h2hFromDefense : [];
+
     if (h2hGames.length > 0) {
+        const h2hTotals = h2hGames.map(g => parseScoreToTotal(g.score)).filter(t => t > 0);
+        const h2hAvgScore = h2hTotals.length > 0 
+            ? h2hTotals.reduce((a, b) => a + b, 0) / h2hTotals.length 
+            : 0;
+
+        // [V5.5] Se H2H tem média baixa (< 190 total = < 95 pts por time), reduzir peso
+        if (h2hAvgScore > 0 && h2hAvgScore < PROJECTION_CONFIG.H2H_LOW_SCORE_THRESHOLD) {
+            h2hWeight = PROJECTION_CONFIG.H2H_LOW_SCORE_WEIGHT;
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[SYS-OP] H2H atípico detectado (avg ${h2hAvgScore.toFixed(1)}). Peso reduzido para ${h2hWeight}.`);
+            }
+        }
+
         avgPaceH2H = h2hGames.reduce((sum, g) => sum + (parseScoreToTotal(g.score) / (2 * PACE_FACTOR)), 0) / h2hGames.length;
     }
 
-    let basePace = avgPaceH2H > 0 ? (mediaL5 * 0.50) + (avgPaceH2H * 0.50) : mediaL5;
+    // [V5.5] Se temos trend de série playoff, usar como override parcial
+    const seriesTrend = detectPlayoffSeriesTrend(seriesGames);
+    if (seriesTrend.isGrind && seriesTrend.gameCount >= 3) {
+        // Série está sendo grindada → reduzir ainda mais o peso do H2H individual
+        h2hWeight = Math.min(h2hWeight, 0.25);
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[SYS-OP] Série grind detectada (avg ${seriesTrend.avgTotal.toFixed(1)}). H2H weight: ${h2hWeight}.`);
+        }
+    }
+
+    let basePace = avgPaceH2H > 0 
+        ? (mediaL5 * (1 - h2hWeight)) + (avgPaceH2H * h2hWeight) 
+        : mediaL5;
 
     const powerDiff = Math.abs(powerA - powerB);
     const strongestTeamPace = powerA >= powerB ? (databallrA?.pace || avgPace5A) : (databallrB?.pace || avgPace5B);
@@ -238,14 +282,23 @@ const applySystemicCollapseV2 = (score: number, injuries?: { isOut: boolean; wei
     return score;
 };
 
-// [V5.4] Floor dinâmico com DTD de estrela
-const getDynamicFloor = (seasonPPG: number, injuries?: { isOut: boolean; isDayToDay?: boolean; weight: number }[]): number => {
+// [V5.5] Floor dinâmico com DTD de estrela - condicional por status real
+const getDynamicFloor = (seasonPPG: number, injuries?: { isOut: boolean; isDayToDay?: boolean; weight: number; playedLastGame?: boolean }[]): number => {
     const hasStarOut = (injuries || []).some(i => i.isOut && i.weight >= 9);
     const hasStarDTD = (injuries || []).some(i => i.isDayToDay && i.weight >= 8);
     const outCount = (injuries || []).filter(i => i.isOut).length;
 
     if (hasStarOut) return seasonPPG * PROJECTION_CONFIG.FLOOR_STAR_OUT_MULTIPLIER;
-    if (hasStarDTD) return seasonPPG * PROJECTION_CONFIG.FLOOR_STAR_DTD_MULTIPLIER; // [NOVO] 0.88x
+
+    // [V5.5] Se DTD mas jogou último jogo, floor menos agressivo
+    if (hasStarDTD) {
+        const starDTD = (injuries || []).find(i => i.isDayToDay && i.weight >= 8);
+        if (starDTD && (starDTD as any).playedLastGame) {
+            return seasonPPG * 0.95;  // DTD que jogou último = floor 0.95x
+        }
+        return seasonPPG * PROJECTION_CONFIG.FLOOR_STAR_DTD_MULTIPLIER;
+    }
+
     if (outCount >= PROJECTION_CONFIG.BENCH_DEPTH_THRESHOLD) return seasonPPG * PROJECTION_CONFIG.FLOOR_MULTIPLE_OUT_MULTIPLIER;
     return seasonPPG * PROJECTION_CONFIG.FLOOR_DEFAULT_MULTIPLIER;
 };
@@ -258,10 +311,15 @@ const calculateBenchDepthPenalty = (injuries?: { isOut: boolean; weight: number 
     return 0;
 };
 
-export const calculateStarUncertainty = (injuries?: { nome?: string; isOut: boolean; isDayToDay?: boolean; weight: number }[]): { variance: number; note: string; playerName?: string } => {
+export const calculateStarUncertainty = (injuries?: { nome?: string; isOut: boolean; isDayToDay?: boolean; weight: number; playedLastGame?: boolean }[]): { variance: number; note: string; playerName?: string } => {
     const starDTD = (injuries || []).find(i => i.isDayToDay && i.weight >= 8);
     if (starDTD) {
-        return { variance: 6.0, note: `${starDTD.nome || 'Star'} DTD (HW ${starDTD.weight}) - high variance game`, playerName: starDTD.nome };
+        const playedNote = starDTD.playedLastGame ? ' (jogou último)' : ' (não jogou último)';
+        return { 
+            variance: starDTD.playedLastGame ? 3.5 : 6.0,  // [V5.5] Menor variância se jogou último
+            note: `${starDTD.nome || 'Star'} DTD (HW ${starDTD.weight})${playedNote} - ${starDTD.playedLastGame ? 'moderate' : 'high'} variance game`, 
+            playerName: starDTD.nome 
+        };
     }
     return { variance: 0, note: '' };
 };
@@ -385,9 +443,10 @@ const isCloseSeriesGame = (seriesScore?: string, isHomeA?: boolean): { isClose: 
 export const calculateProjectedScores = (
     teamA: Team, teamB: Team,
     options?: PaceOptions & {
-        injuriesA?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number }[];
-        injuriesB?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number }[];
+        injuriesA?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number; playedLastGame?: boolean }[];
+        injuriesB?: { nome: string; isOut: boolean; isDayToDay?: boolean; weight: number; playedLastGame?: boolean }[];
         defenseData?: any[];
+        seriesGames?: any[];  // [V5.5] Jogos completos da série para trend
     },
     databallrA?: DataballrInput | null, databallrB?: DataballrInput | null
 ) => {
@@ -397,11 +456,13 @@ export const calculateProjectedScores = (
     const rtgA = getTeamRatings(teamA, databallrA);
     const rtgB = getTeamRatings(teamB, databallrB);
 
+    // [V5.5] Passar seriesGames para pace calculation
     const matchPace = calculateDeterministicPace(
         teamA, teamB, databallrA, databallrB,
         options?.injuriesA, options?.injuriesB,
         rtgA, rtgB, options?.powerA ?? 0, options?.powerB ?? 0,
-        options?.defenseData, isPlayoff, options?.editorInsight
+        options?.defenseData, isPlayoff, options?.editorInsight,
+        options?.seriesGames  // [V5.5] Novo parâmetro
     );
 
     let projA: number, projB: number;
@@ -430,16 +491,19 @@ export const calculateProjectedScores = (
     }
     projA = superiority.adjA; projB = superiority.adjB;
 
-    // Elimination Game Psychology
+    // [V5.5] Elimination Game Psychology - BOOST AUMENTADO PARA 4.5%
     const isEliminationGame = options?.editorInsight?.match(/elimination|eliminatório|down \d-\d|jogo \d.*série|jogo \d.*encerrar/i);
     if (isEliminationGame && isPlayoff) {
         const isUnderdogA = (options?.powerA ?? 0) < (options?.powerB ?? 0);
         if (isUnderdogA) {
-            projA *= PROJECTION_CONFIG.ELIMINATION_UNDERDOG_BOOST;
-            projB *= PROJECTION_CONFIG.ELIMINATION_FAVORITE_NERF;
+            projA *= PROJECTION_CONFIG.ELIMINATION_UNDERDOG_BOOST;  // +4.5%
+            projB *= PROJECTION_CONFIG.ELIMINATION_FAVORITE_NERF;   // -4.5%
         } else {
             projB *= PROJECTION_CONFIG.ELIMINATION_UNDERDOG_BOOST;
             projA *= PROJECTION_CONFIG.ELIMINATION_FAVORITE_NERF;
+        }
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[SYS-OP] ELIMINATION GAME: Underdog +4.5%, Favorite -4.5%`);
         }
     }
 
@@ -455,7 +519,7 @@ export const calculateProjectedScores = (
         }
     }
 
-    // [V5.4] Blowout Detection
+    // Blowout Detection
     const blowoutTrend = detectBlowoutTrend(options?.defenseData);
     if (blowoutTrend.hasBlowout && isPlayoff) {
         if (blowoutTrend.winner === 'A') {
@@ -469,7 +533,7 @@ export const calculateProjectedScores = (
         }
     }
 
-    // [V5.4] Momentum Playoff com 3x
+    // Momentum Playoff com 3x
     if (isPlayoff) {
         const momentumA = calculateMomentumImpact(teamA.record || [], true);
         const momentumB = calculateMomentumImpact(teamB.record || [], true);
@@ -496,7 +560,7 @@ export const calculateProjectedScores = (
     projA = applySystemicCollapseV2(projA, options?.injuriesA);
     projB = applySystemicCollapseV2(projB, options?.injuriesB);
 
-    // Floor dinâmico V5.4
+    // Floor dinâmico V5.5
     const floorA = getDynamicFloor(rtgA.seasonPPG, options?.injuriesA);
     const floorB = getDynamicFloor(rtgB.seasonPPG, options?.injuriesB);
 
@@ -505,12 +569,22 @@ export const calculateProjectedScores = (
     let totalPayload = finalA + finalB;
     const kineticState = matchPace > 105.5 ? 'HYPER_KINETIC' : (matchPace < 97.5 ? 'SLOW_GRIND' : 'STATIC_TRENCH');
 
-    if (isPlayoff && (kineticState === 'STATIC_TRENCH' || kineticState === 'SLOW_GRIND')) {
-        totalPayload *= 0.91;
+    // [V5.5] Playoff Reducer SUAVIZADO
+    if (isPlayoff) {
+        if (kineticState === 'STATIC_TRENCH') {
+            totalPayload *= PROJECTION_CONFIG.PLAYOFF_STATIC_TRENCH_REDUCER;  // -6%
+            if (process.env.NODE_ENV === 'development') console.log(`[SYS-OP] STATIC_TRENCH reducer: -6%`);
+        } else if (kineticState === 'SLOW_GRIND') {
+            totalPayload *= PROJECTION_CONFIG.PLAYOFF_SLOW_GRIND_REDUCER;       // -3% (era -9%)
+            if (process.env.NODE_ENV === 'development') console.log(`[SYS-OP] SLOW_GRIND reducer: -3%`);
+        }
     }
 
     const uncertaintyA = calculateStarUncertainty(options?.injuriesA);
     const uncertaintyB = calculateStarUncertainty(options?.injuriesB);
+
+    // [V5.5] Adicionar seriesTrend ao retorno
+    const seriesTrend = detectPlayoffSeriesTrend(options?.seriesGames);
 
     return {
         matchPace, totalPayload, deltaA: finalA, deltaB: finalB, kineticState,
@@ -526,6 +600,11 @@ export const calculateProjectedScores = (
         starPenaltyB: calculateStarInjuryImpactV2(options?.injuriesB),
         blowoutDetected: blowoutTrend.hasBlowout,
         blowoutWinner: blowoutTrend.winner,
+        // [V5.5] Novos campos de diagnóstico
+        h2hWeightUsed: options?.seriesGames ? PROJECTION_CONFIG.H2H_LOW_SCORE_WEIGHT : PROJECTION_CONFIG.H2H_NORMAL_SCORE_WEIGHT,
+        seriesTrendGrind: seriesTrend.isGrind,
+        seriesAvgTotal: seriesTrend.avgTotal,
+        eliminationApplied: !!isEliminationGame,
     };
 };
 
@@ -583,7 +662,7 @@ export const getStandardTeamName = (name: string): string => {
 
 export const normalizeTeamName = (name: string): string => {
     if (!name) return '';
-    return getStandardTeamName(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    return getStandardTeamName(name).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 };
 
 export const findTeamByName = (name: string, teams: Team[]): Team | null => {
