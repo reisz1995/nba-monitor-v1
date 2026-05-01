@@ -4,14 +4,15 @@ export interface PaceOptions {
     isHomeA?: boolean | undefined;
     isB2BA?: boolean | undefined;
     isB2BB?: boolean | undefined;
-    isPlayoff?: boolean | undefined;        // [V5.5.1] Flag explícita de playoff
-    seriesGames?: any[] | undefined;        // [V5.5.1] Jogos completos da série
+    isPlayoff?: boolean | undefined;
+    seriesGames?: any[] | undefined;
     lastMarginA?: number | undefined;
     lastMarginB?: number | undefined;
     powerA?: number | undefined;
     powerB?: number | undefined;
     editorInsight?: string | undefined;
     seriesScore?: string | undefined;
+    gameNumber?: number;  // [V5.6] NOVO: número do jogo na série
 }
 
 export interface DataballrInput {
@@ -26,10 +27,12 @@ export interface DataballrInput {
     offense_rating?: number | undefined;
     defense_rating?: number | undefined;
     net_poss?: number | undefined;
+    bench_net_rating?: number | undefined;  // [V5.6] NOVO: Net Rating do banco
+    bench_depth_score?: number | undefined;  // [V5.6] NOVO: Score de profundidade do banco (0-10)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HUD DE CONFIGURAÇÃO - KERNEL V5.5.1 (Correções de Integração)
+// HUD DE CONFIGURAÇÃO - KERNEL V5.6 (Correções Críticas + Fator Resiliência)
 // ─────────────────────────────────────────────────────────────────────────────
 const SEASON_25_26_METRICS = {
     AVG_ORTG: 115.5,
@@ -57,7 +60,7 @@ const PROJECTION_CONFIG = {
     PACE_THRESHOLD_SLOW: 97.5,
     OVERCLOCK_THRESHOLD: 2.0,
     OVERCLOCK_BOOST: 1.04,
-    // [V5.5] Elimination Game Psychology - BOOST AUMENTADO
+    // [V5.6] Elimination Game Psychology - DETECÇÃO FIXADA
     ELIMINATION_UNDERDOG_BOOST: 1.045,
     ELIMINATION_FAVORITE_NERF: 0.955,
     // Close Series Boost
@@ -73,23 +76,34 @@ const PROJECTION_CONFIG = {
     STAR_INJURY_MAX_IMPACT: 15.0,
     STAR_INJURY_HW_MULTIPLIER: 1.3,
     SYSTEMIC_COLLAPSE_PENALTY: 0.90,
+    // [V5.6] NOVO: Fator de Resiliência
+    RESILIENCE_DEFENSE_THRESHOLD: 110.0,  // DRTG < 110 = defesa forte
+    RESILIENCE_HOME_BOOST: 1.08,          // Buff de 8% em casa
+    RESILIENCE_BENCH_NET_THRESHOLD: 2.0,  // Bench NET > 2.0 = banco produtivo
+    RESILIENCE_MAX_BUFF: 12.0,            // Máximo de buff em pts
     // Floor Dinâmico
     FLOOR_STAR_DTD_MULTIPLIER: 0.88,
     FLOOR_STAR_OUT_MULTIPLIER: 0.82,
     FLOOR_MULTIPLE_OUT_MULTIPLIER: 0.88,
     FLOOR_DEFAULT_MULTIPLIER: 0.92,
+    // [V5.6] Floor com momentum negativo
+    FLOOR_MOMENTUM_PENALTY: 0.90,         // Se momentum < -30, floor extra -10%
     // Blowout Detection
     BLOWOUT_MARGIN_THRESHOLD: 15,
     BLOWOUT_BOOST_WINNER: 1.04,
     BLOWOUT_NERF_LOSER: 0.96,
     BLOWOUT_H2H_LOOKBACK: 3,
-    // [V5.5] H2H Pace Weight Dinâmico
-    H2H_LOW_SCORE_THRESHOLD: 190,
-    H2H_LOW_SCORE_WEIGHT: 0.30,
+    // [V5.6] H2H Pace Weight Dinâmico - USAR ÚLTIMOS 2
+    H2H_LOW_SCORE_THRESHOLD: 210,         // [V5.6] Reduzido de 190 para 210
+    H2H_LOW_SCORE_WEIGHT: 0.20,           // [V5.6] Reduzido de 0.30 para 0.20
     H2H_NORMAL_SCORE_WEIGHT: 0.50,
-    // [V5.5] Playoff Reducer Suavizado
-    PLAYOFF_STATIC_TRENCH_REDUCER: 0.94,
-    PLAYOFF_SLOW_GRIND_REDUCER: 0.97,
+    // [V5.6] Playoff Reducer Dinâmico
+    PLAYOFF_REDUCER_BASE_STATIC: 0.94,
+    PLAYOFF_REDUCER_BASE_SLOW: 0.97,
+    PLAYOFF_REDUCER_ELIMINATION: 0.03,    // -3% extra em eliminação
+    PLAYOFF_REDUCER_MOMENTUM: 0.02,       // -2% extra se momentum < -20
+    PLAYOFF_REDUCER_GAME6: 0.02,          // -2% extra no Game 6+
+    PLAYOFF_REDUCER_MAX: 0.88,            // Máximo reducer: -12%
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,19 +123,26 @@ const getTeamRatings = (entity: Team, databallr?: DataballrInput | null) => {
     };
 };
 
-// [V5.5] Momentum com multiplicador 3x em playoffs
+// [V5.6] Momentum com DERROTAS PENALIZANDO
 const calculateMomentumImpact = (record: any[], isPlayoff: boolean = false): number => {
     const momentumScore = record.reduce((score, res, idx) => {
         const rStr = typeof res === 'object' && res !== null && 'result' in res ? (res as any).result : res;
-        return score + (rStr === 'V' ? Math.pow(2, idx) : 0);
+        const weight = Math.pow(2, idx);
+        if (rStr === 'V') return score + weight;
+        if (rStr === 'D') return score - weight;  // [V5.6] DERROTAS AGORA PENALIZAM!
+        return score;
     }, 0);
-    const normalizedMomentum = (momentumScore - 15) / 3;
+    const normalizedMomentum = (momentumScore / 31) * 50;  // Normalizar para -50 a +50
     const multiplier = isPlayoff ? PROJECTION_CONFIG.MOMENTUM_PLAYOFF_MULTIPLIER : 1.0;
     return normalizedMomentum * PROJECTION_CONFIG.MOMENTUM_BASE_IMPACT * multiplier;
 };
 
-// [V5.5] Blowout Detection - verifica H2H recente
-const detectBlowoutTrend = (h2hGames?: any[]): { hasBlowout: boolean; winner: 'A' | 'B' | null; margin: number } => {
+// [V5.6] Blowout Detection - CORRIGIDO para identificar time correto
+const detectBlowoutTrend = (
+    h2hGames?: any[], 
+    teamAName?: string, 
+    teamBName?: string
+): { hasBlowout: boolean; winner: 'A' | 'B' | null; margin: number } => {
     if (!h2hGames || h2hGames.length === 0) return { hasBlowout: false, winner: null, margin: 0 };
 
     const recentGames = h2hGames.slice(-PROJECTION_CONFIG.BLOWOUT_H2H_LOOKBACK);
@@ -134,15 +155,34 @@ const detectBlowoutTrend = (h2hGames?: any[]): { hasBlowout: boolean; winner: 'A
         if (!score) return;
         const parts = score.split(/[-\s:]+/);
         if (parts.length < 2) return;
-        const ptsA = parseInt(parts[0]);
-        const ptsB = parseInt(parts[1]);
-        const margin = Math.abs(ptsA - ptsB);
+        const ptsHome = parseInt(parts[0]);
+        const ptsAway = parseInt(parts[1]);
+        const margin = Math.abs(ptsHome - ptsAway);
 
         if (margin >= PROJECTION_CONFIG.BLOWOUT_MARGIN_THRESHOLD) {
             blowoutCount++;
             if (margin > maxMargin) {
                 maxMargin = margin;
-                blowoutWinner = ptsA > ptsB ? 'A' : 'B';
+                // [V5.6] Identificar corretamente quem venceu baseado nos nomes dos times
+                const homeTeam = game.home_team || '';
+                const awayTeam = game.away_team || '';
+                const winnerIsHome = ptsHome > ptsAway;
+                
+                // Mapear para Team A ou Team B
+                if (teamAName && teamBName) {
+                    const teamAKey = teamAName.toLowerCase().split(' ').pop() || '';
+                    const teamBKey = teamBName.toLowerCase().split(' ').pop() || '';
+                    const homeKey = homeTeam.toLowerCase().split(' ').pop() || '';
+                    
+                    if (winnerIsHome) {
+                        blowoutWinner = homeKey === teamAKey ? 'A' : 'B';
+                    } else {
+                        blowoutWinner = homeKey === teamAKey ? 'B' : 'A';
+                    }
+                } else {
+                    // Fallback se nomes não disponíveis
+                    blowoutWinner = winnerIsHome ? 'A' : 'B';
+                }
             }
         }
     });
@@ -163,8 +203,59 @@ const detectPlayoffSeriesTrend = (seriesGames?: any[]): { isGrind: boolean; avgT
     return { isGrind: avg < 205, avgTotal: avg, gameCount: totals.length };
 };
 
+// [V5.6] NOVO: Fator de Resiliência
+const calculateResilienceBuff = (
+    team: Team,
+    databallr?: DataballrInput | null,
+    injuries?: { isOut: boolean; weight: number }[],
+    isHome?: boolean
+): { buff: number; razoes: string[] } => {
+    let buff = 0;
+    const razoes: string[] = [];
+    
+    // Verificar se estrela HW>=9 está OUT
+    const starOut = (injuries || []).find(i => i.isOut && i.weight >= 9);
+    if (!starOut) return { buff: 0, razoes: [] };
+    
+    // Condição 1: Defesa forte (DRTG < 110)
+    const defRtg = databallr?.drtg || (team.stats?.media_pontos_defesa || 115);
+    const hasStrongDefense = defRtg < PROJECTION_CONFIG.RESILIENCE_DEFENSE_THRESHOLD;
+    
+    // Condição 2: Jogando em casa
+    const isHomeGame = isHome === true;
+    
+    // Condição 3: Banco produtivo (bench_net_rating > 2.0 ou bench_depth_score > 6)
+    const hasGoodBench = (databallr?.bench_net_rating || 0) > PROJECTION_CONFIG.RESILIENCE_BENCH_NET_THRESHOLD ||
+                         (databallr?.bench_depth_score || 0) > 6;
+    
+    // Calcular buff
+    if (hasStrongDefense) {
+        buff += 4;
+        razoes.push(`Defesa forte (DRTG ${defRtg.toFixed(1)}) sem estrela = organização defensiva compensa`);
+    }
+    
+    if (isHomeGame) {
+        buff += 3;
+        razoes.push("Jogo em casa sem estrela = energia da torcida + papel de herói para role players");
+    }
+    
+    if (hasGoodBench) {
+        buff += 3;
+        razoes.push(`Banco produtivo (NET ${databallr?.bench_net_rating || 'N/D'}) = minutos de qualidade`);
+    }
+    
+    // Buff máximo
+    buff = Math.min(buff, PROJECTION_CONFIG.RESILIENCE_MAX_BUFF);
+    
+    if (buff > 0) {
+        razoes.unshift(`FATOR RESILIÊNCIA: +${buff.toFixed(1)} pts (estrela ${starOut.weight} OUT, mas time estruturado)`);
+    }
+    
+    return { buff, razoes };
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
-// SUBSISTEMA DE PACE - [V5.5] H2H WEIGHT DINÂMICO + [V5.5.1] FALLBACK SERIESGAMES
+// SUBSISTEMA DE PACE - [V5.6] CORREÇÕES H2H + DETECÇÃO ELIMINAÇÃO
 // ─────────────────────────────────────────────────────────────────────────────
 export const calculateDeterministicPace = (
     teamA: Team, teamB: Team,
@@ -197,26 +288,27 @@ export const calculateDeterministicPace = (
 
     const mediaL5 = (avgPace5A + avgPace5B) / 2;
 
-    // [V5.5.1] H2H Pace com weight dinâmico + fallback para seriesGames
+    // [V5.6] H2H Pace com weight dinâmico + fallback para seriesGames
     let avgPaceH2H = 0;
     let h2hWeight = PROJECTION_CONFIG.H2H_NORMAL_SCORE_WEIGHT;
 
-    // [V5.5.1 FIX] Usar seriesGames como fallback se h2hFromDefense vazio
     const h2hGames = h2hFromDefense && h2hFromDefense.length > 0 
         ? h2hFromDefense 
         : (seriesGames || []);
 
     if (h2hGames.length > 0) {
         const h2hTotals = h2hGames.map(g => parseScoreToTotal(g.score)).filter(t => t > 0);
-        const h2hAvgScore = h2hTotals.length > 0 
-            ? h2hTotals.reduce((a, b) => a + b, 0) / h2hTotals.length 
+        
+        // [V5.6] Usar média dos ÚLTIMOS 2 H2H, não de todos
+        const recentH2H = h2hTotals.slice(-2);
+        const recentAvg = recentH2H.length > 0 
+            ? recentH2H.reduce((a, b) => a + b, 0) / recentH2H.length 
             : 0;
 
-        // [V5.5] Se H2H tem média baixa (< 190 total = < 95 pts por time), reduzir peso
-        if (h2hAvgScore > 0 && h2hAvgScore < PROJECTION_CONFIG.H2H_LOW_SCORE_THRESHOLD) {
+        if (recentAvg > 0 && recentAvg < PROJECTION_CONFIG.H2H_LOW_SCORE_THRESHOLD) {
             h2hWeight = PROJECTION_CONFIG.H2H_LOW_SCORE_WEIGHT;
             if (process.env.NODE_ENV === 'development') {
-                console.log(`[SYS-OP] H2H atípico detectado (avg ${h2hAvgScore.toFixed(1)}). Peso reduzido para ${h2hWeight}.`);
+                console.log(`[SYS-OP] H2H recente atípico (avg ${recentAvg.toFixed(1)}). Peso reduzido para ${h2hWeight}.`);
             }
         }
 
@@ -273,12 +365,21 @@ const calculatePenalty = (injuries?: { isOut: boolean; isDayToDay?: boolean; wei
     return p;
 };
 
-const calculateStarInjuryImpactV2 = (injuries?: { isOut: boolean; weight: number }[]): number => {
+// [V5.6] Star Injury Impact com DTD penalizado
+const calculateStarInjuryImpactV2 = (injuries?: { isOut: boolean; isDayToDay?: boolean; weight: number }[]): number => {
     const starOut = (injuries || []).filter(i => i.isOut && i.weight >= 9);
-    return starOut.reduce((total, star) => {
-        const impact = Math.min(star.weight * PROJECTION_CONFIG.STAR_INJURY_HW_MULTIPLIER, PROJECTION_CONFIG.STAR_INJURY_MAX_IMPACT);
-        return total + impact;
+    const starDtd = (injuries || []).filter(i => i.isDayToDay && i.weight >= 9);
+    
+    const outImpact = starOut.reduce((total, star) => {
+        return total + Math.min(star.weight * PROJECTION_CONFIG.STAR_INJURY_HW_MULTIPLIER, PROJECTION_CONFIG.STAR_INJURY_MAX_IMPACT);
     }, 0);
+    
+    // [V5.6] DTD = 50% do impacto de OUT
+    const dtdImpact = starDtd.reduce((total, star) => {
+        return total + (Math.min(star.weight * PROJECTION_CONFIG.STAR_INJURY_HW_MULTIPLIER, PROJECTION_CONFIG.STAR_INJURY_MAX_IMPACT) * 0.5);
+    }, 0);
+    
+    return outImpact + dtdImpact;
 };
 
 const applySystemicCollapseV2 = (score: number, injuries?: { isOut: boolean; weight: number }[]): number => {
@@ -287,24 +388,36 @@ const applySystemicCollapseV2 = (score: number, injuries?: { isOut: boolean; wei
     return score;
 };
 
-// [V5.5] Floor dinâmico com DTD de estrela - condicional por status real
-const getDynamicFloor = (seasonPPG: number, injuries?: { isOut: boolean; isDayToDay?: boolean; weight: number; playedLastGame?: boolean }[]): number => {
+// [V5.6] Floor dinâmico com DTD de estrela + momentum negativo
+const getDynamicFloor = (
+    seasonPPG: number, 
+    injuries?: { isOut: boolean; isDayToDay?: boolean; weight: number; playedLastGame?: boolean }[],
+    momentum?: number  // [V5.6] NOVO
+): number => {
     const hasStarOut = (injuries || []).some(i => i.isOut && i.weight >= 9);
     const hasStarDTD = (injuries || []).some(i => i.isDayToDay && i.weight >= 8);
     const outCount = (injuries || []).filter(i => i.isOut).length;
 
-    if (hasStarOut) return seasonPPG * PROJECTION_CONFIG.FLOOR_STAR_OUT_MULTIPLIER;
+    let multiplier = PROJECTION_CONFIG.FLOOR_DEFAULT_MULTIPLIER;
 
-    if (hasStarDTD) {
+    if (hasStarOut) multiplier = PROJECTION_CONFIG.FLOOR_STAR_OUT_MULTIPLIER;
+    else if (hasStarDTD) {
         const starDTD = (injuries || []).find(i => i.isDayToDay && i.weight >= 8);
         if (starDTD && (starDTD as any).playedLastGame) {
-            return seasonPPG * 0.95;
+            multiplier = 0.95;
+        } else {
+            multiplier = PROJECTION_CONFIG.FLOOR_STAR_DTD_MULTIPLIER;
         }
-        return seasonPPG * PROJECTION_CONFIG.FLOOR_STAR_DTD_MULTIPLIER;
     }
-
-    if (outCount >= PROJECTION_CONFIG.BENCH_DEPTH_THRESHOLD) return seasonPPG * PROJECTION_CONFIG.FLOOR_MULTIPLE_OUT_MULTIPLIER;
-    return seasonPPG * PROJECTION_CONFIG.FLOOR_DEFAULT_MULTIPLIER;
+    
+    if (outCount >= PROJECTION_CONFIG.BENCH_DEPTH_THRESHOLD) multiplier = PROJECTION_CONFIG.FLOOR_MULTIPLE_OUT_MULTIPLIER;
+    
+    // [V5.6] NOVO: Momentum negativo reduz floor extra
+    if (momentum !== undefined && momentum < -30) {
+        multiplier *= PROJECTION_CONFIG.FLOOR_MOMENTUM_PENALTY;
+    }
+    
+    return seasonPPG * multiplier;
 };
 
 const calculateBenchDepthPenalty = (injuries?: { isOut: boolean; weight: number }[]): number => {
@@ -329,7 +442,7 @@ export const calculateStarUncertainty = (injuries?: { nome?: string; isOut: bool
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KERNEL DE PROJEÇÃO
+// KERNEL DE PROJEÇÃO - [V5.6] CORREÇÕES CRÍTICAS
 // ─────────────────────────────────────────────────────────────────────────────
 const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: number, options?: PaceOptions) => {
     let adjA = scoreA, adjB = scoreB;
@@ -339,7 +452,7 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
     if (options?.lastMarginB && options.lastMarginB > PROJECTION_CONFIG.LAST_MARGIN_THRESHOLD) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
 
     if (options?.editorInsight) {
-        if (options.editorInsight.match(/🎯 NOSSA APOSTA:\s*OVER/i)) {
+        if (options.editorInsight.match(/🎯 NOSSA APOSTA:\\s*OVER/i)) {
             adjA += 2.5; adjB += 2.5;
         }
         if (options.editorInsight.match(/RUPTURA OFFENSIVA/i)) {
@@ -444,6 +557,29 @@ const isCloseSeriesGame = (seriesScore?: string, isHomeA?: boolean): { isClose: 
     return { isClose: false, leader: null };
 };
 
+// [V5.6] DETECÇÃO DE ELIMINAÇÃO FIXADA
+const detectEliminationGame = (
+    seriesScore?: string, 
+    gameNumber?: number,
+    isPlayoff?: boolean
+): boolean => {
+    if (!isPlayoff) return false;
+    
+    // Game 6 ou 7 sempre = eliminação
+    if (gameNumber && gameNumber >= 6) return true;
+    
+    // Placar 3-2, 3-1, 3-0 = eliminação possível
+    if (seriesScore) {
+        const match = seriesScore.match(/(\d+)-(\d+)/);
+        if (match) {
+            const [_, winsA, winsB] = match.map(Number);
+            if (winsA === 3 || winsB === 3) return true;
+        }
+    }
+    
+    return false;
+};
+
 export const calculateProjectedScores = (
     teamA: Team, teamB: Team,
     options?: PaceOptions & {
@@ -454,8 +590,8 @@ export const calculateProjectedScores = (
     },
     databallrA?: DataballrInput | null, databallrB?: DataballrInput | null
 ) => {
-    // [V5.5.1 FIX] Priorizar flag explícita, fallback para regex no editorInsight
-    const isPlayoff = options?.isPlayoff ?? !!options?.editorInsight?.match(/playoff|pós-temporada|round \d|game \d|série/i);
+    // [V5.6] Priorizar flag explícita, fallback para regex no editorInsight
+    const isPlayoff = options?.isPlayoff ?? !!options?.editorInsight?.match(/playoff|pós-temporada|round \\d|game \\d|série/i);
     const powerDiffWeight = isPlayoff ? 0.95 : PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
 
     const rtgA = getTeamRatings(teamA, databallrA);
@@ -495,8 +631,9 @@ export const calculateProjectedScores = (
     }
     projA = superiority.adjA; projB = superiority.adjB;
 
-    // [V5.5] Elimination Game Psychology - BOOST AUMENTADO PARA 4.5%
-    const isEliminationGame = options?.editorInsight?.match(/elimination|eliminatório|down \d-\d|jogo \d.*série|jogo \d.*encerrar/i);
+    // [V5.6] Elimination Game Psychology - DETECÇÃO FIXADA
+    const isEliminationGame = detectEliminationGame(options?.seriesScore, options?.gameNumber, isPlayoff);
+    
     if (isEliminationGame && isPlayoff) {
         const isUnderdogA = (options?.powerA ?? 0) < (options?.powerB ?? 0);
         if (isUnderdogA) {
@@ -507,7 +644,7 @@ export const calculateProjectedScores = (
             projA *= PROJECTION_CONFIG.ELIMINATION_FAVORITE_NERF;
         }
         if (process.env.NODE_ENV === 'development') {
-            console.log(`[SYS-OP] ELIMINATION GAME: Underdog +4.5%, Favorite -4.5%`);
+            console.log(`[SYS-OP] ELIMINATION GAME (Game ${options?.gameNumber}, Score ${options?.seriesScore}): Underdog +4.5%, Favorite -4.5%`);
         }
     }
 
@@ -523,17 +660,17 @@ export const calculateProjectedScores = (
         }
     }
 
-    // Blowout Detection
-    const blowoutTrend = detectBlowoutTrend(options?.defenseData);
+    // [V5.6] Blowout Detection - CORRIGIDO com nomes dos times
+    const blowoutTrend = detectBlowoutTrend(options?.defenseData, teamA.name, teamB.name);
     if (blowoutTrend.hasBlowout && isPlayoff) {
         if (blowoutTrend.winner === 'A') {
             projA *= PROJECTION_CONFIG.BLOWOUT_BOOST_WINNER;
             projB *= PROJECTION_CONFIG.BLOWOUT_NERF_LOSER;
-            if (process.env.NODE_ENV === 'development') console.log(`[SYS-OP] BLOWOUT TREND: Team A winner (+4%), Team B loser (-4%)`);
+            if (process.env.NODE_ENV === 'development') console.log(`[SYS-OP] BLOWOUT TREND: ${teamA.name} winner (+4%), ${teamB.name} loser (-4%)`);
         } else if (blowoutTrend.winner === 'B') {
             projB *= PROJECTION_CONFIG.BLOWOUT_BOOST_WINNER;
             projA *= PROJECTION_CONFIG.BLOWOUT_NERF_LOSER;
-            if (process.env.NODE_ENV === 'development') console.log(`[SYS-OP] BLOWOUT TREND: Team B winner (+4%), Team A loser (-4%)`);
+            if (process.env.NODE_ENV === 'development') console.log(`[SYS-OP] BLOWOUT TREND: ${teamB.name} winner (+4%), ${teamA.name} loser (-4%)`);
         }
     }
 
@@ -564,23 +701,57 @@ export const calculateProjectedScores = (
     projA = applySystemicCollapseV2(projA, options?.injuriesA);
     projB = applySystemicCollapseV2(projB, options?.injuriesB);
 
-    // Floor dinâmico V5.5
-    const floorA = getDynamicFloor(rtgA.seasonPPG, options?.injuriesA);
-    const floorB = getDynamicFloor(rtgB.seasonPPG, options?.injuriesB);
+    // [V5.6] NOVO: Fator de Resiliência
+    const resilienceA = calculateResilienceBuff(teamA, databallrA, options?.injuriesA, options?.isHomeA);
+    const resilienceB = calculateResilienceBuff(teamB, databallrB, options?.injuriesB, !options?.isHomeA);
+    
+    if (resilienceA.buff > 0) {
+        projA += resilienceA.buff;
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[SYS-OP] RESILIÊNCIA ${teamA.name}: +${resilienceA.buff.toFixed(1)} pts`);
+        }
+    }
+    if (resilienceB.buff > 0) {
+        projB += resilienceB.buff;
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[SYS-OP] RESILIÊNCIA ${teamB.name}: +${resilienceB.buff.toFixed(1)} pts`);
+        }
+    }
+
+    // [V5.6] Floor dinâmico com momentum
+    const momentumA = isPlayoff ? calculateMomentumImpact(teamA.record || [], true) : 0;
+    const momentumB = isPlayoff ? calculateMomentumImpact(teamB.record || [], true) : 0;
+    
+    const floorA = getDynamicFloor(rtgA.seasonPPG, options?.injuriesA, momentumA);
+    const floorB = getDynamicFloor(rtgB.seasonPPG, options?.injuriesB, momentumB);
 
     const { finalA, finalB } = clampScores(projA, projB, floorA, floorB, isPlayoff);
 
     let totalPayload = finalA + finalB;
     const kineticState = matchPace > 105.5 ? 'HYPER_KINETIC' : (matchPace < 97.5 ? 'SLOW_GRIND' : 'STATIC_TRENCH');
 
-    // [V5.5] Playoff Reducer SUAVIZADO
+    // [V5.6] Playoff Reducer DINÂMICO
     if (isPlayoff) {
-        if (kineticState === 'STATIC_TRENCH') {
-            totalPayload *= PROJECTION_CONFIG.PLAYOFF_STATIC_TRENCH_REDUCER;
-            if (process.env.NODE_ENV === 'development') console.log(`[SYS-OP] STATIC_TRENCH reducer: -6%`);
-        } else if (kineticState === 'SLOW_GRIND') {
-            totalPayload *= PROJECTION_CONFIG.PLAYOFF_SLOW_GRIND_REDUCER;
-            if (process.env.NODE_ENV === 'development') console.log(`[SYS-OP] SLOW_GRIND reducer: -3%`);
+        let reducer = kineticState === 'STATIC_TRENCH' 
+            ? PROJECTION_CONFIG.PLAYOFF_REDUCER_BASE_STATIC 
+            : PROJECTION_CONFIG.PLAYOFF_REDUCER_BASE_SLOW;
+        
+        // Aplicar reduções extras
+        if (isEliminationGame) reducer -= PROJECTION_CONFIG.PLAYOFF_REDUCER_ELIMINATION;
+        
+        const momA = calculateMomentumImpact(teamA.record || [], true);
+        const momB = calculateMomentumImpact(teamB.record || [], true);
+        if (momA < -20 || momB < -20) reducer -= PROJECTION_CONFIG.PLAYOFF_REDUCER_MOMENTUM;
+        
+        if (options?.gameNumber && options.gameNumber >= 6) reducer -= PROJECTION_CONFIG.PLAYOFF_REDUCER_GAME6;
+        
+        // Garantir mínimo
+        reducer = Math.max(reducer, PROJECTION_CONFIG.PLAYOFF_REDUCER_MAX);
+        
+        totalPayload *= reducer;
+        
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[SYS-OP] Playoff reducer dinâmico: ${(reducer * 100).toFixed(1)}% (${kineticState})`);
         }
     }
 
@@ -604,11 +775,15 @@ export const calculateProjectedScores = (
         starPenaltyB: calculateStarInjuryImpactV2(options?.injuriesB),
         blowoutDetected: blowoutTrend.hasBlowout,
         blowoutWinner: blowoutTrend.winner,
-        // [V5.5] Novos campos de diagnóstico
         h2hWeightUsed: options?.seriesGames ? PROJECTION_CONFIG.H2H_LOW_SCORE_WEIGHT : PROJECTION_CONFIG.H2H_NORMAL_SCORE_WEIGHT,
         seriesTrendGrind: seriesTrend.isGrind,
         seriesAvgTotal: seriesTrend.avgTotal,
-        eliminationApplied: !!isEliminationGame,
+        eliminationApplied: isEliminationGame,
+        // [V5.6] NOVOS CAMPOS
+        resilienceBuffA: resilienceA.buff,
+        resilienceBuffB: resilienceB.buff,
+        resilienceRazoesA: resilienceA.razoes,
+        resilienceRazoesB: resilienceB.razoes,
     };
 };
 
