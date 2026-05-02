@@ -78,7 +78,6 @@ const PROJECTION_CONFIG = {
     SYSTEMIC_COLLAPSE_PENALTY: 0.90,
     // [V5.6] NOVO: Fator de Resiliência
     RESILIENCE_DEFENSE_THRESHOLD: 110.0,  // DRTG < 110 = defesa forte
-    RESILIENCE_HOME_BOOST: 1.08,          // Buff de 8% em casa
     RESILIENCE_BENCH_NET_THRESHOLD: 2.0,  // Bench NET > 2.0 = banco produtivo
     RESILIENCE_MAX_BUFF: 12.0,            // Máximo de buff em pts
     // Floor Dinâmico
@@ -103,7 +102,7 @@ const PROJECTION_CONFIG = {
     PLAYOFF_REDUCER_ELIMINATION: 0.03,    // -3% extra em eliminação
     PLAYOFF_REDUCER_MOMENTUM: 0.02,       // -2% extra se momentum < -20
     PLAYOFF_REDUCER_GAME6: 0.02,          // -2% extra no Game 6+
-    PLAYOFF_REDUCER_MAX: 0.88,            // Máximo reducer: -12%
+    PLAYOFF_REDUCER_MIN: 0.88,            // Piso do reducer: máximo de -12% de penalização
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,6 +172,10 @@ const detectBlowoutTrend = (
                     const teamAKey = teamAName.toLowerCase().split(' ').pop() || '';
                     const teamBKey = teamBName.toLowerCase().split(' ').pop() || '';
                     const homeKey = homeTeam.toLowerCase().split(' ').pop() || '';
+
+                    if (homeKey !== teamAKey && homeKey !== teamBKey) {
+                        console.warn(`[detectBlowoutTrend] Matching ambíguo: homeTeam="${homeTeam}" não bate com "${teamAName}" nem "${teamBName}". Fallback aplicado.`);
+                    }
                     
                     if (winnerIsHome) {
                         blowoutWinner = homeKey === teamAKey ? 'A' : 'B';
@@ -265,7 +268,7 @@ export const calculateDeterministicPace = (
     powerA: number = 0, powerB: number = 0,
     h2hFromDefense?: any[], isPlayoff: boolean = false, editorInsight?: string,
     seriesGames?: any[]
-): number => {
+): { pace: number; h2hWeightUsed: number } => {
     const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
     const currentMaxPace = isPlayoff ? SEASON_25_26_METRICS.PLAYOFF_MAX_PACE : SEASON_25_26_METRICS.MAX_PACE;
 
@@ -350,7 +353,7 @@ export const calculateDeterministicPace = (
         (injuries || []).filter(i => i.isOut && i.weight >= 7).reduce((sum, _) => sum + 0.05, 0);
     projectedPace -= (injuryPaceReduction(injuriesA) + injuryPaceReduction(injuriesB));
 
-    return projectedPace;
+    return { pace: projectedPace, h2hWeightUsed: h2hWeight };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -543,7 +546,7 @@ const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: num
     };
 };
 
-const isCloseSeriesGame = (seriesScore?: string, isHomeA?: boolean): { isClose: boolean; leader: 'A' | 'B' | null } => {
+const isCloseSeriesGame = (seriesScore?: string): { isClose: boolean; leader: 'A' | 'B' | null } => {
     if (!seriesScore) return { isClose: false, leader: null };
     const match = seriesScore.match(/(\d+)-(\d+)/);
     if (!match) return { isClose: false, leader: null };
@@ -597,7 +600,7 @@ export const calculateProjectedScores = (
     const rtgA = getTeamRatings(teamA, databallrA);
     const rtgB = getTeamRatings(teamB, databallrB);
 
-    const matchPace = calculateDeterministicPace(
+    const { pace: matchPace, h2hWeightUsed: h2hWeightFromPace } = calculateDeterministicPace(
         teamA, teamB, databallrA, databallrB,
         options?.injuriesA, options?.injuriesB,
         rtgA, rtgB, options?.powerA ?? 0, options?.powerB ?? 0,
@@ -649,7 +652,7 @@ export const calculateProjectedScores = (
     }
 
     // Close Series
-    const closeSeries = isCloseSeriesGame(options?.seriesScore, options?.isHomeA);
+    const closeSeries = isCloseSeriesGame(options?.seriesScore);
     if (closeSeries.isClose && isPlayoff) {
         if (closeSeries.leader === 'A' && options?.isHomeA) {
             projA *= PROJECTION_CONFIG.CLOSE_SERIES_HOME_BOOST;
@@ -674,13 +677,8 @@ export const calculateProjectedScores = (
         }
     }
 
-    // Momentum Playoff com 3x
-    if (isPlayoff) {
-        const momentumA = calculateMomentumImpact(teamA.record || [], true);
-        const momentumB = calculateMomentumImpact(teamB.record || [], true);
-        projA += momentumA;
-        projB += momentumB;
-    }
+    // Momentum Playoff: aplicado exclusivamente via getDynamicFloor (floor dinâmico).
+    // Não adicionamos diretamente ao score para evitar double-counting com a penalização do floor.
 
     const volatility = applyVolatilityFilter(projA, projB, databallrA, databallrB, options?.powerA, options?.powerB);
     projA = volatility.adjA; projB = volatility.adjB;
@@ -739,14 +737,12 @@ export const calculateProjectedScores = (
         // Aplicar reduções extras
         if (isEliminationGame) reducer -= PROJECTION_CONFIG.PLAYOFF_REDUCER_ELIMINATION;
         
-        const momA = calculateMomentumImpact(teamA.record || [], true);
-        const momB = calculateMomentumImpact(teamB.record || [], true);
-        if (momA < -20 || momB < -20) reducer -= PROJECTION_CONFIG.PLAYOFF_REDUCER_MOMENTUM;
+        if (momentumA < -20 || momentumB < -20) reducer -= PROJECTION_CONFIG.PLAYOFF_REDUCER_MOMENTUM;
         
         if (options?.gameNumber && options.gameNumber >= 6) reducer -= PROJECTION_CONFIG.PLAYOFF_REDUCER_GAME6;
         
-        // Garantir mínimo
-        reducer = Math.max(reducer, PROJECTION_CONFIG.PLAYOFF_REDUCER_MAX);
+        // Garantir piso do reducer
+        reducer = Math.max(reducer, PROJECTION_CONFIG.PLAYOFF_REDUCER_MIN);
         
         totalPayload *= reducer;
         
@@ -768,14 +764,13 @@ export const calculateProjectedScores = (
         uncertaintyNote: uncertaintyA.note || uncertaintyB.note || '',
         isCloseSeries: closeSeries.isClose, seriesLeader: closeSeries.leader,
         benchPenaltyA, benchPenaltyB,
-        momentumA: isPlayoff ? calculateMomentumImpact(teamA.record || [], true) : 0,
-        momentumB: isPlayoff ? calculateMomentumImpact(teamB.record || [], true) : 0,
+        momentumA, momentumB,
         floorA, floorB,
         starPenaltyA: calculateStarInjuryImpactV2(options?.injuriesA),
         starPenaltyB: calculateStarInjuryImpactV2(options?.injuriesB),
         blowoutDetected: blowoutTrend.hasBlowout,
         blowoutWinner: blowoutTrend.winner,
-        h2hWeightUsed: options?.seriesGames ? PROJECTION_CONFIG.H2H_LOW_SCORE_WEIGHT : PROJECTION_CONFIG.H2H_NORMAL_SCORE_WEIGHT,
+        h2hWeightUsed: h2hWeightFromPace,
         seriesTrendGrind: seriesTrend.isGrind,
         seriesAvgTotal: seriesTrend.avgTotal,
         eliminationApplied: isEliminationGame,
@@ -790,10 +785,15 @@ export const calculateProjectedScores = (
 // ─────────────────────────────────────────────────────────────────────────────
 // UTILITÁRIOS
 // ─────────────────────────────────────────────────────────────────────────────
+// NOTA: comportamento V5.6 — derrotas penalizam (pesos exponenciais negativos).
+// Retorna score bruto não-normalizado. Para impacto em pontos, use calculateMomentumImpact.
 export const getMomentumScore = (record: any[]): number => {
     return record.reduce((score, res, idx) => {
         const rStr = typeof res === 'object' && res !== null && 'result' in res ? (res as any).result : res;
-        return score + (rStr === 'V' ? Math.pow(2, idx) : 0);
+        const weight = Math.pow(2, idx);
+        if (rStr === 'V') return score + weight;
+        if (rStr === 'D') return score - weight;
+        return score;
     }, 0);
 };
 
