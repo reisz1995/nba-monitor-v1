@@ -77,6 +77,8 @@ const INSIGHTS_SCHEMA = {
     },
 };
 
+// Em Next.js/Vercel, req.body já vem parseado pelo bodyParser.
+// O fallback de streaming é mantido para compatibilidade com runtimes sem bodyParser.
 async function parseBody(req: any): Promise<any> {
     if (req.body !== undefined) return req.body;
     return new Promise((resolve, reject) => {
