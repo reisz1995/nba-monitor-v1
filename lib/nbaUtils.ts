@@ -54,10 +54,7 @@ const PROJECTION_CONFIG = {
     HOME_ADVANTAGE: 1.80,
     LAST_MARGIN_THRESHOLD: 22,
     LAST_MARGIN_PENALTY: 1.5,
-    SCORE_FLOOR_MIN: 92,
     SCORE_CEILING_MAX: 130,
-    PACE_ADJUSTMENT_FACTOR: 0.03,
-    PACE_THRESHOLD_SLOW: 97.5,
     OVERCLOCK_THRESHOLD: 2.0,
     OVERCLOCK_BOOST: 1.04,
     // [V5.6] Elimination Game Psychology - DETECÇÃO FIXADA
@@ -413,7 +410,11 @@ const getDynamicFloor = (
         }
     }
     
-    if (outCount >= PROJECTION_CONFIG.BENCH_DEPTH_THRESHOLD) multiplier = PROJECTION_CONFIG.FLOOR_MULTIPLE_OUT_MULTIPLIER;
+    if (outCount >= PROJECTION_CONFIG.BENCH_DEPTH_THRESHOLD) {
+        // Math.min garante que múltiplos desfalques nunca elevem o floor acima do piso
+        // já definido por estrela OUT (0.82 < 0.88 = cenário mais restritivo prevalece)
+        multiplier = Math.min(multiplier, PROJECTION_CONFIG.FLOOR_MULTIPLE_OUT_MULTIPLIER);
+    }
     
     // [V5.6] NOVO: Momentum negativo reduz floor extra
     if (momentum !== undefined && momentum < -30) {
@@ -546,6 +547,10 @@ const clampScores = (scoreA: number, scoreB: number, floorA: number, floorB: num
     };
 };
 
+// Detecta se é um jogo de eliminação de série (um dos times está a 1 vitória do título).
+// `leader` indica quem está na frente no placar da série neste jogo específico,
+// e é usado para conceder home-court boost ao time que lidera E joga em casa.
+// Não confundir com "favorito geral": um time pode liderar 3-2 sendo underdog.
 const isCloseSeriesGame = (seriesScore?: string): { isClose: boolean; leader: 'A' | 'B' | null } => {
     if (!seriesScore) return { isClose: false, leader: null };
     const match = seriesScore.match(/(\d+)-(\d+)/);
@@ -594,7 +599,7 @@ export const calculateProjectedScores = (
     databallrA?: DataballrInput | null, databallrB?: DataballrInput | null
 ) => {
     // [V5.6] Priorizar flag explícita, fallback para regex no editorInsight
-    const isPlayoff = options?.isPlayoff ?? !!options?.editorInsight?.match(/playoff|pós-temporada|round \\d|game \\d|série/i);
+    const isPlayoff = options?.isPlayoff ?? !!options?.editorInsight?.match(/playoff|pós-temporada|round \d|game \d|série/i);
     const powerDiffWeight = isPlayoff ? 0.95 : PROJECTION_CONFIG.POWER_DIFF_WEIGHT;
 
     const rtgA = getTeamRatings(teamA, databallrA);
@@ -626,13 +631,17 @@ export const calculateProjectedScores = (
     projA = context.adjA; projB = context.adjB;
 
     const superiority = applySuperiorityFilters(projA, projB, teamA, teamB, rtgA, rtgB, options?.powerA ?? 0, options?.powerB ?? 0, isPlayoff);
+    projA = superiority.adjA; projB = superiority.adjB;
+
+    // Ajuste de power playoff: em playoffs reduz o peso do power diff vs temporada regular
+    // (powerDiffWeight=0.95 < POWER_DIFF_WEIGHT=1.1 → powerAdj negativo → recalibra spread)
+    // Em temporada regular powerDiffWeight === POWER_DIFF_WEIGHT → powerAdj = 0, sem efeito.
     const powerDiff = Math.abs((options?.powerA ?? 0) - (options?.powerB ?? 0));
     const powerAdj = powerDiff * (powerDiffWeight - PROJECTION_CONFIG.POWER_DIFF_WEIGHT);
-    if (options?.powerA && options.powerB) {
+    if (options?.powerA && options.powerB && powerAdj !== 0) {
         if (options.powerA > options.powerB) projA += powerAdj;
         else projB += powerAdj;
     }
-    projA = superiority.adjA; projB = superiority.adjB;
 
     // [V5.6] Elimination Game Psychology - DETECÇÃO FIXADA
     const isEliminationGame = detectEliminationGame(options?.seriesScore, options?.gameNumber, isPlayoff);
@@ -878,6 +887,12 @@ export const parseScoreToTotal = (score: string): number => {
     return isNaN(pts1) || isNaN(pts2) ? 0 : pts1 + pts2;
 };
 
+/**
+ * @deprecated Use calculateDeterministicPace (via calculateProjectedScores) para pace interno ao kernel.
+ * Esta função não aplica clamping, ajuste de power/defesa, overclock, injury reduction,
+ * playoff cap nem retorna h2hWeightUsed — produz valores inconsistentes com o kernel V5.6.
+ * Mantida apenas por compatibilidade com consumidores externos legados.
+ */
 export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team, h2hFromDefense?: any[]) => {
     const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
     const getGamePace = (score: string) => parseScoreToTotal(score) / (2 * PACE_FACTOR);
