@@ -560,7 +560,12 @@ const calculateSeriesScore = (
     if (isNaN(homeScore) || isNaN(awayScore)) return;
 
     const homeKey = getLastWord(g.home_team);
-    const awayKey = getLastWord(g.away_team);
+
+    // Warn se o home_team não bate com nenhum dos dois times esperados
+    if (homeKey !== teamAKey && homeKey !== teamBKey) {
+      console.warn(`[calculateSeriesScore] Matching ambíguo: home_team="${g.home_team}" não bate com "${teamAName}" nem "${teamBName}". Jogo ignorado.`);
+      return;
+    }
 
     // Determinar qual time é qual
     const isTeamAHome = homeKey === teamAKey || g.home_team.toLowerCase().includes(teamAKey);
