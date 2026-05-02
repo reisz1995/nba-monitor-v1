@@ -304,12 +304,14 @@ export const compareTeams = async (
   const awayTeamLabel = isHomeA ? teamB.name : teamA.name;
   const gameDate = momentumData?.date;
 
-  // Busca pela data do jogo e nomes dos times na nba_games_schedule
+  // Busca pela data do jogo e nomes dos times na nba_games_schedule.
+  // Usa nome completo no ilike para evitar falsos positivos por última palavra
+  // (ex: "Clippers" bateria tanto em "LA Clippers" quanto em dados sujos).
   let scheduleQuery = supabase
     .from('nba_games_schedule')
     .select('tactical_prediction, game_date, home_team, away_team')
-    .ilike('home_team', `%${homeTeamLabel.split(' ').pop()}%`)
-    .ilike('away_team', `%${awayTeamLabel.split(' ').pop()}%`);
+    .ilike('home_team', `%${homeTeamLabel}%`)
+    .ilike('away_team', `%${awayTeamLabel}%`);
 
   if (gameDate) {
     scheduleQuery = scheduleQuery.eq('game_date', gameDate);
@@ -319,8 +321,20 @@ export const compareTeams = async (
     .limit(1)
     .maybeSingle();
 
+  if (!scheduleData) {
+    console.warn(`[V5.5] Nenhuma entrada na schedule para "${homeTeamLabel}" vs "${awayTeamLabel}"${gameDate ? ` em ${gameDate}` : ''}. editorInsight e seriesScore serão nulos.`);
+  }
+
   // [V5.5] tactical_prediction = previsão da redação (contexto editorial)
-  const editorInsight = scheduleData?.tactical_prediction || null;
+  const rawEditorInsight: string | null = scheduleData?.tactical_prediction || null;
+
+  // Sanitização: remove whitespace excessivo, trunca em 500 chars para não poluir o prompt
+  const sanitizeText = (text: string, max = 500): string =>
+    text.replace(/\s+/g, ' ').trim().slice(0, max);
+
+  const editorInsight: string | null = rawEditorInsight
+    ? sanitizeText(rawEditorInsight)
+    : null;
 
   // [V5.5] Usar nomes exatos da schedule para busca de série
   const scheduleHome = scheduleData?.home_team || homeTeamLabel;
@@ -347,6 +361,14 @@ export const compareTeams = async (
 
   // Extrair defenseData (H2H) do momentumData
   const baseH2H = momentumData?.defense_data || momentumData?.momentum_data?.home_vs_away;
+
+  // [V5.6] Sinal editorial extraído como feature estruturada — não apenas texto no prompt
+  const editorialLean = {
+    expectsOver:  /over|pontuação alta|ritmo alto|ofensivo/i.test(editorInsight || ''),
+    expectsUnder: /under|defesa|placar baixo|grind|lento/i.test(editorInsight || ''),
+    favorsHome:   new RegExp(homeTeamLabel.split(' ').pop() || homeTeamLabel, 'i').test(editorInsight || ''),
+    favorsAway:   new RegExp(awayTeamLabel.split(' ').pop() || awayTeamLabel, 'i').test(editorInsight || ''),
+  };
 
   // [V5.5] Chamada ao kernel com todos os novos parâmetros
   const { 
@@ -402,15 +424,16 @@ export const compareTeams = async (
   const tensorA = formatDataballrTensor(`CASA ${homeLabel}`, databallrA);
   const tensorB = formatDataballrTensor(`FORA ${awayLabel}`, databallrB);
 
-  // [V5.5] BLOCO DE DEBUG para o prompt da IA
+  // [V5.6] BLOCO DE DEBUG para o prompt da IA
   const v55DebugInfo = `
-[DEBUG V5.5 KERNEL]
+[DEBUG V5.6 KERNEL]
 H2H Weight Aplicado: ${h2hWeightUsed}
 Série em Grind: ${seriesTrendGrind ? 'SIM (avg < 205)' : 'NÃO'}
 Média Total da Série: ${seriesAvgTotal > 0 ? seriesAvgTotal.toFixed(1) : 'N/A'}
 Elimination Applied: ${eliminationApplied ? 'SIM (+4.5% underdog)' : 'NÃO'}
 Série Atual: ${seriesScore}
 Modo Playoff: ${isPlayoff ? 'ATIVO' : 'INATIVO'}
+Editorial Lean: OVER=${editorialLean.expectsOver} | UNDER=${editorialLean.expectsUnder} | Favorece Casa=${editorialLean.favorsHome} | Favorece Fora=${editorialLean.favorsAway}
 `;
 
   const prompt = `ALVO DE COMPUTAÇÃO: ${homeLabel} (CASA) vs ${awayLabel} (FORA). MODO: ${databallrModeTag}
@@ -451,7 +474,7 @@ Modo Playoff: ${isPlayoff ? 'ATIVO' : 'INATIVO'}
   ${v55DebugInfo}
 
   [VETOR 7: INSIGHT TÁTICO E EDITORIAL (PREVISÃO DA REDAÇÃO)]
-  ${editorInsight ? editorInsight : "Nenhuma previsão editorial pré-gerada associada a este confronto."}
+  ${editorInsight ?? "Nenhuma previsão editorial pré-gerada associada a este confronto."}
   Instrução Crítica: O vetor de Previsão da Redação carrega análises qualitativas de matchups, palpites e lesões cruciais. Sincronize a sua narração e análise de Key Factors/Detailed Analysis incorporando os fatores apontados por ele, caso haja sinergia com os dados quantitativos ou com as cotações de mercado (Exemplo: se o editor prevê um OVER, alinhe possíveis descrições táticas para endossar esse raciocínio).
 
   PROCESSE AS DIRETRIZES E RETORNE O JSON STRICT.`;
@@ -460,8 +483,15 @@ Modo Playoff: ${isPlayoff ? 'ATIVO' : 'INATIVO'}
     const text = await withRetry(() => callGeminiProxy('compareTeams', prompt), { retries: 2, initialDelay: 500 });
 
     // Assepsia e extração
-    const cleanJsonText = text.replace(/\`\`\`json\n|\`\`\`/g, '').trim();
-    const rawAnalysisResult = JSON.parse(cleanJsonText);
+    const cleanJsonText = text.replace(/```json\n|```/g, '').trim();
+
+    let rawAnalysisResult: any;
+    try {
+      rawAnalysisResult = JSON.parse(cleanJsonText);
+    } catch (e) {
+      console.error('[IA_ENGINE] JSON inválido recebido da IA:', cleanJsonText.slice(0, 300));
+      throw new Error('INVALID_JSON_FROM_AI');
+    }
 
     // [V5.5] REMOVIDO confidenceModifier — não existe no retorno do V5.5
     const coherentAnalysis = enforceThermodynamicCoherence(rawAnalysisResult, teamA, teamB, 0);
@@ -530,7 +560,7 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
  */
 const detectPlayoffFromText = (text: string | null): boolean => {
   if (!text) return false;
-  const playoffKeywords = /playoff|pós-temporada|round|série|eliminação|conferência|primeiro round|segundo round|finais/i;
+  const playoffKeywords = /playoff|pós-temporada|round|série|eliminação|conferência|finais|game\s?[1-7]/i;
   return playoffKeywords.test(text);
 };
 
@@ -563,7 +593,13 @@ const calculateSeriesScore = (
 
     // Warn se o home_team não bate com nenhum dos dois times esperados
     if (homeKey !== teamAKey && homeKey !== teamBKey) {
-      console.warn(`[calculateSeriesScore] Matching ambíguo: home_team="${g.home_team}" não bate com "${teamAName}" nem "${teamBName}". Jogo ignorado.`);
+      console.warn(`[calculateSeriesScore] Matching ambíguo — jogo ignorado:`, {
+        home_team: g.home_team,
+        away_team: g.away_team,
+        score: g.score,
+        esperado_A: teamAName,
+        esperado_B: teamBName,
+      });
       return;
     }
 
