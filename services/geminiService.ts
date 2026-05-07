@@ -1,8 +1,6 @@
-import { Type } from "@google/genai";
-import { Team, Insight, MatchupAnalysis, Source, PlayerStat, ESPNData, UnavailablePlayer, MarketData } from "../types";
+import { Team, Insight, MatchupAnalysis, PlayerStat, ESPNData, UnavailablePlayer, MarketData } from "../types";
 import { supabase } from "../lib/supabase";
 import { calculateProjectedScores, DataballrInput, getStandardTeamName } from "../lib/nbaUtils"; // ← V5.5
-import { toast } from "sonner";
 import { withRetry } from "../lib/resilience";
 
 /**
@@ -265,7 +263,6 @@ export const compareTeams = async (
   const notaA = Number(dbNotas.data?.find(n => n.franquia === teamA.name)?.nota_ia || teamA.ai_score || 0);
   const notaB = Number(dbNotas.data?.find(n => n.franquia === teamB.name)?.nota_ia || teamB.ai_score || 0);
 
-  const compactStats = formatPlayerStatsForAI((dbStats.data || playerStats).slice(0, 15));
   const compactInjuries = formatInjuriesForAI(dbInjuries.data || injuries);
   const compactStandings = formatStandingsForAI(dbStandings.data || []);
 

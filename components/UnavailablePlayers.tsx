@@ -12,7 +12,6 @@ interface UnavailablePlayersProps {
 }
 
 const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loading, teams, onRefresh }) => {
-  const [seeding, setSeeding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filtra jogadores duplicados pelo nome
@@ -65,7 +64,6 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
   };
 
   const seedUnavailable = async () => {
-    setSeeding(true);
     const mockData = [
       { player_name: 'Joel Embiid', team_name: '76ers', injury_description: 'Cirurgia no Joelho', retorno_previsto: 'Abril/2026', injury_status: 'OUT' },
       { player_name: 'Ja Morant', team_name: 'Grizzlies', injury_description: 'Dores no Ombro', retorno_previsto: 'TBD', injury_status: 'DAY-TO-DAY' },
@@ -79,9 +77,7 @@ const UnavailablePlayers: React.FC<UnavailablePlayersProps> = ({ players, loadin
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao simular desfalques.");
-    } finally {
-      setSeeding(false);
-    }
+    } finally {}
   };
 
   return (

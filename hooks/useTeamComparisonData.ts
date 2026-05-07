@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, GameResult, MarketData } from '../types';
+import { Team, MatchupAnalysis, PlayerStat, UnavailablePlayer, MarketData } from '../types';
 import { compareTeams, saveMatchupAnalysis, fetchGameWithMomentum } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
-import { calculateProjectedScores, DataballrInput, getStandardTeamName, normalizeTeamName } from '../lib/nbaUtils';
-import { findDataballrStatsByName } from '../services/databallrService';
-import { toast } from 'sonner';
+import { calculateProjectedScores, getStandardTeamName, normalizeTeamName } from '../lib/nbaUtils';
 
 interface UseTeamComparisonDataProps {
     teamA: Team;

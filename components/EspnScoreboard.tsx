@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, Clock, Tv } from 'lucide-react';
+import { Zap, Tv } from 'lucide-react';
 
 interface Game {
     id: string;

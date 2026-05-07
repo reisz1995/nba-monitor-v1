@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { GameResult } from '../types';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface MomentumBarProps {

@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import path from 'path';
-import fs from 'fs/promises';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
