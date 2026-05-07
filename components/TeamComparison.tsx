@@ -4,7 +4,7 @@ import MomentumBar from './MomentumBar';
 import MomentumPanel from './MomentumPanel';
 import { useTeamComparisonData } from '../hooks/useTeamComparisonData';
 import { StatBar, PlayerCard, AdvantageItem } from './ComparisonStats';
-import { X, Trophy, TrendingUp, AlertTriangle, Info, Target, Download, Share2, Activity, Zap } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Info, Download, Share2, Activity, Zap } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
 

@@ -3,14 +3,8 @@ import { supabase } from '../lib/supabase';
 import { Team, MatchupAnalysis } from '../types';
 import {
   History,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Trash2,
   TrendingUp,
-  Zap,
-  Target,
-  Tv
+  Zap
 } from 'lucide-react';
 import EspnScoreboard from './EspnScoreboard';
 

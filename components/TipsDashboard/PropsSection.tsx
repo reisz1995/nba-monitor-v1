@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Target, Zap, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
-import { PlayerStat, Team, UnavailablePlayer } from '../../types';
+import { PlayerStat, Team } from '../../types';
 import { getPlayerWeight } from '../../lib/nbaUtils';
 import { supabase } from '../../lib/supabase';
 
@@ -17,7 +17,7 @@ type MarketType = 'player_points' | 'player_rebounds' | 'player_assists';
 
 const PropsSection: React.FC<PropsSectionProps> = ({
     playersPlayingToday,
-    teams,
+    teams: _teams,
     getInjuriesForTeam,
     getTeamLogo,
     tipsDate

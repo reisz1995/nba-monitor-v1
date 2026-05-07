@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { PlayerStat, Team } from '../types';
-import { supabase } from '../lib/supabase';
 
 interface ScoreboardProps {
   playerStats: PlayerStat[];
@@ -10,41 +9,8 @@ interface ScoreboardProps {
   onRefresh: () => void;
 }
 
-const Scoreboard: React.FC<ScoreboardProps> = React.memo(({ playerStats, loading, teams, onRefresh }) => {
-  const [seeding, setSeeding] = useState(false);
+const Scoreboard: React.FC<ScoreboardProps> = React.memo(({ playerStats, loading, teams: _teams, onRefresh }) => {
   const [searchQuery, setSearchQuery] = useState('');
-
-  const getTeamLogo = React.useCallback((teamName: string) => {
-    if (!teamName) return 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png';
-    const cleanName = teamName.toLowerCase();
-    const team = teams.find(t =>
-      t.name.toLowerCase() === cleanName ||
-      cleanName.includes(t.name.toLowerCase()) ||
-      t.name.toLowerCase().includes(cleanName)
-    );
-    return team?.logo || 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png';
-  }, [teams]);
-
-  const seedPlayers = React.useCallback(async () => {
-    setSeeding(true);
-    const mockPlayers = [
-      { nome: 'Luka Doncic', time: 'Los Angeles Lakers', pontos: 32.8, rebotes: 7.8, assistencias: 8.7, posicao: 'Guard' },
-      { nome: 'Shai Gilgeous-Alexander', time: 'Oklahoma City Thunder', pontos: 31.8, rebotes: 4.4, assistencias: 6.2, posicao: 'Guard' },
-      { nome: 'Anthony Edwards', time: 'Minnesota Timberwolves', pontos: 29.3, rebotes: 5.2, assistencias: 4.8, posicao: 'Guard' },
-      { nome: 'Giannis Antetokounmpo', time: 'Milwaukee Bucks', pontos: 28.0, rebotes: 10.4, assistencias: 5.5, posicao: 'Forward' },
-      { nome: 'Tyrese Maxey', time: 'Philadelphia 76ers', pontos: 28.9, rebotes: 4.1, assistencias: 6.7, posicao: 'Guard' },
-      { nome: 'Nikola Jokic', time: 'Denver Nuggets', pontos: 28.7, rebotes: 12.1, assistencias: 10.9, posicao: 'Center' },
-    ];
-    try {
-      const { error } = await supabase.from('nba_jogadores_stats').insert(mockPlayers);
-      if (error) throw error;
-      onRefresh();
-    } catch (err: any) {
-      console.error(err);
-    } finally {
-      setSeeding(false);
-    }
-  }, [onRefresh]);
 
   const filteredStats = playerStats.filter(player =>
     player.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||

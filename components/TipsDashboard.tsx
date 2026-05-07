@@ -1,7 +1,7 @@
 
 import React, { useMemo, useRef, useCallback } from 'react';
 import { toPng } from 'html-to-image';
-import { Team, PlayerStat, PalpiteData, UnavailablePlayer, PredictionIA } from '../types';
+import { Team, PlayerStat, UnavailablePlayer, PredictionIA } from '../types';
 import { useTipsDashboardLogic } from '../hooks/useTipsDashboardLogic';
 import { findTeamByName } from '../lib/nbaUtils';
 import PowerRankingSection from './TipsDashboard/PowerRankingSection';
@@ -17,7 +17,7 @@ interface TipsDashboardProps {
   dbPredictions?: PredictionIA[];
 }
 
-const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unavailablePlayers, dbPredictions }) => {
+const TipsDashboard: React.FC<TipsDashboardProps> = ({ playerStats, teams, unavailablePlayers, dbPredictions: _dbPredictions }) => {
   const tableRef = useRef<HTMLDivElement>(null);
   const {
     tipsDate,

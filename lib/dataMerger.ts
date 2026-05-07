@@ -1,4 +1,4 @@
-import { Team, ESPNData, GameResult, DataballrInput } from './types';
+import { Team, ESPNData, GameResult } from './types';
 import { getMomentumScore, parseStreakToRecord, normalizeTeamName } from './nbaUtils';
 
 /**

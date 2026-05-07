@@ -1,4 +1,4 @@
-import { GameResult, Team, GameRecordData } from '../types';
+import { GameResult, Team } from '../types';
 
 export interface PaceOptions {
     isHomeA?: boolean | undefined;
@@ -161,7 +161,6 @@ const detectBlowoutTrend = (
                 maxMargin = margin;
                 // [V5.6] Identificar corretamente quem venceu baseado nos nomes dos times
                 const homeTeam = game.home_team || '';
-                const awayTeam = game.away_team || '';
                 const winnerIsHome = ptsHome > ptsAway;
                 
                 // Mapear para Team A ou Team B
@@ -448,7 +447,7 @@ export const calculateStarUncertainty = (injuries?: { nome?: string; isOut: bool
 // ─────────────────────────────────────────────────────────────────────────────
 // KERNEL DE PROJEÇÃO - [V5.6] CORREÇÕES CRÍTICAS
 // ─────────────────────────────────────────────────────────────────────────────
-const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: number, options?: PaceOptions) => {
+const applyContextualAdjustments = (scoreA: number, scoreB: number, _matchPace: number, options?: PaceOptions) => {
     let adjA = scoreA, adjB = scoreB;
     if (options?.isB2BA) adjA -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
     if (options?.isB2BB) adjB -= PROJECTION_CONFIG.LAST_MARGIN_PENALTY;
@@ -466,7 +465,7 @@ const applyContextualAdjustments = (scoreA: number, scoreB: number, matchPace: n
     return { adjA, adjB };
 };
 
-const applySuperiorityFilters = (scoreA: number, scoreB: number, teamA: Team, teamB: Team, rtgA: any, rtgB: any, powerA: number, powerB: number, isPlayoff: boolean = false) => {
+const applySuperiorityFilters = (scoreA: number, scoreB: number, _teamA: Team, _teamB: Team, rtgA: any, rtgB: any, powerA: number, powerB: number, isPlayoff: boolean = false) => {
     let adjA = scoreA, adjB = scoreB;
     const powerDiff = Math.abs(powerA - powerB);
     const offDiff = Math.abs(rtgA.offRtg - rtgB.offRtg);
@@ -926,7 +925,7 @@ export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team, h2hFromDefense?
     return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H: h2hGames.length > 0 };
 };
 
-export const calculateUnderdogValue = (teamA: Team, teamB: Team, analysis: { deltaA: number; deltaB: number; totalPayload: number }, marketSpread: number | null) => {
+export const calculateUnderdogValue = (teamA: Team, _teamB: Team, analysis: { deltaA: number; deltaB: number; totalPayload: number }, marketSpread: number | null) => {
     if (marketSpread === null) return null;
     const rules: string[] = [];
     const isUnderdogA = marketSpread > 0;
