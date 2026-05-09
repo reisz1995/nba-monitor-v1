@@ -1,6 +1,6 @@
 import { Team, Insight, MatchupAnalysis, PlayerStat, ESPNData, UnavailablePlayer, MarketData } from "../types";
 import { supabase } from "../lib/supabase";
-import { calculateProjectedScores, DataballrInput, getStandardTeamName } from "../lib/nbaUtils"; // ← V5.5
+import { calculateProjectedScores, DataballrInput, PaceOptions, getStandardTeamName } from "../lib/nbaUtils"; // ← V5.6
 import { withRetry } from "../lib/resilience";
 
 /**
@@ -23,6 +23,9 @@ const formatDataballrTensor = (
     `DReb%=${d.drb?.toFixed(1) ?? 'N/D'}`,
     `Atq.Rel=${d.offense_rating?.toFixed(1) ?? 'N/D'}`,
     `Def.Rel=${d.defense_rating?.toFixed(1) ?? 'N/D'}`,
+    // [V5.6] Novos campos de banco
+    d.bench_net_rating != null ? `BenchNET=${d.bench_net_rating.toFixed(1)}` : 'BenchNET=N/D',
+    d.bench_depth_score != null ? `BenchDepth=${d.bench_depth_score.toFixed(1)}` : 'BenchDepth=N/D',
   ];
   return `[${label} — Databallr 14d] ${parts.join(' | ')}`;
 };
@@ -371,7 +374,8 @@ export const compareTeams = async (
   const { 
     matchPace, totalPayload, kineticState, deltaA, deltaB, 
     databallrEnhanced, isPlayoff,
-    h2hWeightUsed, seriesTrendGrind, seriesAvgTotal, eliminationApplied
+    h2hWeightUsed, seriesTrendGrind, seriesAvgTotal, eliminationApplied,
+    resilienceBuffA, resilienceBuffB,
   } = calculateProjectedScores(teamA, teamB, {
     isHomeA,
     injuriesA,
@@ -422,7 +426,7 @@ export const compareTeams = async (
   const tensorB = formatDataballrTensor(`FORA ${awayLabel}`, databallrB);
 
   // [V5.6] BLOCO DE DEBUG para o prompt da IA
-  const v55DebugInfo = `
+  const v56DebugInfo = `
 [DEBUG V5.6 KERNEL]
 H2H Weight Aplicado: ${h2hWeightUsed}
 Série em Grind: ${seriesTrendGrind ? 'SIM (avg < 205)' : 'NÃO'}
@@ -430,6 +434,8 @@ Média Total da Série: ${seriesAvgTotal > 0 ? seriesAvgTotal.toFixed(1) : 'N/A'
 Elimination Applied: ${eliminationApplied ? 'SIM (+4.5% underdog)' : 'NÃO'}
 Série Atual: ${seriesScore}
 Modo Playoff: ${isPlayoff ? 'ATIVO' : 'INATIVO'}
+Resiliência ${teamA.name}: +${(resilienceBuffA ?? 0).toFixed(1)} pts
+Resiliência ${teamB.name}: +${(resilienceBuffB ?? 0).toFixed(1)} pts
 Editorial Lean: OVER=${editorialLean.expectsOver} | UNDER=${editorialLean.expectsUnder} | Favorece Casa=${editorialLean.favorsHome} | Favorece Fora=${editorialLean.favorsAway}
 `;
 
@@ -464,11 +470,12 @@ Editorial Lean: OVER=${editorialLean.expectsOver} | UNDER=${editorialLean.expect
   ORTG = pontos marcados por 100 posses | DRTG = pontos sofridos por 100 posses | NET = saldo de dominância
   TS% = aproveitamento real de arremessos | TOV% = % posses desperdiçadas | OReb% = rebotes ofensivos
   Atq.Rel e Def.Rel = performance relativa à média da liga no período de 14 dias.
+  BenchNET = Net Rating do banco (14d) | BenchDepth = Score de profundidade do banco (0-10)
   ${tensorA}
   ${tensorB}
 
-  [VETOR 6.5: DIAGNÓSTICO DO KERNEL V5.5]
-  ${v55DebugInfo}
+  [VETOR 6.5: DIAGNÓSTICO DO KERNEL V5.6]
+  ${v56DebugInfo}
 
   [VETOR 7: INSIGHT TÁTICO E EDITORIAL (PREVISÃO DA REDAÇÃO)]
   ${editorInsight ?? "Nenhuma previsão editorial pré-gerada associada a este confronto."}
@@ -490,7 +497,7 @@ Editorial Lean: OVER=${editorialLean.expectsOver} | UNDER=${editorialLean.expect
       throw new Error('INVALID_JSON_FROM_AI');
     }
 
-    // [V5.5] REMOVIDO confidenceModifier — não existe no retorno do V5.5
+    // [V5.6] REMOVIDO confidenceModifier — não existe no retorno do V5.6
     const coherentAnalysis = enforceThermodynamicCoherence(rawAnalysisResult, teamA, teamB, 0);
 
     // Calcula pick_total (PREV_OVER/UNDER) direto na fonte
@@ -535,7 +542,16 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
 
   try {
     const text = await withRetry(() => callGeminiProxy('analyzeStandings', prompt), { retries: 2, initialDelay: 500 });
-    const insights: Insight[] = JSON.parse(text);
+
+    // [V5.6] CORRIGIDO: sanitização idêntica à de compareTeams — evita quebra por markdown fences
+    const cleanJsonText = text.replace(/```json\n?|```/g, '').trim();
+    let insights: Insight[];
+    try {
+      insights = JSON.parse(cleanJsonText);
+    } catch (e) {
+      console.error('[IA_ENGINE] JSON inválido em analyzeStandings:', cleanJsonText.slice(0, 300));
+      throw new Error('INVALID_JSON_FROM_AI');
+    }
     return insights;
   } catch (error) {
     console.error("[IA_ENGINE] Colapso de Insights:", error);
@@ -548,7 +564,7 @@ export const analyzeStandings = async (teams: Team[]): Promise<Insight[]> => {
 };
 
 // ==========================================
-// [V5.5] FUNÇÕES AUXILIARES
+// [V5.6] FUNÇÕES AUXILIARES
 // ==========================================
 
 /**
