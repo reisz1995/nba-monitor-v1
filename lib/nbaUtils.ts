@@ -886,45 +886,6 @@ export const parseScoreToTotal = (score: string): number => {
     return isNaN(pts1) || isNaN(pts2) ? 0 : pts1 + pts2;
 };
 
-/**
- * @deprecated Use calculateDeterministicPace (via calculateProjectedScores) para pace interno ao kernel.
- * Esta função não aplica clamping, ajuste de power/defesa, overclock, injury reduction,
- * playoff cap nem retorna h2hWeightUsed — produz valores inconsistentes com o kernel V5.6.
- * Mantida apenas por compatibilidade com consumidores externos legados.
- */
-export const calculateMatchupPaceV2 = (teamA: Team, teamB: Team, h2hFromDefense?: any[]) => {
-    const PACE_FACTOR = SEASON_25_26_METRICS.AVG_ORTG / 100;
-    const getGamePace = (score: string) => parseScoreToTotal(score) / (2 * PACE_FACTOR);
-    const last5A = (teamA.record || []).slice(-5);
-    const avgPace5A = last5A.length > 0 ? last5A.reduce((sum, g) => {
-        const score = typeof g === 'object' && g !== null && 'score' in g ? (g as any).score : null;
-        return sum + (score ? getGamePace(score) : 0);
-    }, 0) / last5A.length : 0;
-    const last5B = (teamB.record || []).slice(-5);
-    const avgPace5B = last5B.length > 0 ? last5B.reduce((sum, g) => {
-        const score = typeof g === 'object' && g !== null && 'score' in g ? (g as any).score : null;
-        return sum + (score ? getGamePace(score) : 0);
-    }, 0) / last5B.length : 0;
-    const normB = normalizeTeamName(teamB.name);
-    let h2hGames = h2hFromDefense && h2hFromDefense.length > 0 ? h2hFromDefense : [];
-    if (h2hGames.length === 0) {
-        h2hGames = (teamA.record || []).filter(g => {
-            const opp = typeof g === 'object' && g !== null && 'opponent' in g ? (g as any).opponent : null;
-            return opp && normalizeTeamName(opp).includes(normB);
-        }).slice(-2);
-    }
-    let avgPaceH2H = 0;
-    if (h2hGames.length > 0) {
-        avgPaceH2H = h2hGames.reduce((sum, g) => {
-            const score = typeof g === 'object' && g !== null && 'score' in g ? (g as any).score : null;
-            return sum + (score ? getGamePace(score) : 0);
-        }, 0) / h2hGames.length;
-    } else if (avgPace5A > 0 && avgPace5B > 0) avgPaceH2H = (avgPace5A + avgPace5B) / 2;
-    let finalPace = 0;
-    if (avgPace5A > 0 && avgPace5B > 0 && avgPaceH2H > 0) finalPace = (avgPace5A + avgPace5B + avgPaceH2H) / 3;
-    return { matchPace: finalPace, avgPace5A, avgPace5B, avgPaceH2H, hasH2H: h2hGames.length > 0 };
-};
-
 export const calculateUnderdogValue = (teamA: Team, _teamB: Team, analysis: { deltaA: number; deltaB: number; totalPayload: number }, marketSpread: number | null) => {
     if (marketSpread === null) return null;
     const rules: string[] = [];
