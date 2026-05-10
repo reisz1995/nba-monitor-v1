@@ -132,9 +132,9 @@ const HistoryRow = memo(({
       <div className="w-full md:w-[12%] px-4 md:px-4 py-2 md:py-4 flex flex-col md:items-center justify-start md:justify-center">
         <span className="md:hidden text-[8px] font-black text-slate-600 uppercase tracking-widest font-mono mb-1">Pick Total</span>
         {record.pick_total ? (
-          <span className={`text-[9px] md:text-[10px] font-black uppercase px-2 py-1 border-2 font-mono tracking-tight w-fit ${record.pick_total.startsWith('PREV_OVER')
+          <span className={`text-[9px] md:text-[10px] font-black uppercase px-2 py-1 border-2 font-mono tracking-tight w-fit ${record.pick_total.startsWith('MERCADO_TOTAL')
               ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-              : record.pick_total.startsWith('PREV_UNDER')
+              : record.pick_total.startsWith('MERCADO_TOTAL')
                 ? 'bg-rose-600/20 border-rose-500 text-rose-400'
                 : 'bg-slate-700/30 border-slate-600 text-slate-400'
             }`}>
