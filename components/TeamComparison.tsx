@@ -97,13 +97,13 @@ const TeamComparison: React.FC<TeamComparisonProps> = ({ teamA, teamB, playerSta
     const diff = bettingLines.totalProjected - marketData.total;
     if (diff >= 3.5) {
       totalStatusColor = 'bg-emerald-600 text-white';
-      totalStatusLabel = `PREV_OVER ${marketData.total}`;
+      totalStatusLabel = `MERCADO_TOTAL ${marketData.total}`;
     } else if (diff <= -3.5) {
       totalStatusColor = 'bg-rose-600 text-white';
-      totalStatusLabel = `PREV_UNDER ${marketData.total}`;
+      totalStatusLabel = `MERCADO_TOTAL ${marketData.total}`;
     } else {
       totalStatusColor = 'bg-zinc-500 text-white';
-      totalStatusLabel = `PASS_TOTAL ${marketData.total}`;
+      totalStatusLabel = `MERCADO_TOTAL ${marketData.total}`;
     }
   } else {
     if (bettingLines.totalProjected > 225.5) {
